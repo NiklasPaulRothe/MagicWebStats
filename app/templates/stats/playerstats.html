@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <main>
+        <section id="player-stats">
+            <h2>Player Stats</h2>
+            <table id="player-stats-table">
+                <thead>
+                    <tr>
+                        <th data-type="string">Name</th>
+                        <th data-type="number">Games</th>
+                        <th data-type="number">Early <br>Sol Ring</th>
+                        <th data-type="number">Sol Ring <br>(in %)</th>
+                        <th data-type="number">Wins</th>
+                        <th data-type="number">Winrate <br>(in %)</th>
+                        <th data-type="number">First</th>
+                        <th data-type="number">First <br>(in %)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Player stats data will be populated here -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+{%  endblock %}

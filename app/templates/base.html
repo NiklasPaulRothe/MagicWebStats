@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic: The Gathering Stats</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/basic.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Magic: The Gathering Stats</h1>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('main.index') }}">Home</a></li>
+                <li>
+                    <a href="javascript:void(0)">Stats</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('stats.playerstats') }}">Player</a>
+                        <a href="{{ url_for('stats.colorstats') }}">Color</a>
+                        <a href="{{ url_for('stats.deckstats') }}">Deck</a>
+                    </div>
+                </li>
+                <li>
+                    <a href="javascript:void(0)">Add</a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('stats.player_add') }}">Player</a>
+                        <a href="{{ url_for('stats.deck_add') }}">Deck</a>
+                        <a href="{{ url_for('stats.game_add') }}">Game</a>
+                    </div>
+                </li>
+                {% if current_user.is_anonymous %}
+                    <li><a href="{{ url_for('auth.login') }}">Login</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('main.user', username=current_user.username) }}">Profile</a></li>
+                    <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Magic: The Gathering Stats. All rights reserved.</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch and populate Player Stats table
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => populateTable('player-stats-table', data));
+
+            // Fetch and populate Color Stats table
+            fetch('/api/color-data')
+                .then(response => response.json())
+                .then(data => populateTable('color-stats-table', data));
+
+            // Fetch and populate User Deck Stats table
+            fetch('/api/userdecks')
+                .then(response => response.json())
+                .then(data => populateTable('user-deck-stats-table', data));
+
+            // Function to populate tables
+            function populateTable(tableId, data) {
+                const tbody = document.querySelector(`#${tableId} tbody`);
+                const headers = document.querySelectorAll(`#${tableId} thead th`);
+                tbody.innerHTML = ''; // Clear existing table data
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = Array.from(headers).map(header => {
+                        const key = header.textContent.trim();
+                        return `<td>${item[key] || ''}</td>`;
+                    }).join('');
+                    tbody.appendChild(row);
+                });
+            }
+
+            // Sort table functionality
+            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+
+            const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
+                v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
+            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+
+            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
+                const table = th.closest('table');
+                const tbody = table.querySelector('tbody');
+                Array.from(tbody.querySelectorAll('tr'))
+                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
+                    .forEach(tr => tbody.appendChild(tr));
+            }));
+        });
+    </script>
+</body>
+</html>
