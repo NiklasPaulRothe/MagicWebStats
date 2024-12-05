@@ -2,43 +2,83 @@
 
 {% block content %}
     <h1>Add Game</h1>
-    <form method="POST">
+    <form action="" method="post">
         {{ form.hidden_tag() }}
-
-        <p>{{ form.winner.label }} {{ form.winner(size=32) }}</p>
-        <p>{{ form.first.label }} {{ form.first(size=32) }}</p>
-        <p>{{ form.fun.label }} {{ form.fun(size=5) }}</p>
-        <p>{{ form.mulligan.label }} {{ form.mulligan(size=5) }}</p>
-        <p>{{ form.performance.label }} {{ form.performance(size=5) }}</p>
-        <p>{{ form.comment.label }} {{ form.comment(rows=4, cols=50) }}</p>
-        <p>{{ form.date.label }} {{ form.date() }}</p>
-        <p>{{ form.planechase.label }} {{ form.planechase() }}</p>
 
         <h3>Players</h3>
         <div id="players-fields">
             {% for player_form in form.players %}
                 <div class="field-list-item player-fields">
-                    <p>{{ player_form.player.label }} {{ player_form.player(size=32) }}</p>
-                    <p>{{ player_form.deck.label }} {{ player_form.deck(size=32) }}</p>
+                    <p>{{ player_form.player.label }} {{ player_form.player() }}</p>
+                    <p>{{ player_form.deck.label }} {{ player_form.deck() }}</p>
                     <p>{{ player_form.early_fast_mana.label }} {{ player_form.early_fast_mana() }}</p>
                     <button type="button" class="remove-player">Remove</button>
                 </div>
             {% endfor %}
         </div>
-
+        <br>
         <div>
             <button type="button" id="add-player">Add another player</button>
         </div>
-        <p><button type="submit">{{ form.submit.label }}</button></p>
+
+        <h3>Game Stats</h3>
+        <p>{{ form.winner.label }} {{ form.winner() }}</p>
+        <p>{{ form.first.label }} {{ form.first() }}</p>
+        <p>{{ form.date.label }} {{ form.date() }}</p>
+        <p>{{ form.planechase.label }} {{ form.planechase() }}</p>
+
+        <h3>Deck Tracking</h3>
+        <p>{{ form.fun.label }} {{ form.fun(size=5) }}</p>
+        <p>{{ form.performance.label }} {{ form.performance(size=5) }}</p>
+        <p>{{ form.mulligan.label }} {{ form.mulligan(size=5) }}</p>
+        <p>{{ form.comment.label }} {{ form.comment(rows=4, cols=50) }}</p>
+
+        <p>{{ form.submit }}</p>
     </form>
 
     <script>
+        function add_player_list(player_id) {
+            const player = {{ player |tojson }}
+            var dropdown = document.getElementById("players-".concat(player_id,"-player"));
+            for(let i = 0; i< player.length; i++) {
+                var option = document.createElement('option');
+                option.text = option.value = player[i];
+                dropdown.add(option, 0);
+            }
+        }
+
+        function add_deck_list(player_id) {
+            const decks = {{ decks |tojson }}
+            var dropdown = document.getElementById("players-".concat(player_id,"-deck"));
+
+            dropdown.innerHTML="";
+
+            for(let i = 0; i< decks.length; i++) {
+                if(decks[i][2] === document.getElementById("players-".concat(player_id,"-player")).value) {
+                    var option = document.createElement('option');
+                    option.text = option.value = decks[i][0].concat(" (", decks[i][1], ")");
+                    dropdown.add(option, 0);
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             const playersContainer = document.getElementById('players-fields');
             const addPlayerButton = document.getElementById('add-player');
             const maxPlayers = {{ form.players.max_entries }};
             const minPlayers = {{ form.players.min_entries }};
             let currentPlayers = {{ form.players|length }};
+
+            for (let i = 0; i<currentPlayers; i++) {
+                add_player_list(i)
+                add_deck_list(i)
+                var dropdown = document.getElementById("players-".concat(i,"-player"));
+
+                dropdown.addEventListener("change", function() {
+                    add_deck_list(i)
+                })
+            }
+
 
             addPlayerButton.addEventListener('click', function () {
                 if (currentPlayers < maxPlayers) {
@@ -48,15 +88,22 @@
                     const playerField = document.createElement('div');
                     playerField.classList.add('field-list-item', 'player-fields');
                     playerField.innerHTML = `
-                        <p><label for="players-${playerIndex}-player">Player ${playerIndex + 1}</label>
-                        <input type="text" name="players-${playerIndex}-player" id="players-${playerIndex}-player" size="32"></p>
-                        <p><label for="players-${playerIndex}-deck">Deck ${playerIndex + 1}</label>
-                        <input type="text" name="players-${playerIndex}-deck" id="players-${playerIndex}-deck" size="32"></p>
+                        <p><label for="players-${playerIndex}-player">Player</label>
+                        <select name="players-${playerIndex}-player" id="players-${playerIndex}-player"></p></select>
+                        <p><label for="players-${playerIndex}-deck">Deck</label>
+                        <select name="players-${playerIndex}-deck" id="players-${playerIndex}-deck"></p></select>
                         <p><label for="players-${playerIndex}-early_fast_mana">Early Fast Mana</label>
                         <input type="checkbox" name="players-${playerIndex}-early_fast_mana" id="players-${playerIndex}-early_fast_mana"></p>
                         <button type="button" class="remove-player">Remove</button>
                     `;
                     playersContainer.appendChild(playerField);
+                    add_player_list(currentPlayers-1)
+                    add_deck_list(currentPlayers-1)
+                    var dropdown = document.getElementById("players-".concat(currentPlayers-1,"-player"));
+
+                    dropdown.addEventListener("change", function() {
+                        add_deck_list(currentPlayers-1)
+                    })
 
                     const removeButtons = document.querySelectorAll('.remove-player');
                     removeButtons.forEach(button => {

@@ -1,6 +1,8 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, IntegerField, BooleanField, TextAreaField, FieldList, DateField, FormField, Form
+from wtforms.fields.choices import SelectField
 from wtforms.validators import ValidationError, DataRequired, NumberRange, Optional
+from wtforms_sqlalchemy.fields import QuerySelectField
 import sqlalchemy as sa
 from app import db
 from app.models import Player, Deck
@@ -18,8 +20,8 @@ class PlayerAddForm(FlaskForm):
 class DeckAddForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])
     commander = StringField('Commander', validators=[DataRequired()])
-    player = StringField('Player', validators=[DataRequired()])
-    color_identity = StringField('Color_Identity', validators=[DataRequired()])
+    player = SelectField('Player', choices=[])
+    color_identity = SelectField('Color Identity', choices=[])
     partner = StringField('Partner')
     submit = SubmitField('Add Deck')
 
@@ -31,17 +33,17 @@ class DeckAddForm(FlaskForm):
 
 # Define a subform for Player-related fields
 class PlayerForm(Form):
-    player = StringField('Player', validators=[DataRequired()])
-    deck = StringField('Deck', validators=[DataRequired()])
+    player = SelectField('Player', validate_choice=False)
+    deck = SelectField('Deck', validate_choice=False)
     early_fast_mana = BooleanField('Early Fast Mana', default=False)
 
 # Main GameAddForm
 class GameAddForm(FlaskForm):
-    winner = StringField('Winner', validators=[DataRequired()])
-    first = StringField('First', validators=[DataRequired()])
-    fun = IntegerField('Fun', validators=[DataRequired(), NumberRange(min=0, max=10)])
-    mulligan = IntegerField('Mulligan', validators=[DataRequired(), NumberRange(min=0, max=7)])
-    performance = IntegerField('Performance', validators=[DataRequired(), NumberRange(min=0, max=10)])
+    winner = SelectField('Winner', choices=[])
+    first = SelectField('First', choices=[])
+    fun = IntegerField('Fun', validators=[Optional(), NumberRange(min=0, max=10)])
+    mulligan = IntegerField('Mulligan', validators=[Optional(), NumberRange(min=0, max=7)])
+    performance = IntegerField('Performance', validators=[Optional(), NumberRange(min=0, max=10)])
     comment = TextAreaField('Comment', validators=[Optional()])
     date = DateField('Date', format='%Y-%m-%d', validators=[DataRequired()])
     planechase = BooleanField('Planechase', default=False)
@@ -50,7 +52,7 @@ class GameAddForm(FlaskForm):
     players = FieldList(FormField(PlayerForm), min_entries=3, max_entries=5)
 
     # Submit button
-    submit = SubmitField('Submit')
+    submit = SubmitField('Abschicken')
 
     # Add another player button (for dynamically adding players)
     add_player = SubmitField('Add another player')
