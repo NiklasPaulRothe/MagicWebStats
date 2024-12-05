@@ -187,7 +187,7 @@ def userdecks():
     FROM "data_owner"."Decks"
     WHERE "Player" = :player AND "Active" = true
     ORDER BY "Name";'''),
-        {'player': db.session.scalar(sa.select(Player.id).where(current_user.username == Player.Name))})
+        {'player': db.session.scalar(sa.select(Player.id).where(current_user.spieler == Player.id))})
 
     list = []
     for entry in results:

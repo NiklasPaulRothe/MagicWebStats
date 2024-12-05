@@ -21,6 +21,9 @@ def login():
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password')
             return redirect(url_for('auth.login'))
+        if user.active is False:
+            flash('Account ist nicht aktiviert')
+            return redirect(url_for('auth.login'))
         login_user(user, remember=form.remember_me.data)
         if (current_user.username == 'Niklas'):
             identity_changed.send(current_app._get_current_object(),identity=Identity(user.id))

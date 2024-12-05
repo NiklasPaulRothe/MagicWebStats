@@ -20,6 +20,9 @@ class User(UserMixin, db.Model):
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True,
                                              unique=True)
     password_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
+    spieler: so.Mapped[int] = so.mapped_column(sa.Integer)
+    active: so.Mapped[bool] = so.mapped_column(sa.Boolean)
+    role: so.Mapped[str] = so.mapped_column(sa.String(64))
 
     def __repr__(self):
         return '<User {}>'.format(self.username)

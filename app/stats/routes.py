@@ -4,6 +4,7 @@ from app import db, admin_permission
 from app.stats import bp
 from flask import render_template, flash, redirect, url_for, request, session
 from flask_login import login_required
+from app.auth import role_required
 import sqlalchemy as sa
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm
@@ -12,7 +13,8 @@ from app.models import Player, Deck, Game, Participant
 
 
 @bp.route('/PlayerAdd', methods=['GET', 'POST'])
-@admin_permission.require(http_exception=403)
+@role_required('admin')
+@login_required
 def player_add():
     form = PlayerAddForm()
     if form.validate_on_submit():
@@ -24,7 +26,7 @@ def player_add():
     return render_template('stats/PlayerAdd.html', form=form)
 
 @bp.route('/DeckAdd', methods=['GET', 'POST'])
-@admin_permission.require(http_exception=403)
+@role_required('admin')
 @login_required
 def deck_add():
     form = DeckAddForm()
@@ -46,7 +48,7 @@ def deck_add():
     return render_template('stats/DeckAdd.html', form=form)
 
 @bp.route('/game-add', methods=['GET', 'POST'])
-@admin_permission.require(http_exception=403)
+@role_required('admin')
 @login_required
 def game_add():
     form = GameAddForm()
