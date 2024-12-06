@@ -3,5 +3,21 @@
 {% block content %}
     <main>
         <h1>Hi, {{ current_user.username }}!</h1>
+        <section id="deck-stats">
+            <h2>Deck Stats</h2>
+            <table id="user-deck-stats-table">
+                <thead>
+                    <tr>
+                        <th data-type="string">Name</th>
+                        <th data-type="string">Commander</th>
+                        <th data-type="string">Color Identity</th>
+                        <th data-type="string"> </th>
+                    </tr>
+                </thead>
+                <tbody>
+                <!-- Deck stats data will be populated here -->
+                </tbody>
+            </table>
+        </section>
     </main>
 {%  endblock %}

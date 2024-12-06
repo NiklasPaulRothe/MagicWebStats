@@ -10,3 +10,4 @@ class Config:
         'postgres://', 'postgresql://')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')
+    SESSION_COOKIE_DOMAIN = False
