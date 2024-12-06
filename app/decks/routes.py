@@ -28,7 +28,7 @@ def deck_edit(deckname):
     if form.validate_on_submit():
         deck.Name = form.name.data
         db.session.commit()
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name
     form.process()
 
