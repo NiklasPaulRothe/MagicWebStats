@@ -6,6 +6,9 @@
         {{ form.hidden_tag() }}
 
         <p>{{ form.name.label }} {{ form.name() }}</p>
+            {% for error in form.name.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
         <p>{{ form.decklist.label }} {{ form.decklist() }}</p>
 
         <p>{{ form.submit }}</p>
