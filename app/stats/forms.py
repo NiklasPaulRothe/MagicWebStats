@@ -35,6 +35,8 @@ class DeckAddForm(FlaskForm):
 class PlayerForm(Form):
     player = SelectField('Player', validate_choice=False)
     deck = SelectField('Deck', validate_choice=False)
+    borrowed = BooleanField('Borrowed', default=False)
+    lender = SelectField('Geliehen von', validate_choice=False)
     early_fast_mana = BooleanField('Early Fast Mana', default=False)
 
 # Main GameAddForm

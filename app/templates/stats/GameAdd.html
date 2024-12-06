@@ -11,6 +11,8 @@
                 <div class="field-list-item player-fields">
                     <p>{{ player_form.player.label }} {{ player_form.player() }}</p>
                     <p>{{ player_form.deck.label }} {{ player_form.deck() }}</p>
+                    <p>{{ player_form.borrowed.label }} {{ player_form.borrowed() }}</p>
+                    <p class="borrowed">{{ player_form.lender.label }} {{ player_form.lender() }}</p>
                     <p>{{ player_form.early_fast_mana.label }} {{ player_form.early_fast_mana() }}</p>
                     <button type="button" class="remove-player">Remove</button>
                 </div>
@@ -40,10 +42,16 @@
         function add_player_list(player_id) {
             const player = {{ player |tojson }}
             var dropdown = document.getElementById("players-".concat(player_id,"-player"));
+            var borrowed = document.getElementById("players-".concat(player_id,"-lender"));
             for(let i = 0; i< player.length; i++) {
                 var option = document.createElement('option');
                 option.text = option.value = player[i];
                 dropdown.add(option, 0);
+            }
+            for(let i = 0; i< player.length; i++) {
+                var option = document.createElement('option');
+                option.text = option.value = player[i];
+                borrowed.add(option, 0);
             }
         }
 
@@ -54,10 +62,18 @@
             dropdown.innerHTML="";
 
             for(let i = 0; i< decks.length; i++) {
-                if(decks[i][2] === document.getElementById("players-".concat(player_id,"-player")).value) {
+                if (document.getElementById("players-".concat(player_id,"-borrowed")).checked) {
+                    if(decks[i][2] === document.getElementById("players-".concat(player_id,"-lender")).value) {
                     var option = document.createElement('option');
                     option.text = option.value = decks[i][0].concat(" (", decks[i][1], ")");
                     dropdown.add(option, 0);
+                    }
+                } else {
+                    if (decks[i][2] === document.getElementById("players-".concat(player_id, "-player")).value) {
+                        var option = document.createElement('option');
+                        option.text = option.value = decks[i][0].concat(" (", decks[i][1], ")");
+                        dropdown.add(option, 0);
+                    }
                 }
             }
         }
@@ -72,9 +88,21 @@
             for (let i = 0; i<currentPlayers; i++) {
                 add_player_list(i)
                 add_deck_list(i)
-                var dropdown = document.getElementById("players-".concat(i,"-player"));
 
+                var dropdown = document.getElementById("players-".concat(i,"-player"));
                 dropdown.addEventListener("change", function() {
+                    add_deck_list(i)
+                })
+
+                var borrowed = document.getElementById("players-".concat(i,"-lender"));
+                borrowed.addEventListener("change", function() {
+                    if (document.getElementById("players-".concat(i,"-borrowed")).checked) {
+                        add_deck_list(i)
+                    }
+                })
+
+                var borrowed = document.getElementById("players-".concat(i,"-borrowed"));
+                borrowed.addEventListener("change", function() {
                     add_deck_list(i)
                 })
             }
@@ -92,6 +120,10 @@
                         <select name="players-${playerIndex}-player" id="players-${playerIndex}-player"></p></select>
                         <p><label for="players-${playerIndex}-deck">Deck</label>
                         <select name="players-${playerIndex}-deck" id="players-${playerIndex}-deck"></p></select>
+                        <p><label for="players-${playerIndex}-borrowed">Borrowed</label>
+                        <input type="checkbox" name="players-${playerIndex}-borrowed" id="players-${playerIndex}-borrowed"></p>
+                        <p><label for="players-${playerIndex}-lender">Geliehen von</label>
+                        <select name="players-${playerIndex}-lender" id="players-${playerIndex}-lender"></p></select>
                         <p><label for="players-${playerIndex}-early_fast_mana">Early Fast Mana</label>
                         <input type="checkbox" name="players-${playerIndex}-early_fast_mana" id="players-${playerIndex}-early_fast_mana"></p>
                         <button type="button" class="remove-player">Remove</button>
@@ -104,6 +136,21 @@
                     dropdown.addEventListener("change", function() {
                         add_deck_list(currentPlayers-1)
                     })
+
+                    var borrowed = document.getElementById("players-".concat(currentPlayers-1,"-lender"));
+                    borrowed.addEventListener("change", function() {
+                        if (document.getElementById("players-".concat(currentPlayers-1,"-borrowed")).checked) {
+                            add_deck_list(currentPlayers-1)
+                        }
+                    })
+
+                    var borrowed = document.getElementById("players-".concat(currentPlayers-1,"-borrowed"));
+                    borrowed.addEventListener("change", function() {
+                        add_deck_list(currentPlayers-1)
+                    })
+
+
+
 
                     const removeButtons = document.querySelectorAll('.remove-player');
                     removeButtons.forEach(button => {
