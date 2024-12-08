@@ -30,6 +30,7 @@ def deck_edit(deckname):
         db.session.commit()
         return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name
+    form.current_name.default = deck.Name
     form.process()
 
 

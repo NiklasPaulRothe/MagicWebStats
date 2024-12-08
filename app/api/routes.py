@@ -118,7 +118,8 @@ def deck_data():
           WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
            FROM data_owner."Participants"
           WHERE "Participants".deck_id = "Decks".id), 0)::double precision)::numeric(10,2) AS "winrate (in%)",
-    "Decks".elo_rating AS elo
+    "Decks".elo_rating AS elo,
+    "Decks".decklist AS decklist
    FROM data_owner."Decks",
     data_owner."Player"
   WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
@@ -127,7 +128,7 @@ def deck_data():
     list = []
     for entry in results:
         dict = {"Deckname": [], "Spieler": [], "Commander": [], "Farbe": [], "Spiele": [], "Siege": [],
-                "Winrate (in %)": []}
+                "Winrate (in %)": [], "Decklist": []}
         dict["Deckname"].append(entry[0])
         dict["Spieler"].append(entry[1])
         dict["Commander"].append(entry[2])
@@ -138,6 +139,7 @@ def deck_data():
             dict["Winrate (in %)"].append(float(entry[6]))
         else:
             dict["Winrate (in %)"].append("-")
+        dict["Decklist"].append(entry[8])
         list.append(dict)
 
     return jsonify(list)
@@ -183,7 +185,8 @@ def userdecks():
                     ),  
                     0
                 )::double precision
-            )::numeric(10,2)
+            )::numeric(10,2),
+            decklist
     FROM "data_owner"."Decks"
     WHERE "Player" = :player AND "Active" = true
     ORDER BY "Name";'''),
@@ -192,7 +195,7 @@ def userdecks():
     list = []
     for entry in results:
         dict = {"Name": [], "Commander": [], "Color Identity": [], "Spiele": [], "Zuletzt gespielt": [], "Siege": [],
-                "Winrate (in %)": []}
+                "Winrate (in %)": [], "Decklist": []}
         dict["Name"].append(entry[0])
         dict["Commander"].append(entry[1])
         dict["Color Identity"].append(entry[2])
@@ -206,6 +209,7 @@ def userdecks():
             dict["Winrate (in %)"].append(float(entry[6]))
         else:
             dict["Winrate (in %)"].append("-")
+        dict["Decklist"].append(entry[7])
         list.append(dict)
 
     return jsonify(list)

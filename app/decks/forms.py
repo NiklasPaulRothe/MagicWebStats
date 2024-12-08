@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms.fields.simple import StringField, SubmitField
+from wtforms.fields.simple import StringField, SubmitField, HiddenField
 from wtforms.validators import DataRequired, Optional, ValidationError
 import sqlalchemy as sa
 
@@ -8,12 +8,13 @@ from app.models import Deck
 
 
 class DeckEditForm(FlaskForm):
+    current_name = HiddenField()
     name = StringField('Name', validators=[DataRequired()])
     decklist = StringField('Link', validators=[Optional()])
     submit = SubmitField('Deck ändern')
 
     def validate_name(self, name):
-        name = db.session.scalar(sa.select(Deck).where(
+        deckname = db.session.scalar(sa.select(Deck).where(
             Deck.Name == name.data))
-        if name is not None:
+        if deckname is not None and deckname.Name != self.current_name.data:
             raise ValidationError('Es gibt schon ein Deck mit diesem Namen.')
