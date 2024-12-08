@@ -23,5 +23,73 @@
             </table>
         </section>
     </main>
+    <script>
+        function encode(Deck) {
+            return encodeURIComponent(Deck);
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch and populate Player Stats table
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => populateTable('player-stats-table', data));
+
+            // Fetch and populate Color Stats table
+            fetch('/api/color-data')
+                .then(response => response.json())
+                .then(data => populateTable('color-stats-table', data));
+
+            // Fetch and populate User Deck Stats table
+            fetch('/api/userdecks')
+                .then(response => response.json())
+                .then(data => populateTable('user-deck-stats-table', data));
+
+
+            // Function to populate tables
+            function populateTable(tableId, data) {
+                const tbody = document.querySelector(`#${tableId} tbody`);
+                const headers = document.querySelectorAll(`#${tableId} thead th`);
+                tbody.innerHTML = ''; // Clear existing table data
+                let Deck = 'Dummy';
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = Array.from(headers).map(header => {
+                        if (header.textContent.trim() == ''){
+                            let URL= encode(Deck)
+                            return `<td><a id="${Deck}-link" href="/decks/edit/${URL}">Bearbeiten</a></td>`
+                        }
+                        const key = header.textContent.trim();
+                        if (key == 'Name' && tableId == "user-deck-stats-table"){
+                            Deck = item[key]
+                            return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
+                        }
+                        return `<td>${item[key] || ''}</td>`;
+                    }).join('');
+                    tbody.appendChild(row);
+                        decklist = document.getElementById(String(Deck).concat("-list"));
+                        let url = item["Decklist"]
+                        if (url[0] != null) {
+                            decklist.href = url;
+                        } else {
+                            decklist.removeAttribute("href")
+                        }
+                });
+            }
+
+            // Sort table functionality
+            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+
+            const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
+                v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
+            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+
+            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
+                const table = th.closest('table');
+                const tbody = table.querySelector('tbody');
+                Array.from(tbody.querySelectorAll('tr'))
+                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
+                    .forEach(tr => tbody.appendChild(tr));
+            }));
+        });
+    </script>
 {%  endblock %}
 

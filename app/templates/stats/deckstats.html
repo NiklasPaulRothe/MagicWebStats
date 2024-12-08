@@ -78,7 +78,6 @@
 
                     decklist = document.getElementById(String(Deck).concat("-list"));
                     let url = item["Decklist"]
-                    console.log(url)
                     if (url[0] != null) {
                         console.log("Test")
                         decklist.href = url;
@@ -95,10 +94,7 @@
 
                 data.forEach(item => {
                     if (!uniquePlayers.includes(item.Spieler[0])) {
-                        console.log(uniquePlayers.includes(item.Spieler[0]))
-                        console.log(item.Spieler[0])
                         uniquePlayers.push(item.Spieler[0]);
-                        console.log(uniquePlayers)
                         const label = document.createElement('label');
                         label.innerHTML = `<input type="checkbox" value="${item.Spieler}" checked> ${item.Spieler}`;
                         dropdown.appendChild(label);
