@@ -67,6 +67,7 @@ class Deck(db.Model):
     Color_Identity = db.Column(db.String, db.ForeignKey('data_owner.Color_Identities.Name'), nullable=False)
     Partner = db.Column(db.String)
     elo_rating = db.Column(db.Float, default=1500)  # New column to store Elo rating
+    decklist = db.Column(db.String)
 
 class Game(db.Model):
     __tablename__ = 'Games'
