@@ -3,25 +3,32 @@
 {% block content %}
     <section id="deck-stats">
         <h2>Deck Stats</h2>
+
+        <!-- Filter Input and Button -->
+        <div>
+            <label for="min-spiele-filter">Minimum Spiele:</label>
+            <input type="number" id="min-spiele-filter" placeholder="Enter minimum value">
+            <button id="apply-min-spiele-filter">Apply Filter</button>
+        </div>
         <table id="deck-stats-table">
             <thead>
-                <tr>
-                    <th data-type="string" data-key="Deckname">Deckname</th>
-                    <th data-type="string" data-key="Spieler">Spieler
-                        <button class="filter-btn" id="spieler-filter-btn">Filter</button>
-                        <div class="filter-dropdown" id="spieler-filter-dropdown">
-                            <!-- Checkboxes will be populated here -->
-                        </div>
-                    </th>
-                    <th data-type="string" data-key="Commander">Commander</th>
-                    <th data-type="string" data-key="Farbe">Farbe</th>
-                    <th data-type="number" data-key="Spiele">Spiele</th>
-                    <th data-type="number" data-key="Siege">Siege</th>
-                    <th data-type="number" data-key="Winrate (in %)">Winrate (in %)</th>
-                </tr>
+            <tr>
+                <th data-type="string" data-key="Deckname">Deckname</th>
+                <th data-type="string" data-key="Spieler">Spieler
+                    <button class="filter-btn" id="spieler-filter-btn">Filter</button>
+                    <div class="filter-dropdown" id="spieler-filter-dropdown">
+                        <!-- Checkboxes will be populated here -->
+                    </div>
+                </th>
+                <th data-type="string" data-key="Commander">Commander</th>
+                <th data-type="string" data-key="Farbe">Farbe</th>
+                <th data-type="number" data-key="Spiele">Spiele</th>
+                <th data-type="number" data-key="Siege">Siege</th>
+                <th data-type="number" data-key="Winrate (in %)">Winrate (in %)</th>
+            </tr>
             </thead>
             <tbody>
-                <!-- Deck stats data will be populated here -->
+            <!-- Deck stats data will be populated here -->
             </tbody>
         </table>
     </section>
@@ -48,7 +55,24 @@
     </style>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Add event listener for the "Spiele" filter button
+            document.getElementById('apply-min-spiele-filter').addEventListener('click', function () {
+                const minSpieleValue = parseInt(document.getElementById('min-spiele-filter').value, 10) || 0;
+                filterTableByMinSpiele(minSpieleValue);
+            });
+
+            // Function to filter table rows by minimum "Spiele" value
+            function filterTableByMinSpiele(minValue) {
+                const rows = document.querySelectorAll('#deck-stats-table tbody tr');
+                rows.forEach(row => {
+                    const spieleCell = row.querySelector('td:nth-child(5)'); // The "Spiele" column
+                    const spieleValue = parseInt(spieleCell.textContent.trim(), 10);
+                    row.style.display = (spieleValue >= minValue) ? '' : 'none'; // Show/hide row based on value
+                });
+            }
+
             // Fetch and populate Deck Stats table
             fetch('/api/deck-data')
                 .then(response => response.json())
@@ -67,7 +91,7 @@
                     const row = document.createElement('tr');
                     row.innerHTML = Array.from(headers).map(header => {
                         const key = header.getAttribute('data-key');
-                        if (key == 'Deckname'){
+                        if (key == 'Deckname') {
                             Deck = item[key]
                             return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
                         }
@@ -79,7 +103,6 @@
                     decklist = document.getElementById(String(Deck).concat("-list"));
                     let url = item["Decklist"]
                     if (url[0] != null) {
-                        console.log("Test")
                         decklist.href = url;
                     } else {
                         decklist.removeAttribute("href")
@@ -104,7 +127,7 @@
 
                 // Add event listener to checkboxes to filter the table
                 dropdown.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    checkbox.addEventListener('change', function() {
+                    checkbox.addEventListener('change', function () {
                         filterTableBySpieler(dropdown);
                     });
                 });
@@ -125,7 +148,7 @@
             }
 
             // Toggle the visibility of the filter dropdown
-            document.getElementById('spieler-filter-btn').addEventListener('click', function(event) {
+            document.getElementById('spieler-filter-btn').addEventListener('click', function (event) {
                 const dropdown = document.getElementById('spieler-filter-dropdown');
                 dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
 
@@ -136,7 +159,7 @@
             });
 
             // Hide dropdown if clicked outside
-            document.addEventListener('click', function(event) {
+            document.addEventListener('click', function (event) {
                 const dropdown = document.getElementById('spieler-filter-dropdown');
                 if (!dropdown.contains(event.target) && event.target.id !== 'spieler-filter-btn') {
                     dropdown.style.display = 'none';
@@ -147,10 +170,10 @@
             const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
 
             const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
-                v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
+                    v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
             )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
 
-            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
+            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function () {
                 const table = th.closest('table');
                 const tbody = table.querySelector('tbody');
                 Array.from(tbody.querySelectorAll('tr'))
