@@ -84,6 +84,7 @@ class Participant(db.Model):
     game_id = db.Column(db.Integer, db.ForeignKey('data_owner.Games.id'), primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('data_owner.Player.id'), primary_key=True)
     deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
+    early_sol_ring = db.Column(db.Boolean, nullable=False, default=False)
     fun = db.Column(db.Integer)
     performance = db.Column(db.Integer)
     mulligans = db.Column(db.Integer)

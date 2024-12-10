@@ -130,6 +130,7 @@ def game_add():
                     game_id = game.id,
                     player_id = player,
                     deck_id = deck,
+                    early_sol_ring = participant.early_fast_mana.data,
                     fun = form.fun.data,
                     performance = form.performance.data,
                     mulligans = form.mulligan.data,
@@ -139,7 +140,8 @@ def game_add():
                 participant = Participant(
                     game_id=game.id,
                     player_id=player,
-                    deck_id=deck
+                    deck_id=deck,
+                    early_sol_ring = participant.early_fast_mana.data
                 )
             db.session.add(participant)
             db.session.commit()

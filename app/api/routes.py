@@ -17,10 +17,10 @@ def data():
           WHERE "Participants".player_id = "Player".id) AS games,
     ( SELECT count(*) AS count
            FROM data_owner."Participants"
-          WHERE "Participants".player_id = "Player".id AND "Participants"."Early Sol Ring" = true) AS "Early Sol Ring",
+          WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true) AS "early_sol_ring",
     ( SELECT COALESCE((( SELECT count(*)::double precision AS count
                    FROM data_owner."Participants"
-                  WHERE "Participants".player_id = "Player".id AND "Participants"."Early Sol Ring" = true)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
+                  WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
                    FROM data_owner."Participants"
                      LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
                   WHERE "Participants".player_id = "Player".id AND "Games"."Date" > '2024-04-19'::date), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "Sol Ring (in%)",
