@@ -27,10 +27,13 @@ def deck_edit(deckname):
 
     if form.validate_on_submit():
         deck.Name = form.name.data
-        deck.decklist = form.decklist.data
+        print(form.decklist.data)
+        if (form.decklist.data != ""):
+            deck.decklist = form.decklist.data
         db.session.commit()
         return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name
+    form.decklist.default = deck.decklist
     form.current_name.default = deck.Name
     form.process()
 
