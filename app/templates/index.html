@@ -58,8 +58,12 @@
                             return `<td><a id="${Deck}-link" href="/decks/edit/${URL}">Bearbeiten</a></td>`
                         }
                         const key = header.textContent.trim();
-                        if (key == 'Name' && tableId == "user-deck-stats-table"){
+                        if (key == 'Name') {
                             Deck = item[key]
+                            let URL= encode(Deck)
+                            return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a></td>`
+                        }
+                        if (key == 'Commander') {
                             return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
                         }
                         return `<td>${item[key] || ''}</td>`;

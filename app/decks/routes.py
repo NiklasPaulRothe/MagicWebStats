@@ -39,3 +39,8 @@ def deck_edit(deckname):
 
 
     return render_template('decks/edit.html', form=form, deckname=deckname)
+
+@bp.route('/show/<deckname>', methods=['GET'])
+@login_required
+def deck_show(deckname):
+    return render_template('decks/show.html', deckname=deckname)
