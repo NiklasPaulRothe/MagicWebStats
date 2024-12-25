@@ -108,6 +108,8 @@ class Card(db.Model):
     Name = db.Column(db.String)
     id = db.Column(db.String, primary_key=True)
     image_uri = db.Column(db.String)
+    back_image_uri = db.Column(db.String)
     commander_legal = db.Column(db.Boolean, nullable=False, default=False)
     cmc = db.Column(db.Integer)
     card_text = db.Column(db.String)
+    back_card_text = db.Column(db.String)

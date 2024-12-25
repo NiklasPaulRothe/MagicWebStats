@@ -24,17 +24,34 @@ def get_card_data():
         print(card['name'])
         count = count + 1
         exists = models.Card.query.filter_by(id = card['oracle_id']).first()
-        if card['multiverse_ids'] != [] and not '//' in card['name'] and 'paper' in card['games']:
+        if card['multiverse_ids'] != [] and 'paper' in card['games']:
             card_entry = Card()
             if exists:
                 card_entry = models.Card.query.filter_by(id = card['oracle_id']).first()
-
-            card_entry.Name = card['name']
-            card_entry.id = card['oracle_id']
-            card_entry.image_uri = card['image_uris']['large']
-            card_entry.commander_legal = True
-            card_entry.cmc = card['cmc']
-            card_entry.card_text = card['oracle_text']
+            if not '//' in card['name']:
+                card_entry.Name = card['name']
+                card_entry.id = card['oracle_id']
+                card_entry.image_uri = card['image_uris']['large']
+                card_entry.commander_legal = True
+                card_entry.cmc = card['cmc']
+                card_entry.card_text = card['oracle_text']
+            elif ('image_uris' in card):
+                card_entry.Name = card['name']
+                card_entry.id = card['oracle_id']
+                card_entry.image_uri = card['image_uris']['large']
+                card_entry.commander_legal = True
+                card_entry.cmc = card['cmc']
+                card_entry.card_text = card['card_faces'][0]['oracle_text']
+                card_entry.back_card_text = card['card_faces'][1]['oracle_text']
+            else:
+                card_entry.Name = card['name']
+                card_entry.id = card['oracle_id']
+                card_entry.image_uri = card['card_faces'][0]['image_uris']['large']
+                card_entry.back_image_uri = card['card_faces'][1]['image_uris']['large']
+                card_entry.commander_legal = True
+                card_entry.cmc = card['cmc']
+                card_entry.card_text = card['card_faces'][0]['oracle_text']
+                card_entry.back_card_text = card['card_faces'][1]['oracle_text']
             db.session.add(card_entry)
             db.session.commit()
     return render_template('index.html')

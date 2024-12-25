@@ -1,7 +1,7 @@
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import login_required, current_user
 
-from app import db
+from app import db, models
 from app.decks import bp
 from app.decks.forms import DeckEditForm
 from app.models import Deck, Player, User
@@ -43,4 +43,6 @@ def deck_edit(deckname):
 @bp.route('/show/<deckname>', methods=['GET'])
 @login_required
 def deck_show(deckname):
-    return render_template('decks/show.html', deckname=deckname)
+    commander = models.Card.query.filter_by(Name = models.Deck.query.filter_by(Name = deckname).first().Commander).first().image_uri
+
+    return render_template('decks/show.html', deckname=deckname, commander=commander)
