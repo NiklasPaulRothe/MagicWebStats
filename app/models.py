@@ -101,3 +101,13 @@ class ColorComponent(db.Model):
     __table_args__ = {'schema': 'data_owner'}
     color_identity = db.Column(db.String, db.ForeignKey('data_owner.Color_Identities.Name'), primary_key=True)
     color = db.Column(db.String, db.ForeignKey('data_owner.Colors.Name'), primary_key=True)
+
+class Card(db.Model):
+    __tablename__ = 'card_data'
+    __table_args__ = {'schema': 'data_owner'}
+    Name = db.Column(db.String)
+    id = db.Column(db.String, primary_key=True)
+    image_uri = db.Column(db.String)
+    commander_legal = db.Column(db.Boolean, nullable=False, default=False)
+    cmc = db.Column(db.Integer)
+    card_text = db.Column(db.String)

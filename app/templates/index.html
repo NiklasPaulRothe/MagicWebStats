@@ -66,7 +66,7 @@
                         if (key == 'Commander') {
                             return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
                         }
-                        return `<td>${item[key] || ''}</td>`;
+                        return `<td>${item[key] || ''}</td>`
                     }).join('');
                     tbody.appendChild(row);
                         decklist = document.getElementById(String(Deck).concat("-list"));

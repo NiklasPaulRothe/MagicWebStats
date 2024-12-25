@@ -5,6 +5,7 @@ from flask_login import login_required
 import sqlalchemy as sa
 
 from app.models import User
+from app.third_party_data.routes import get_card_data
 
 
 @bp.route('/')
