@@ -1,10 +1,11 @@
-from flask import render_template, flash, redirect, url_for, request
+from flask import render_template, flash, redirect, url_for, request, session
 from flask_login import login_required, current_user
+from sqlalchemy import select, and_
 
 from app import db, models
 from app.decks import bp
 from app.decks.forms import DeckEditForm
-from app.models import Deck, Player, User
+from app.models import Deck, Player, User, Game, Participant
 
 
 @bp.route('/edit/<deckname>', methods=['GET', 'POST'])
@@ -20,7 +21,6 @@ def deck_edit(deckname):
     form = DeckEditForm()
 
     deckname = deckname + " (" + deck.Commander + ")"
-
 
     if not form.validate_on_submit():
         print(form.errors)
@@ -38,12 +38,31 @@ def deck_edit(deckname):
     form.current_name.default = deck.Name
     form.process()
 
-
     return render_template('decks/edit.html', form=form, deckname=deckname)
+
 
 @bp.route('/show/<deckname>', methods=['GET'])
 @login_required
 def deck_show(deckname):
-    commander = models.Card.query.filter_by(Name = models.Deck.query.filter_by(Name = deckname).first().Commander).first().image_uri
 
-    return render_template('decks/show.html', deckname=deckname, commander=commander)
+    deck = models.Deck.query.filter(Deck.Name == deckname).first()
+    games = models.Participant.query.filter(and_(Participant.player_id == deck.Player, Participant.deck_id == deck.id)).all()
+    row = []
+    for game in games:
+        game_data = models.Game.query.filter_by(id = game.game_id).first()
+        opponents = models.Participant.query.filter(and_(Participant.game_id == game.game_id, Participant.player_id != deck.Player)).all()
+
+        row.append({
+            "Datum": game_data.Date,
+            "Gegner": {(models.Player.query.filter_by(id = opponent.player_id).first().Name,
+                        models.Deck.query.filter_by(id=opponent.deck_id).first().Name,
+                        models.Deck.query.filter_by(id=opponent.deck_id).first().Commander) for opponent in opponents},
+            "Winner": models.Player.query.filter_by(id = game_data.Winner).first().Name,
+        })
+
+    card = models.Card.query.filter_by(Name=models.Deck.query.filter_by(Name=deckname).first().Commander).first()
+    commander = None
+    if card is not None:
+        commander = card.image_uri
+
+    return render_template('decks/show.html', deckname=deckname, commander=commander, games=row)
