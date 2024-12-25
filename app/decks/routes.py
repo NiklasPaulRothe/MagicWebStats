@@ -27,7 +27,8 @@ def deck_edit(deckname):
 
     if form.validate_on_submit():
         deck.Name = form.name.data
-        print(form.decklist.data)
+        deck.Active = not form.archive.data
+        print(deck.Active)
         if (form.decklist.data != ""):
             deck.decklist = form.decklist.data
         db.session.commit()

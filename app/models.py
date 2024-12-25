@@ -62,6 +62,7 @@ class Deck(db.Model):
     __table_args__ = {'schema': 'data_owner'}
     id = db.Column(db.Integer, primary_key=True)
     Name = db.Column(db.String, nullable=False)
+    Active = db.Column(db.Boolean, nullable = False, default = True)
     Commander = db.Column(db.String, nullable=False)
     Player = db.Column(db.Integer, db.ForeignKey('data_owner.Player.id'), nullable=False)
     Color_Identity = db.Column(db.String, db.ForeignKey('data_owner.Color_Identities.Name'), nullable=False)

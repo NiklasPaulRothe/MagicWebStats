@@ -63,12 +63,15 @@ def deck_add():
         player = db.session.scalar(
             sa.select(Player.id).where(Player.Name == form.player.data)
         )
+        partner = None
+        if form.partner.data != '':
+            partner = form.partner.data
         deck = Deck(
             Name = form.name.data,
             Commander = form.commander.data,
             Player = player,
             Color_Identity = form.color_identity.data,
-            Partner = form.partner.data
+            Partner = partner
         )
         db.session.add(deck)
         db.session.commit()
