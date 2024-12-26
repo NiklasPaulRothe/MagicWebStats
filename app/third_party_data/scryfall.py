@@ -18,6 +18,7 @@ from webstats import app
 @login_required
 def load_card_data():
     app.task_queue.enqueue(load_card_data)
+    app.logger.info('Start Retrieving card data')
 
     return render_template('index.html')
 
