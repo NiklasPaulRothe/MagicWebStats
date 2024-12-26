@@ -1,1 +1,2 @@
 web: flask db upgrade; flask translate compile; gunicorn webstats:app
+worker: rq worker -u $REDIS_URL magicstats-tasks

@@ -1,22 +1,12 @@
-import gc
-import json
 import ijson
 import os.path
-
 import requests
-from flask import jsonify, render_template
-from flask_login import login_required
-from sqlalchemy.orm import column_mapped_collection
 
 from app import models, db
 from app.auth import role_required
 from app.main import bp
 from app.models import Card
 
-
-@bp.route('/load_card_data', methods=['GET'])
-@role_required('admin')
-@login_required
 def get_card_data():
     bulk_data = requests.get("https://api.scryfall.com/bulk-data").json()
     data = bulk_data['data']
@@ -38,9 +28,6 @@ def get_card_data():
             total_length = int(total_length)
             for data in card_data.iter_content(chunk_size=total_length / 100):
                 f.write(data)
-
-    del card_data
-    gc.collect()
 
     with open('files/card_data.json', 'rb') as f:
         for card in ijson.items(f, "item"):
@@ -78,5 +65,5 @@ def get_card_data():
                     card_entry.back_card_text = card['card_faces'][1]['oracle_text']
 
                 db.session.add(card_entry)
-                db.session.commit()
-    return render_template('index.html')
+            db.session.commit()
+    print('task completed')
