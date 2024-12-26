@@ -24,6 +24,10 @@ def get_card_data():
     for entry in data:
         if entry['type'] == 'oracle_cards':
             download_link = entry['download_uri']
+
+    del bulk_data
+    gc.collect()
+
     card_data = requests.get(download_link).json()
 
     if not os.path.exists('files'):
