@@ -11,14 +11,13 @@ from app import models, db
 from app.auth import role_required
 from app.main import bp
 from app.models import Card
-from webstats import app
 
 @bp.route('/load_card_data', methods=['GET'])
 @role_required('admin')
 @login_required
 def load_card_data():
-    app.task_queue.enqueue(load_card_data)
-    app.logger.info('Start Retrieving card data')
+    current_app.task_queue.enqueue(load_card_data)
+    current_app.logger.info('Start Retrieving card data')
 
     return render_template('index.html')
 
