@@ -17,7 +17,6 @@ from app.models import Card
 @login_required
 def load_card_data():
     current_app.task_queue.enqueue(load_card_data)
-    current_app.logger.info('Start Retrieving card data')
 
     return render_template('index.html')
 
@@ -25,6 +24,7 @@ def load_card_data():
 
 def get_card_data():
     try:
+        current_app.logger.info('Start Retrieving card data')
         bulk_data = requests.get("https://api.scryfall.com/bulk-data").json()
         data = bulk_data['data']
         download_link = ''
@@ -84,7 +84,7 @@ def get_card_data():
                     db.session.add(card_entry)
                 db.session.commit()
     except Exception:
-        app.logger.error('Unhandled exception', exc_info=sys.exc_info())
+        current_app.logger.error('Unhandled exception', exc_info=sys.exc_info())
 
     finally:
-        app.logger.info('Finished Retrieving card data')
+        current_app.logger.info('Finished Retrieving card data')
