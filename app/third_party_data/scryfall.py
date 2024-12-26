@@ -25,16 +25,19 @@ def get_card_data():
         if entry['type'] == 'oracle_cards':
             download_link = entry['download_uri']
 
-    del bulk_data
-    gc.collect()
-
-    card_data = requests.get(download_link).json()
-
     if not os.path.exists('files'):
         os.makedirs('files')
 
-    with open('files/card_data.json', 'w', encoding='utf-8') as f:
-        json.dump(card_data, f, ensure_ascii=False, indent=4)
+    card_data = requests.get(download_link, stream=True)
+    card_data.raise_for_status()
+    with open('files/card_data.json', 'wb') as f:
+        total_length = card_data.headers.get('content-length')
+        if total_length is None:
+            f.write(card_data.content)
+        else:
+            total_length = int(total_length)
+            for data in card_data.iter_content(chunk_size=total_length / 100):
+                f.write(data)
 
     del card_data
     gc.collect()
