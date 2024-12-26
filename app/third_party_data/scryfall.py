@@ -44,7 +44,6 @@ def get_card_data():
 
     with open('files/card_data.json', 'rb') as f:
         for card in ijson.items(f, "item"):
-            print(card['name'])
             exists = models.Card.query.filter_by(id=card['oracle_id']).first()
             if 'paper' in card['games'] and not 'Card' in card['type_line']:
                 card_entry = Card()
