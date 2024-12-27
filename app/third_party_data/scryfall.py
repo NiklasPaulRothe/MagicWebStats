@@ -45,7 +45,7 @@ def get_card_data():
                 f.write(card_data.content)
             else:
                 total_length = int(total_length)
-                for data in card_data.iter_content(chunk_size=total_length / 100):
+                for data in card_data.iter_content(chunk_size=total_length / 400):
                     f.write(data)
 
         with open('files/card_data.json', 'rb') as f:
