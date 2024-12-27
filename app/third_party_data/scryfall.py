@@ -48,6 +48,8 @@ def get_card_data():
                 for data in card_data.iter_content(chunk_size=total_length / 400):
                     f.write(data)
 
+        app.logger.info('Successfully Fetched JSON')
+
         with open('files/card_data.json', 'rb') as f:
             for card in ijson.items(f, "item"):
                 exists = models.Card.query.filter_by(id=card['id']).first()
