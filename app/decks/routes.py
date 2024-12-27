@@ -2,10 +2,11 @@ from flask import render_template, flash, redirect, url_for, request, session, c
 from flask_login import login_required, current_user
 from sqlalchemy import select, and_
 
-from app import db, models
+from app import db, models, third_party_data
 from app.decks import bp
 from app.decks.forms import DeckEditForm
 from app.models import Deck, Player, User, Game, Participant
+from app.third_party_data.deckbuilder import load_cards_from_archidekt
 
 
 @bp.route('/edit/<deckname>', methods=['GET', 'POST'])
@@ -28,9 +29,12 @@ def deck_edit(deckname):
     if form.validate_on_submit():
         deck.Name = form.name.data
         deck.Active = not form.archive.data
-        print(deck.Active)
         if (form.decklist.data != ""):
             deck.decklist = form.decklist.data
+            deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
+            deck.decksite = deckbuilder[0]
+            deck.archidekt_id = deckbuilder[1]
+            load_cards_from_archidekt(deck.archidekt_id, deck.id)
         db.session.commit()
         return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name
@@ -41,7 +45,7 @@ def deck_edit(deckname):
     return render_template('decks/edit.html', form=form, deckname=deckname)
 
 
-@bp.route('/show/<deckname>', methods=['GET'])
+@bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def deck_show(deckname):
     current_app.logger.info(deckname)

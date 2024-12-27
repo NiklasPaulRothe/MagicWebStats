@@ -69,6 +69,8 @@ class Deck(db.Model):
     Partner = db.Column(db.String)
     elo_rating = db.Column(db.Float, default=1500)  # New column to store Elo rating
     decklist = db.Column(db.String)
+    decksite = db.Column(db.String)
+    archidekt_id = db.Column(db.String)
 
 class Game(db.Model):
     __tablename__ = 'Games'
@@ -114,3 +116,10 @@ class Card(db.Model):
     cmc = db.Column(db.Integer)
     card_text = db.Column(db.String)
     back_card_text = db.Column(db.String)
+
+class DeckComponent(db.Model):
+    __tablename__ = 'deck_component'
+    __table_args__ = {'schema': 'data_owner'}
+    id = db.Column(db.Integer, primary_key=True)
+    deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'))
+    card_id = db.Column(db.String, db.ForeignKey('data_owner.card_data.id'))

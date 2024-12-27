@@ -31,7 +31,7 @@ def get_card_data():
         data = bulk_data['data']
         download_link = ''
         for entry in data:
-            if entry['type'] == 'oracle_cards':
+            if entry['type'] == 'default_cards':
                 download_link = entry['download_uri']
 
         if not os.path.exists('files'):
@@ -50,15 +50,21 @@ def get_card_data():
 
         with open('files/card_data.json', 'rb') as f:
             for card in ijson.items(f, "item"):
-                exists = models.Card.query.filter_by(id=card['oracle_id']).first()
-                if 'paper' in card['games'] and not 'Card' in card['type_line']:
+                exists = models.Card.query.filter_by(id=card['id']).first()
+                typeline_filter = True
+
+                if 'type_line' in card:
+                    if 'Card' in card['type_line']:
+                        typeline_filter = False
+
+                if 'paper' in card['games'] and typeline_filter:
                     card_entry = Card()
                     if exists:
-                        card_entry = models.Card.query.filter_by(id=card['oracle_id']).first()
+                        card_entry = models.Card.query.filter_by(id=card['id']).first()
 
                     if not '//' in card['name']:
                         card_entry.Name = card['name']
-                        card_entry.id = card['oracle_id']
+                        card_entry.id = card['id']
                         card_entry.image_uri = card['image_uris']['large']
                         card_entry.commander_legal = True
                         card_entry.cmc = card['cmc']
@@ -66,16 +72,16 @@ def get_card_data():
 
                     elif ('image_uris' in card):
                         card_entry.Name = card['name'].split(' // ')[0]
-                        card_entry.id = card['oracle_id']
+                        card_entry.id = card['id']
                         card_entry.image_uri = card['image_uris']['large']
                         card_entry.commander_legal = True
                         card_entry.cmc = card['cmc']
                         card_entry.card_text = card['card_faces'][0]['oracle_text']
                         card_entry.back_card_text = card['card_faces'][1]['oracle_text']
 
-                    else:
+                    elif ('cmc' in card):
                         card_entry.Name = card['name'].split(' // ')[0]
-                        card_entry.id = card['oracle_id']
+                        card_entry.id = card['id']
                         card_entry.image_uri = card['card_faces'][0]['image_uris']['large']
                         card_entry.back_image_uri = card['card_faces'][1]['image_uris']['large']
                         card_entry.commander_legal = True
@@ -83,9 +89,20 @@ def get_card_data():
                         card_entry.card_text = card['card_faces'][0]['oracle_text']
                         card_entry.back_card_text = card['card_faces'][1]['oracle_text']
 
+                    else:
+                        card_entry.Name = card['name'].split(' // ')[0]
+                        card_entry.id = card['id']
+                        card_entry.image_uri = card['card_faces'][0]['image_uris']['large']
+                        card_entry.back_image_uri = card['card_faces'][1]['image_uris']['large']
+                        card_entry.commander_legal = True
+                        card_entry.cmc = card['card_faces'][0]['cmc']
+                        card_entry.card_text = card['card_faces'][0]['oracle_text']
+                        card_entry.back_card_text = card['card_faces'][1]['oracle_text']
+
                     db.session.add(card_entry)
             db.session.commit()
         app.logger.info('Finished Retrieving card data')
+        return render_template('index.html')
     except Exception:
         app.logger.error('Unhandled exception', exc_info=sys.exc_info())
 
