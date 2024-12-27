@@ -54,6 +54,9 @@ def create_app(config_class=Config):
     from app.decks import bp as decks_bp
     app.register_blueprint(decks_bp, url_prefix='/decks')
 
+    from app.third_party_data import bp as third_party_bp
+    app.register_blueprint(third_party_bp)
+
     if not app.debug and not app.testing:
         if app.config['LOG_TO_STDOUT']:
             stream_handler = logging.StreamHandler()
