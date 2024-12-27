@@ -84,7 +84,6 @@ def get_card_data():
                         card_entry.back_card_text = card['card_faces'][1]['oracle_text']
 
                     db.session.add(card_entry)
-                    app.logger.info(card['name'])
             db.session.commit()
         app.logger.info('Finished Retrieving card data')
     except Exception:

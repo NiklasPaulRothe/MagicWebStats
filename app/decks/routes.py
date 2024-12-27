@@ -1,4 +1,4 @@
-from flask import render_template, flash, redirect, url_for, request, session
+from flask import render_template, flash, redirect, url_for, request, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import select, and_
 
@@ -44,13 +44,14 @@ def deck_edit(deckname):
 @bp.route('/show/<deckname>', methods=['GET'])
 @login_required
 def deck_show(deckname):
-
+    current_app.logger.info(deckname)
     deck = models.Deck.query.filter(Deck.Name == deckname).first()
     games = models.Participant.query.filter(and_(Participant.player_id == deck.Player, Participant.deck_id == deck.id)).all()
     row = []
     for game in games:
         game_data = models.Game.query.filter_by(id = game.game_id).first()
-        opponents = models.Participant.query.filter(and_(Participant.game_id == game.game_id, Participant.player_id != deck.Player)).all()
+        opponents = models.Participant.query.filter(and_(Participant.game_id == game.game_id,
+                                                         Participant.player_id != deck.Player)).all()
 
         row.append({
             "Datum": game_data.Date,

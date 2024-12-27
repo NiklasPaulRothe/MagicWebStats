@@ -1,4 +1,4 @@
-from sqlalchemy import literal
+from sqlalchemy import literal, and_
 
 from app import db
 from app.stats import bp
@@ -123,9 +123,15 @@ def game_add():
             player = db.session.scalar(
                 sa.select(Player.id).where(Player.Name == participant.player.data)
             )
-            deck = db.session.scalar(
-                sa.select(Deck.id).filter(literal(participant.deck.data).contains(Deck.Name))
-            )
+            # Set owner to participant and then overwrite with lender if Deck was borrowed
+            owner = participant.player.data
+            if participant.borrowed.data == True:
+                owner = participant.lender.data
+
+            # Contains Deck Name is necessary, because the form also contains the commander, so equal wouldn't work
+            # To prevent similar named Decks to be confused we add the query for Deck owner
+            deck = Deck.query.filter(and_(literal(participant.deck.data).contains(Deck.Name),
+                                          Deck.Player == (Player.query.filter_by(Name = owner).first().id))).first().id
 
             if (player == 1):
                 participant = Participant (
