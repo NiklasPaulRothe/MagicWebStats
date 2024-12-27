@@ -17,7 +17,7 @@ from app.third_party_data import bp
 @role_required('admin')
 @login_required
 def load_card_data():
-    current_app.task_queue.enqueue(get_card_data)
+    current_app.task_queue.enqueue(get_card_data, job_timeout=300)
 
     return render_template('index.html')
 
@@ -85,11 +85,12 @@ def get_card_data():
 
                     db.session.add(card_entry)
                 db.session.commit()
+        app.logger.info('Finished Retrieving card data')
     except Exception:
         app.logger.error('Unhandled exception', exc_info=sys.exc_info())
 
     finally:
-        app.logger.info('Finished Retrieving card data')
+        app.logger.info('End Function')
 
 
 
