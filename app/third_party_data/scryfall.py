@@ -3,7 +3,7 @@ import sys
 import ijson
 import os.path
 import requests
-from app import models, db
+from app import models, db, create_app
 from app.models import Card
 
 from flask import current_app, render_template
@@ -22,8 +22,11 @@ def load_card_data():
     return render_template('index.html')
 
 def get_card_data():
+    app = create_app()
+    app.app_context().push()
+
     try:
-        current_app.logger.info('Start Retrieving card data')
+        app.logger.info('Start Fetching Card Data')
         bulk_data = requests.get("https://api.scryfall.com/bulk-data").json()
         data = bulk_data['data']
         download_link = ''
@@ -83,10 +86,10 @@ def get_card_data():
                     db.session.add(card_entry)
                 db.session.commit()
     except Exception:
-        current_app.logger.error('Unhandled exception', exc_info=sys.exc_info())
+        app.logger.error('Unhandled exception', exc_info=sys.exc_info())
 
     finally:
-        current_app.logger.info('Finished Retrieving card data')
+        app.logger.info('Finished Retrieving card data')
 
 
 
