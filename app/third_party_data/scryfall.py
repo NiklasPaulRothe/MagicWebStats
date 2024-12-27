@@ -17,7 +17,7 @@ from app.third_party_data import bp
 @role_required('admin')
 @login_required
 def load_card_data():
-    current_app.task_queue.enqueue(get_card_data, job_timeout=300)
+    current_app.task_queue.enqueue(get_card_data, job_timeout=600)
 
     return render_template('index.html')
 
@@ -84,7 +84,7 @@ def get_card_data():
                         card_entry.back_card_text = card['card_faces'][1]['oracle_text']
 
                     db.session.add(card_entry)
-                db.session.commit()
+            db.session.commit()
         app.logger.info('Finished Retrieving card data')
     except Exception:
         app.logger.error('Unhandled exception', exc_info=sys.exc_info())
