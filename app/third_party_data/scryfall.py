@@ -45,7 +45,7 @@ def get_card_data():
                 f.write(card_data.content)
             else:
                 total_length = int(total_length)
-                for data in card_data.iter_content(chunk_size=total_length / 400):
+                for data in card_data.iter_content(chunk_size=total_length / 1000):
                     f.write(data)
 
         app.logger.info('Successfully Fetched JSON')
