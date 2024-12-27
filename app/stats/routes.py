@@ -1,9 +1,8 @@
-from flask_security import roles_accepted
 from sqlalchemy import literal
 
-from app import db, admin_permission
+from app import db
 from app.stats import bp
-from flask import render_template, flash, redirect, url_for, request, session
+from flask import render_template, flash, redirect, url_for
 from flask_login import login_required
 from app.auth import role_required
 import sqlalchemy as sa

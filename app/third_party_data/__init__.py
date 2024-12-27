@@ -1,5 +1,5 @@
 from flask import Blueprint
 
-bp = Blueprint('stats', __name__)
+bp = Blueprint('third_party', __name__)
 
 from app.third_party_data import scryfall

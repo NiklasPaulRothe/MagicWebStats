@@ -4,7 +4,6 @@ import redis
 import rq
 from flask import Flask
 from flask_principal import Principal, Permission, RoleNeed
-from redis import Redis
 
 from config import Config
 from flask_sqlalchemy import SQLAlchemy

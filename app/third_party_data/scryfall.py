@@ -10,10 +10,10 @@ from flask import current_app, render_template
 from flask_login import login_required
 
 from app.auth import role_required
-from app.main import bp
+from app.third_party_data import bp
 
 
-@bp.route('/load_card_data', methods=['GET'])
+@bp.route('/LoadCardData', methods=['GET'])
 @role_required('admin')
 @login_required
 def load_card_data():
