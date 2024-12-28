@@ -56,6 +56,9 @@ def create_app(config_class=Config):
     from app.third_party_data import bp as third_party_bp
     app.register_blueprint(third_party_bp)
 
+    from app.cards import bp as cards_bp
+    app.register_blueprint(cards_bp)
+
     if not app.debug and not app.testing:
         if app.config['LOG_TO_STDOUT']:
             stream_handler = logging.StreamHandler()
