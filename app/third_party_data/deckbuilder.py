@@ -31,6 +31,7 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
                     )
             db.session.add(component)
         except:
-            current_app.logger.info(f'{name} couldn''t be found', name=card.card.oracle_card.name)
+            name = card.card.oracle_card.name
+            current_app.logger.info(f'{name} couldn''t be found')
             continue
     db.session.commit()
