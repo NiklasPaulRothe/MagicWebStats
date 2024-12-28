@@ -13,20 +13,21 @@ from app.auth import role_required
 from app.third_party_data import bp
 
 
-@bp.route('/LoadCardData', methods=['GET'])
-@role_required('admin')
-@login_required
+
 def load_card_data():
     current_app.task_queue.enqueue(get_card_data, job_timeout=600)
 
     return render_template('index.html')
 
+@bp.route('/LoadCardData', methods=['GET'])
+@role_required('admin')
+@login_required
 def get_card_data():
-    app = create_app()
-    app.app_context().push()
+    #app = create_app()
+    #app.app_context().push()
 
     try:
-        app.logger.info('Start Fetching Card Data')
+        #app.logger.info('Start Fetching Card Data')
         bulk_data = requests.get("https://api.scryfall.com/bulk-data").json()
         data = bulk_data['data']
         download_link = ''
@@ -48,10 +49,11 @@ def get_card_data():
                 for data in card_data.iter_content(chunk_size=total_length / 1000):
                     f.write(data)
 
-        app.logger.info('Successfully Fetched JSON')
+        #app.logger.info('Successfully Fetched JSON')
 
         with open('files/card_data.json', 'rb') as f:
             for card in ijson.items(f, "item"):
+                print(card['name'])
                 exists = models.Card.query.filter_by(id=card['id']).first()
                 typeline_filter = True
 
@@ -103,13 +105,15 @@ def get_card_data():
 
                     db.session.add(card_entry)
             db.session.commit()
-        app.logger.info('Finished Retrieving card data')
+        #app.logger.info('Finished Retrieving card data')
         return render_template('index.html')
     except Exception:
-        app.logger.error('Unhandled exception', exc_info=sys.exc_info())
+        pass
+        #app.logger.error('Unhandled exception', exc_info=sys.exc_info())
 
     finally:
-        app.logger.info('End Function')
+        pass
+        #app.logger.info('End Function')
 
 
 
