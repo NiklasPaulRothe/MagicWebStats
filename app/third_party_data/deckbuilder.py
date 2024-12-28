@@ -23,12 +23,15 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
 
     for card in deck.cards:
         try:
+            in_deck = False
             for category in card.categories:
                 if category.included_in_deck:
-                    component = DeckComponent(
-                        deck_id = deck_id,
-                        card_id = card.card.uid
-                    )
+                    in_deck = True
+            if in_deck:
+                component = DeckComponent(
+                    deck_id = deck_id,
+                    card_id = card.card.uid
+                )
             db.session.add(component)
         except:
             name = card.card.oracle_card.name
