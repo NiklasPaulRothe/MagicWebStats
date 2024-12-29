@@ -9,17 +9,16 @@ from app.models import DeckComponent, Card
 @login_required
 def card_meta():
 
-    card_ids = db.session.query(DeckComponent.card_id).distinct().all()
+    names = db.session.query(DeckComponent.name).distinct().all()
     cards =[]
-    for card_id in card_ids:
+    for name in names:
         count = 0
         entries = DeckComponent.query.all()
         for entry in entries:
-            if entry.card_id == card_id[0]:
+            if entry.name == name[0]:
                 count += entry.count
-        name = db.session.query(Card.Name).filter(Card.id == card_id[0]).first()[0]
         cards.append({
-            "Name": name,
+            "Name": name[0],
             "Count": count
         })
 

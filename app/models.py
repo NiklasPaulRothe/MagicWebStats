@@ -124,3 +124,4 @@ class DeckComponent(db.Model):
     deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'))
     card_id = db.Column(db.String, db.ForeignKey('data_owner.card_data.id'))
     count = db.Column(db.Integer)
+    name = db.Column(db.String)

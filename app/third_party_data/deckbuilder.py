@@ -40,6 +40,7 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
                 component = DeckComponent(
                     deck_id = deck_id,
                     card_id = card.card.uid,
+                    name = card.card.oracle_card.name,
                     count = card.quantity
                 )
                 db.session.add(component)
