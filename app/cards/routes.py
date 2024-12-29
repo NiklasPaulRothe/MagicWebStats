@@ -10,10 +10,10 @@ from app.models import DeckComponent, Card
 def card_meta():
 
     names = db.session.query(DeckComponent.name).distinct().all()
+    entries = DeckComponent.query.all()
     cards =[]
     for name in names:
         count = 0
-        entries = DeckComponent.query.all()
         for entry in entries:
             if entry.name == name[0]:
                 count += entry.count
