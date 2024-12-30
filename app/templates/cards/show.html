@@ -9,7 +9,11 @@
 {% block content %}
     <h2>Kartenmeta</h2>
     <deckpage>
-        <div id="right"><table id="user-deck-stats-table">
+        <div id="right">
+            <input type="text" id="name-filter" placeholder="Filter by Name">
+            <input type="number" id="anzahl-filter" placeholder="Minimum Anzahl">
+            <button id="apply-filters">Apply Filters</button>
+            <table id="user-deck-stats-table">
                 <thead>
                     <tr>
                         <th data-type="string">Name</th>
@@ -24,7 +28,8 @@
                 </tr>
                 {% endfor %}
                 </tbody>
-            </table></div>
+            </table>
+        </div>
     </deckpage>
 
     <script>
@@ -43,6 +48,26 @@
                     .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
                     .forEach(tr => tbody.appendChild(tr));
             }));
+
+            // Filter table functionality
+            document.getElementById('apply-filters').addEventListener('click', function() {
+                const nameFilter = document.getElementById('name-filter').value.toLowerCase();
+                const anzahlFilter = parseFloat(document.getElementById('anzahl-filter').value) || 0;
+
+                const rows = document.querySelectorAll('#user-deck-stats-table tbody tr');
+
+                rows.forEach(row => {
+                    const name = row.children[0].innerText.toLowerCase();
+                    const anzahl = parseFloat(row.children[1].innerText);
+
+                    // Apply filters: show only rows matching both filters
+                    if ((name.includes(nameFilter) || nameFilter === '') && anzahl >= anzahlFilter) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
         });
     </script>
 {%  endblock %}

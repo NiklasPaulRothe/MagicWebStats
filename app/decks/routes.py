@@ -32,8 +32,8 @@ def deck_edit(deckname):
         if (form.decklist.data != ""):
             deck.decklist = form.decklist.data
             deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
-            deck.decksite = deckbuilder[0]
-            deck.archidekt_id = deckbuilder[1]
+            deck.decksite = deckbuilder[0].strip()
+            deck.archidekt_id = deckbuilder[1].strip()
             load_cards_from_archidekt(deck.archidekt_id, deck.id)
         db.session.commit()
         return redirect(url_for('main.user', username=current_user.username))

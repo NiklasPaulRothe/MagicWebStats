@@ -1,11 +1,21 @@
+import time
 import traceback
 
-from flask import current_app
+from flask import current_app, render_template
+from flask_login import login_required
 from pyrchidekt.api import getDeckById
-from sqlalchemy import delete
 
 from app import db
-from app.models import DeckComponent
+from app.auth import role_required
+from app.models import DeckComponent, Deck
+from app.third_party_data import bp
+
+
+
+def load_cards_for_decks():
+    current_app.task_queue.enqueue(load_all_decks, job_timeout=600)
+
+    return render_template('index.html')
 
 
 def get_id_from_url(url):
@@ -22,6 +32,7 @@ def get_id_from_url(url):
     return None
 
 def load_cards_from_archidekt(archidekt_id, deck_id):
+    print('Hello')
     deck = getDeckById(archidekt_id)
     deck_categories = deck.categories
 
@@ -49,3 +60,16 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
             current_app.logger.info(f'{name} couldn''t be found' + traceback.format_exc())
             continue
     db.session.commit()
+
+@bp.route('/LoadAllDecks', methods=['GET'])
+@role_required('admin')
+@login_required
+def load_all_decks():
+    decks = Deck.query.all()
+    for deck in decks:
+        if not deck.decksite == None:
+            if 'archidekt' in deck.decksite:
+                print(deck.archidekt_id.strip())
+                load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
+                time.sleep(1)
+    return render_template('index.html')
