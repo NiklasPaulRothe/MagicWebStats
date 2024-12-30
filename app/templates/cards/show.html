@@ -2,13 +2,33 @@
 
 {% block head %}
 <head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles/deckpage.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/cardpage.css') }}">
 </head>
 {% endblock %}
 
 {% block content %}
     <h2>Kartenmeta</h2>
-    <deckpage>
+    <cardpage>
+        <div id="left">
+            <table>
+                <thead>
+                    <tr>
+                        <th data-type="string">Name</th>
+                        <th data-type="string">Commander</th>
+                        <th data-type="string">Spieler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for deck in decks %}
+                <tr>
+                    <td>{{ deck.Name }}</td>
+                    <td>{{ deck.Commander }}</td>
+                    <td>{{ deck.Player }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
         <div id="right">
             <input type="text" id="name-filter" placeholder="Filter by Name">
             <input type="number" id="anzahl-filter" placeholder="Minimum Anzahl">
@@ -30,7 +50,7 @@
                 </tbody>
             </table>
         </div>
-    </deckpage>
+    </cardpage>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {

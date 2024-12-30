@@ -1,0 +1,29 @@
+cardpage {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+#left {
+    width:40%;
+    margin-right: 2%;
+}
+
+#right {
+    width:60%;
+}
+
+#inner {
+    width: 100%;
+    border: none;
+    text-align: left;
+}
+
+#inner td {
+    text-align: left;
+    border: none;
+}
+
+#table_left {
+    width: 15%;
+}
