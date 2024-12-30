@@ -14,7 +14,9 @@ def card_meta():
     entries = DeckComponent.query.all()
     deck_list = []
     decks = Deck.query.filter(Deck.decksite.contains('archidekt')).all()
+    deck_count = 0
     for deck in decks:
+        deck_count +=1
         player = Player.query.filter_by(id=deck.Player).first()
         deck_list.append({
             'Name': deck.Name,
@@ -33,4 +35,4 @@ def card_meta():
         })
 
 
-    return render_template('cards/show.html', cards=cards, decks=deck_list)
+    return render_template('cards/show.html', cards=cards, decks=deck_list, count=deck_count)
