@@ -23,8 +23,9 @@ def get_decks():
     decks = Deck.query.all()
     for deck in decks:
         player = Player.query.filter_by(id = deck.Player).first()
-        tupel = (deck.Name, deck.Commander, player.Name)
-        deck_list.append(tupel)
+        if deck.Active:
+            tupel = (deck.Name, deck.Commander, player.Name)
+            deck_list.append(tupel)
     return deck_list
 
 def get_ci():
