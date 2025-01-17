@@ -43,8 +43,10 @@ class PlayerForm(Form):
 class GameAddForm(FlaskForm):
     winner = SelectField('Winner', choices=[])
     first = SelectField('First', choices=[])
+    turns = IntegerField('Turns', validators=[Optional()])
     fun = IntegerField('Fun', validators=[Optional(), NumberRange(min=0, max=10)])
     mulligan = IntegerField('Mulligan', validators=[Optional(), NumberRange(min=0, max=7)])
+    landdrops = IntegerField('Landdrops', validators=[Optional()])
     performance = IntegerField('Performance', validators=[Optional(), NumberRange(min=0, max=10)])
     comment = TextAreaField('Comment', validators=[Optional()])
     date = DateField('Date', format='%Y-%m-%d', validators=[DataRequired()])

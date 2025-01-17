@@ -69,7 +69,12 @@ def load_all_decks():
     for deck in decks:
         if not deck.decksite == None:
             if 'archidekt' in deck.decksite:
-                print(deck.archidekt_id.strip())
-                load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
-                time.sleep(1)
+                try:
+                    print(deck.archidekt_id.strip())
+                    load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
+                    time.sleep(1)
+                except:
+                    deck.decksite = None
+                    deck.archidekt_id = None
+                    db.session.commit()
     return render_template('index.html')

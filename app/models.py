@@ -80,6 +80,7 @@ class Game(db.Model):
     First_Player = db.Column(db.Integer)
     Winner = db.Column(db.Integer)
     Planechase = db.Column(db.Boolean, nullable=False, default=False)
+    turns = db.Column(db.Integer)
 
 class Participant(db.Model):
     __tablename__ = 'Participants'
@@ -92,6 +93,7 @@ class Participant(db.Model):
     performance = db.Column(db.Integer)
     mulligans = db.Column(db.Integer)
     comments = db.Column(db.String)
+    landdrops = db.Column(db.Integer)
 
 class Player(db.Model):
     __tablename__ = 'Player'

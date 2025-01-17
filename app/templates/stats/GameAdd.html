@@ -26,6 +26,7 @@
         <h3>Game Stats</h3>
         <p>{{ form.winner.label }} {{ form.winner() }}</p>
         <p>{{ form.first.label }} {{ form.first() }}</p>
+        <p>{{ form.turns.label }} {{ form.turns(size=5) }}</p>
         <p>{{ form.date.label }} {{ form.date() }}</p>
         <p>{{ form.planechase.label }} {{ form.planechase() }}</p>
 
@@ -33,6 +34,7 @@
         <p>{{ form.fun.label }} {{ form.fun(size=5) }}</p>
         <p>{{ form.performance.label }} {{ form.performance(size=5) }}</p>
         <p>{{ form.mulligan.label }} {{ form.mulligan(size=5) }}</p>
+        <p>{{ form.landdrops.label }} {{ form.landdrops(size=5) }}</p>
         <p>{{ form.comment.label }} {{ form.comment(rows=4, cols=50) }}</p>
 
         <p>{{ form.submit }}</p>

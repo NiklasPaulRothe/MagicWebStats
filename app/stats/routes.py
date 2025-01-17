@@ -115,7 +115,8 @@ def game_add():
         game = Game( Date = form.date.data,
                      First_Player = first,
                      Winner = winner,
-                     Planechase = form.planechase.data
+                     Planechase = form.planechase.data,
+                     turns = form.turns.data
         )
         db.session.add(game)
         db.session.commit()
@@ -142,7 +143,8 @@ def game_add():
                     fun = form.fun.data,
                     performance = form.performance.data,
                     mulligans = form.mulligan.data,
-                    comments = form.comment.data
+                    comments = form.comment.data,
+                    landdrops = form.landdrops.data
                 )
             else:
                 participant = Participant(
