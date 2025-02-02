@@ -81,6 +81,7 @@ class Game(db.Model):
     Winner = db.Column(db.Integer)
     Planechase = db.Column(db.Boolean, nullable=False, default=False)
     turns = db.Column(db.Integer)
+    final_blow = db.Column(db.String)
 
 class Participant(db.Model):
     __tablename__ = 'Participants'
@@ -94,6 +95,12 @@ class Participant(db.Model):
     mulligans = db.Column(db.Integer)
     comments = db.Column(db.String)
     landdrops = db.Column(db.Integer)
+    enough_mana = db.Column(db.Boolean)
+    enough_gas = db.Column(db.Boolean)
+    deckplan = db.Column(db.Boolean)
+    unanswered_threats = db.Column(db.Boolean)
+    loss_without_answer = db.Column(db.Boolean)
+    selfmade_win = db.Column(db.Boolean)
 
 class Player(db.Model):
     __tablename__ = 'Player'

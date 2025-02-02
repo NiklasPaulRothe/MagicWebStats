@@ -117,7 +117,8 @@ def game_add():
                      First_Player = first,
                      Winner = winner,
                      Planechase = form.planechase.data,
-                     turns = form.turns.data
+                     turns = form.turns.data,
+                     final_blow = form.final_blow.data
         )
         db.session.add(game)
         db.session.commit()
@@ -145,7 +146,13 @@ def game_add():
                     performance = form.performance.data,
                     mulligans = form.mulligan.data,
                     comments = form.comment.data,
-                    landdrops = form.landdrops.data
+                    landdrops = form.landdrops.data,
+                    enough_mana = form.enough_mana.data,
+                    enough_gas = form.enough_gas.data,
+                    deckplan = form.deckplan.data,
+                    unanswered_threats = form.unanswered_threats.data,
+                    loss_without_answer = form.loss_without_answer.data,
+                    selfmade_win = form.selfmade_win.data
                 )
             else:
                 participant = Participant(

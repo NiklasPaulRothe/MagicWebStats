@@ -34,6 +34,7 @@ def get_id_from_url(url):
 def load_cards_from_archidekt(archidekt_id, deck_id):
     print('Hello')
     deck = getDeckById(archidekt_id)
+    print('TESt')
     deck_categories = deck.categories
 
     Cards = DeckComponent.query.filter(DeckComponent.deck_id == deck_id).all()

@@ -28,6 +28,7 @@
         <p>{{ form.first.label }} {{ form.first() }}</p>
         <p>{{ form.turns.label }} {{ form.turns(size=5) }}</p>
         <p>{{ form.date.label }} {{ form.date() }}</p>
+        <p>{{ form.final_blow.label }} {{ form.final_blow() }}</p>
         <p>{{ form.planechase.label }} {{ form.planechase() }}</p>
 
         <h3>Deck Tracking</h3>
@@ -36,6 +37,13 @@
         <p>{{ form.mulligan.label }} {{ form.mulligan(size=5) }}</p>
         <p>{{ form.landdrops.label }} {{ form.landdrops(size=5) }}</p>
         <p>{{ form.comment.label }} {{ form.comment(rows=4, cols=50) }}</p>
+
+        <p>{{ form.enough_mana.label }} {{ form.enough_mana() }}</p>
+        <p>{{ form.enough_gas.label }} {{ form.enough_gas() }}</p>
+        <p>{{ form.deckplan.label }} {{ form.deckplan() }}</p>
+        <p>{{ form.unanswered_threats.label }} {{ form.unanswered_threats() }}</p>
+        <p>{{ form.loss_without_answer.label }} {{ form.loss_without_answer() }}</p>
+        <p>{{ form.selfmade_win.label }} {{ form.selfmade_win() }}</p>
 
         <p>{{ form.submit }}</p>
     </form>
