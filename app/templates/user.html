@@ -11,11 +11,15 @@
                         <th data-type="string">Name</th>
                         <th data-type="string">Commander</th>
                         <th data-type="string">Color Identity</th>
+                        <th data-type="number">Zuletzt gespielt</th>
+                        <th data-type="number">Spiele</th>
+                        <th data-type="number">Siege</th>
+                        <th data-type="number">Winrate (in %)</th>
                         <th data-type="string"> </th>
                     </tr>
                 </thead>
                 <tbody>
-                <!-- Deck stats data will be populated here -->
+                    <!-- Deck stats data will be populated here -->
                 </tbody>
             </table>
         </section>
@@ -25,16 +29,6 @@
             return encodeURIComponent(Deck);
         }
         document.addEventListener('DOMContentLoaded', function() {
-            // Fetch and populate Player Stats table
-            fetch('/api/data')
-                .then(response => response.json())
-                .then(data => populateTable('player-stats-table', data));
-
-            // Fetch and populate Color Stats table
-            fetch('/api/color-data')
-                .then(response => response.json())
-                .then(data => populateTable('color-stats-table', data));
-
             // Fetch and populate User Deck Stats table
             fetch('/api/userdecks')
                 .then(response => response.json())
@@ -66,7 +60,6 @@
                         return `<td>${item[key] || ''}</td>`
                     }).join('');
                     tbody.appendChild(row);
-                    if (tableId == "user-deck-stats-table") {
                         decklist = document.getElementById(String(Deck).concat("-list"));
                         let url = item["Decklist"]
                         if (url[0] != null) {
@@ -74,7 +67,6 @@
                         } else {
                             decklist.removeAttribute("href")
                         }
-                    }
                 });
             }
 
@@ -95,3 +87,4 @@
         });
     </script>
 {%  endblock %}
+

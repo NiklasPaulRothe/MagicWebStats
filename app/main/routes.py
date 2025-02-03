@@ -5,13 +5,16 @@ from flask_login import login_required
 import sqlalchemy as sa
 
 from app.models import User
+from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
 @bp.route('/')
 @bp.route('/index')
 @login_required
 def index():  # put application's code here
-    return render_template('index.html')
+    color_usage = ColorUsage.query.all()
+    color_usage_player = ColorUsagePlayer.query.all()
+    return render_template('index.html', color_usage=color_usage, color_usage_player=color_usage_player)
 
 @bp.route('/user/<username>')
 @login_required

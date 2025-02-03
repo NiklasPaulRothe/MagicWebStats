@@ -4,6 +4,10 @@ deckpage {
     justify-content: center;
 }
 
+#index {
+    margin:5px
+}
+
 #left {
     width:20%;
 }

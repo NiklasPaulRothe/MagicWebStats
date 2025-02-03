@@ -1,99 +1,71 @@
 {% extends "base.html" %}
 
+{% block head %}
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/deckpage.css') }}">
+</head>
+{% endblock %}
+
 {% block content %}
     <main>
-        <h1>Hi, {{ current_user.username }}!</h1>
-        <section id="deck-stats">
-            <h2>Deck Stats</h2>
-            <table id="user-deck-stats-table">
-                <thead>
+        <h1>Metainformationen</h1>
+        <deckpage>
+            <div id="index">
+                <table id="color_usage">
+                    <thead>
                     <tr>
-                        <th data-type="string">Name</th>
-                        <th data-type="string">Commander</th>
-                        <th data-type="string">Color Identity</th>
-                        <th data-type="number">Zuletzt gespielt</th>
-                        <th data-type="number">Spiele</th>
-                        <th data-type="number">Siege</th>
-                        <th data-type="number">Winrate (in %)</th>
+                        <th data-type="string" data-key="color">Color</th>
+                        <th data-type="float" data-key="likelihood">likelihood</th>
+                        <th data-type="float" data-key="average">average</th>
+                        <th data-type="float" data-key="deck_percent">Deck Percentage</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <!-- Deck stats data will be populated here -->
-                </tbody>
-            </table>
-        </section>
+                    </thead>
+                    <tbody>
+                    {% for color in color_usage %}
+                        <tr>
+                            <td>{{ color.color }}</td>
+                            <td>{{ color.likelihood }}</td>
+                            <td>{{ color.average }}</td>
+                            <td>{{ color.deck_percentage }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div id="index">
+                <table id="color_usage_player">
+                    <thead>
+                    <tr>
+                        <th data-type="string" data-key="player">Player</th>
+                        <th data-type="integer" data-key="decks">Decks</th>
+                        <th data-type="float" data-key="white">White</th>
+                        <th data-type="float" data-key="blue">Blue</th>
+                        <th data-type="float" data-key="black">Black</th>
+                        <th data-type="float" data-key="red">Red</th>
+                        <th data-type="float" data-key="green">Green</th>
+                        <th data-type="float" data-key="avg_colors">Average Colors</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for color in color_usage_player %}
+                        <tr>
+                            <td>{{ color.Player }}</td>
+                            <td>{{ color.Decks }}</td>
+                            <td>{{ color.white }}</td>
+                            <td>{{ color.blue }}</td>
+                            <td>{{ color.black }}</td>
+                            <td>{{ color.red }}</td>
+                            <td>{{ color.green }}</td>
+                            <td>{{ color.avg_number_of_colors }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </deckpage>
     </main>
     <script>
-        function encode(Deck) {
-            return encodeURIComponent(Deck);
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            // Fetch and populate Player Stats table
-            fetch('/api/data')
-                .then(response => response.json())
-                .then(data => populateTable('player-stats-table', data));
 
-            // Fetch and populate Color Stats table
-            fetch('/api/color-data')
-                .then(response => response.json())
-                .then(data => populateTable('color-stats-table', data));
-
-            // Fetch and populate User Deck Stats table
-            fetch('/api/userdecks')
-                .then(response => response.json())
-                .then(data => populateTable('user-deck-stats-table', data));
-
-
-            // Function to populate tables
-            function populateTable(tableId, data) {
-                const tbody = document.querySelector(`#${tableId} tbody`);
-                const headers = document.querySelectorAll(`#${tableId} thead th`);
-                tbody.innerHTML = ''; // Clear existing table data
-                let Deck = 'Dummy';
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = Array.from(headers).map(header => {
-                        if (header.textContent.trim() == ''){
-                            let URL= encode(Deck)
-                            return `<td><a id="${Deck}-link" href="/decks/edit/${URL}">Bearbeiten</a></td>`
-                        }
-                        const key = header.textContent.trim();
-                        if (key == 'Name') {
-                            Deck = item[key]
-                            let URL= encode(Deck)
-                            return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a></td>`
-                        }
-                        if (key == 'Commander') {
-                            return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
-                        }
-                        return `<td>${item[key] || ''}</td>`
-                    }).join('');
-                    tbody.appendChild(row);
-                        decklist = document.getElementById(String(Deck).concat("-list"));
-                        let url = item["Decklist"]
-                        if (url[0] != null) {
-                            decklist.href = url;
-                        } else {
-                            decklist.removeAttribute("href")
-                        }
-                });
-            }
-
-            // Sort table functionality
-            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
-
-            const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
-                v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
-            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
-
-            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
-                const table = th.closest('table');
-                const tbody = table.querySelector('tbody');
-                Array.from(tbody.querySelectorAll('tr'))
-                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
-                    .forEach(tr => tbody.appendChild(tr));
-            }));
-        });
     </script>
-{%  endblock %}
+{% endblock %}
 
