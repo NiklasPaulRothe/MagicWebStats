@@ -34,7 +34,8 @@ def deck_edit(deckname):
             deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
             deck.decksite = deckbuilder[0].strip()
             deck.archidekt_id = deckbuilder[1].strip()
-            load_cards_from_archidekt(deck.archidekt_id, deck.id)
+            #momentan außer Betrieb, da die api nicht funktioniert
+            #load_cards_from_archidekt(deck.archidekt_id, deck.id)
         db.session.commit()
         return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name
