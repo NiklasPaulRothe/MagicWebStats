@@ -32,10 +32,11 @@ def card_meta():
         for entry in entries:
             if entry.name == name[0] and entry.deck_id in active_decks:
                 count += entry.count
-        cards.append({
-            "Name": name[0],
-            "Count": count
-        })
+        if count > 0:
+            cards.append({
+                "Name": name[0],
+                "Count": count
+            })
 
 
     return render_template('cards/show.html', cards=cards, decks=deck_list, count=deck_count)
