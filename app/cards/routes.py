@@ -16,9 +16,11 @@ def card_meta():
     deck_list = []
     decks = Deck.query.filter(and_(Deck.decksite.contains('archidekt'),Deck.Active == True)).all()
     deck_count = 0
+    active_decks = []
     for deck in decks:
         deck_count +=1
         player = Player.query.filter_by(id=deck.Player).first()
+        active_decks.append(deck.id)
         deck_list.append({
             'Name': deck.Name,
             'Commander': deck.Commander,
@@ -28,7 +30,7 @@ def card_meta():
     for name in names:
         count = 0
         for entry in entries:
-            if entry.name == name[0]:
+            if entry.name == name[0] and entry.deck_id in active_decks:
                 count += entry.count
         cards.append({
             "Name": name[0],
