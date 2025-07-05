@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import select, and_
 
 from app import db, models, third_party_data
+from app.auth import role_required
 from app.decks import bp
 from app.decks.forms import DeckEditForm
 from app.models import Deck, Player, User, Game, Participant
@@ -34,7 +35,10 @@ def deck_edit(deckname):
             deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
             deck.decksite = deckbuilder[0].strip()
             deck.archidekt_id = deckbuilder[1].strip()
-            load_cards_from_archidekt(deck.archidekt_id, deck.id)
+            try:
+                load_cards_from_archidekt(deck.archidekt_id, deck.id)
+            except:
+                pass
         db.session.commit()
         return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name
@@ -71,3 +75,67 @@ def deck_show(deckname):
         commander = card.image_uri
 
     return render_template('decks/show.html', deckname=deckname, commander=commander, games=row)
+
+@bp.route('/elo', methods=['GET'])
+@role_required('admin')
+@login_required
+def calculate_elo():
+    decks = Deck.query.all()
+    elo_ratings = {deck.id: {'elo_rating': 1200, 'games_played': 0} for deck in decks}
+
+    games = Game.query.all()
+    for game in games:
+        participants = Participant.query.filter_by(game_id=game.id).all()
+        if len(participants) < 3:
+            continue
+
+        #if game.id > 158:
+         #   continue
+
+        deck_ratings = {p.deck_id: elo_ratings[p.deck_id]['elo_rating'] for p in participants if p.deck_id in elo_ratings}
+
+        for participant in participants:
+            deck = Deck.query.get(participant.deck_id)
+            if deck.Player != participant.player_id:
+                continue
+
+            rating = elo_ratings[participant.deck_id]['elo_rating']
+
+            expected_scores = {deck_id: expected_score(rating, opponent_rating) for deck_id, opponent_rating in deck_ratings.items() if deck_id != participant.deck_id}
+            lowest_expected_score = min(expected_scores.values())
+            threshold = (1 - lowest_expected_score) * 0.6 + lowest_expected_score
+            filtered_expected_scores = [score for score in expected_scores.values() if score <= threshold]
+
+            actual_score = 1 if game.Winner == participant.player_id else 0
+            games_played = elo_ratings[participant.deck_id]['games_played']
+            expected_score_avg = sum(filtered_expected_scores) / len(filtered_expected_scores)
+            adjusted_rating = update_elo_rating(rating, actual_score, expected_score_avg, games_played)
+
+            elo_ratings[participant.deck_id]['elo_rating'] = adjusted_rating
+            elo_ratings[participant.deck_id]['games_played'] += 1
+
+    # Update Elo ratings in the database
+    for deck_id, values in elo_ratings.items():
+        deck = Deck.query.get(deck_id)
+        deck.elo_rating = values['elo_rating']
+        db.session.add(deck)
+
+    db.session.commit()
+    return redirect(url_for('main.index'), code=302)
+
+def expected_score(rating, opponent_rating):
+    return 1 / (1 + 10 ** ((opponent_rating - rating) / 180))
+
+def update_elo_rating(current_rating, actual_score, expected_score, games_played):
+    match games_played:
+        case games_played if games_played > 50:
+            adjustment_factor = 30
+        case games_played if games_played <= 50 & games_played > 30:
+            adjustment_factor = 75
+        case _:
+            adjustment_factor = 150
+    value =  adjustment_factor * (actual_score - expected_score)
+    if value > 0:
+        return current_rating + value
+    else:
+        return current_rating + value/3

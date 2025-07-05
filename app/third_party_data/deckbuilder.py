@@ -5,7 +5,7 @@ from flask import current_app, render_template
 from flask_login import login_required
 from pyrchidekt.api import getDeckById
 
-from app import db
+from app import db, third_party_data
 from app.auth import role_required
 from app.models import DeckComponent, Deck
 from app.third_party_data import bp
@@ -68,6 +68,11 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
 def load_all_decks():
     decks = Deck.query.all()
     for deck in decks:
+        if not deck.decklist == None and deck.decksite == None:
+            deckbuilder = third_party_data.deckbuilder.get_id_from_url(deck.decklist)
+            deck.decksite = deckbuilder[0].strip()
+            deck.archidekt_id = deckbuilder[1].strip()
+            db.session.commit;
         if not deck.decksite == None:
             if 'archidekt' in deck.decksite:
                 try:
@@ -78,4 +83,5 @@ def load_all_decks():
                     deck.decksite = None
                     deck.archidekt_id = None
                     db.session.commit()
+
     return render_template('index.html')
