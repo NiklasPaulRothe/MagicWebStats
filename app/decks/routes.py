@@ -30,16 +30,18 @@ def deck_edit(deckname):
     if form.validate_on_submit():
         deck.Name = form.name.data
         deck.Active = not form.archive.data
+        db.session.commit()
         if (form.decklist.data != ""):
             deck.decklist = form.decklist.data
             deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
             deck.decksite = deckbuilder[0].strip()
             deck.archidekt_id = deckbuilder[1].strip()
+            db.session.commit()
             try:
                 load_cards_from_archidekt(deck.archidekt_id, deck.id)
+                db.session.commit()
             except:
-                pass
-        db.session.commit()
+                db.session.rollback()
         return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name
     form.decklist.default = deck.decklist
