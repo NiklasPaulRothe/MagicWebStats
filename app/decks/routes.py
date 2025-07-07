@@ -41,6 +41,7 @@ def deck_edit(deckname):
                 load_cards_from_archidekt(deck.archidekt_id, deck.id)
                 db.session.commit()
             except:
+                flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
                 db.session.rollback()
         return redirect(url_for('main.user', username=current_user.username))
     form.name.default = deck.Name

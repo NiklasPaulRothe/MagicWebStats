@@ -27,10 +27,6 @@ admin_permission = Permission(RoleNeed('admin'))
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
-    url = urlparse(os.environ.get("REDIS_URL"))
-    app.redis = redis.Redis(host=url.hostname, port=url.port, password=url.password, ssl=(url.scheme == "rediss"),
-                    ssl_cert_reqs=None)
-    app.task_queue = rq.Queue('magicstats-tasks', connection=app.redis)
 
     db.init_app(app)
     migrate.init_app(app, db)

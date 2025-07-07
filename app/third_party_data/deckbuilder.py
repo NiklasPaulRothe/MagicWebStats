@@ -76,7 +76,6 @@ def load_all_decks():
         if not deck.decksite == None:
             if 'archidekt' in deck.decksite:
                 try:
-                    print(deck.archidekt_id.strip())
                     load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
                     time.sleep(1)
                 except:

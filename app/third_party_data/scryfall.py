@@ -23,11 +23,8 @@ def load_card_data():
 @role_required('admin')
 @login_required
 def get_card_data():
-    #app = create_app()
-    #app.app_context().push()
 
     try:
-        #app.logger.info('Start Fetching Card Data')
         bulk_data = requests.get("https://api.scryfall.com/bulk-data").json()
         data = bulk_data['data']
         download_link = ''
@@ -48,8 +45,6 @@ def get_card_data():
                 total_length = int(total_length)
                 for data in card_data.iter_content(chunk_size=total_length / 1000):
                     f.write(data)
-
-        #app.logger.info('Successfully Fetched JSON')
 
         with open('files/card_data.json', 'rb') as f:
             for card in ijson.items(f, "item"):
@@ -105,15 +100,12 @@ def get_card_data():
 
                     db.session.add(card_entry)
             db.session.commit()
-        #app.logger.info('Finished Retrieving card data')
         return render_template('index.html')
     except Exception:
         pass
-        #app.logger.error('Unhandled exception', exc_info=sys.exc_info())
 
     finally:
         pass
-        #app.logger.info('End Function')
 
 
 
