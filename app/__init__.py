@@ -1,9 +1,4 @@
-from sched import scheduler
-from urllib.parse import urlparse
 
-import redis
-import rq
-from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
 from flask_principal import Principal, Permission, RoleNeed
 
@@ -76,5 +71,3 @@ def create_app(config_class=Config):
         app.logger.info('Webstats startup')
 
     return app
-
-from app import models, jobs

@@ -1,24 +1,25 @@
 /* Basic styling */
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f8f8f8;
+    background-color: #121212;
+    color: antiquewhite;
 }
 
 header {
-    background-color: #282c34;
+    background-color: black;
+    color: #f4c430;
     padding: 20px;
     text-align: center;
-    color: white;
 }
 
 nav ul {
     list-style-type: none;
     margin: 0;
     padding: 0;
-    background-color: #333;
     display: flex;
+    background-color: #0d0800;
     justify-content: center;
     /* Remove overflow: hidden to ensure dropdown visibility */
 }
@@ -29,10 +30,18 @@ nav li {
 
 nav li a {
     display: block;
-    color: white;
+    color: #f4c430;
     text-align: center;
     padding: 14px 16px;
     text-decoration: none;
+}
+
+nav li a:link {
+    color: #f4c430;
+}
+
+nav li a:visited {
+    color: #f4c430;
 }
 
 nav li a:hover {
@@ -51,7 +60,7 @@ nav li .dropdown-content {
 }
 
 nav li .dropdown-content a {
-    color: white;
+    color: antiquewhite;
     padding: 12px 16px;
     text-decoration: none;
     display: block;
@@ -73,17 +82,30 @@ main {
     padding: 20px;
 }
 
+a:link {
+    color: antiquewhite;
+    text-decoration: underline dotted;
+}
+
+a:visited {
+    color: antiquewhite;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 section {
     width: 80%;
-    background-color: white;
+    background-color: #282c34;
     margin: 10px 0;
     padding: 20px;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
 }
 
 footer {
-    background-color: #333;
-    color: white;
+    background-color: black;
+    color: antiquewhite;
     text-align: center;
     padding: 10px 0;
 }
@@ -102,21 +124,21 @@ th, td {
 }
 
 th {
-    background-color: #f2f2f2;
+    background-color: #282c34;
     cursor: pointer;
 }
 
 tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background-color: #121212;
 }
 
 tr:hover {
-    background-color: #f1f1f1;
+    background-color: #282c34;
 }
 
 .ascii-table pre {
     font-family: monospace;
-    background-color: #f1f1f1;
+    background-color: #282c34;
     padding: 10px;
     overflow-x: auto;
     text-align: center;
