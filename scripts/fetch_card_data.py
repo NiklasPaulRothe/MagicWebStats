@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     # This Block fetches the complete data dump from scryfall in a json
     try:
-        bulk_data = requests.get("aaahttps://api.scryfall.com/bulk-data").json()
+        bulk_data = requests.get("https://api.scryfall.com/bulk-data").json()
         data = bulk_data['data']
         download_link = ''
         for entry in data:
@@ -61,14 +61,9 @@ if __name__ == '__main__':
                             cur.execute("UPDATE data_owner.card_data SET card_text = %s WHERE id = %s", (card['oracle_text'], card['id']))
                             print('Update ' + card['name'])
                         else:
-                            card_entry = {}
-                            card_entry['Name'] = card['name']
-                            card_entry['id'] = card['id']
-                            card_entry['image_uri'] = card['image_uris']['large']
-                            card_entry['commander_legal'] = True
-                            card_entry['cmc'] = card['cmc']
-                            card_entry['card_text'] = card['oracle_text']
-                            print(card_entry['Name'])
+                            cur.execute("""INSERT INTO data_owner.card_data (\"Name\", id, image_uri, commander_legal, cmc, card_text)
+                                        VALUES(%s, %s, %s, %s, %s, %s);""", (card['name'], card['id'], card['image_uris']['large'], True, card['cmc'], card['oracle_text']))
+                            print('Add ' + card['name'])
 
                     # Cards with two modes on the front of the card
                     elif ('image_uris' in card):
@@ -79,15 +74,11 @@ if __name__ == '__main__':
                                         (card['card_faces'][0]['oracle_text'], card['card_faces'][1]['oracle_text'],  card['id']))
                             print('Update ' + card['name'])
                         else:
-                            card_entry = {}
-                            card_entry['Name'] = card['name'].split(' // ')[0]
-                            card_entry['id'] = card['id']
-                            card_entry['image_uri'] = card['image_uris']['large']
-                            card_entry['commander_legal'] = True
-                            card_entry['cmc'] = card['cmc']
-                            card_entry['card_text'] = card['card_faces'][0]['oracle_text']
-                            card_entry['back_card_text'] = card['card_faces'][1]['oracle_text']
-                            print(card_entry['Name'])
+                            cur.execute("""INSERT INTO data_owner.card_data (\"Name\", id, image_uri, commander_legal, cmc, card_text, back_card_text)
+                                        VALUES(%s, %s, %s, %s, %s, %s, %s);""", (card['name'].split(' // ')[0], card['id'],
+                                                                             card['image_uris']['large'], True, card['cmc'],
+                                                                             card['card_faces'][0]['oracle_text'], card['card_faces'][1]['oracle_text']))
+                            print('Add ' + card['name'])
 
                     # Cards with different images on front and back
                     elif ('cmc' in card):
@@ -98,16 +89,12 @@ if __name__ == '__main__':
                                         (card['card_faces'][0]['oracle_text'], card['card_faces'][1]['oracle_text'],  card['id']))
                             print('Update ' + card['name'])
                         else:
-                            card_entry = {}
-                            card_entry['Name'] = card['name'].split(' // ')[0]
-                            card_entry['id'] = card['id']
-                            card_entry['image_uri'] = card['card_faces'][0]['image_uris']['large']
-                            card_entry['back_image_uri'] = card['card_faces'][1]['image_uris']['large']
-                            card_entry['commander_legal'] = True
-                            card_entry['cmc'] = card['cmc']
-                            card_entry['card_text'] = card['card_faces'][0]['oracle_text']
-                            card_entry['back_card_text'] = card['card_faces'][1]['oracle_text']
-                            print(card_entry['Name'])
+                            cur.execute("""INSERT INTO data_owner.card_data (\"Name\", id, image_uri, back_image_uri, commander_legal, cmc, card_text, back_card_text)
+                                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s);""", (card['name'].split(' // ')[0], card['id'],
+                                                                                    card['card_faces'][0]['image_uris']['large'], card['card_faces'][1]['image_uris']['large'],
+                                                                                    True, card['cmc'],card['card_faces'][0]['oracle_text'],
+                                                                                    card['card_faces'][1]['oracle_text']))
+                            print('Add ' + card['name'])
 
                     # MDFC with two castable sides
                     else:
@@ -118,17 +105,15 @@ if __name__ == '__main__':
                                         (card['card_faces'][0]['oracle_text'], card['card_faces'][1]['oracle_text'],  card['id']))
                             print('Update ' + card['name'])
                         else:
-                            card_entry['Name'] = card['name'].split(' // ')[0]
-                            card_entry['id'] = card['id']
-                            card_entry['image_uri'] = card['card_faces'][0]['image_uris']['large']
-                            card_entry['back_image_uri'] = card['card_faces'][1]['image_uris']['large']
-                            card_entry['commander_legal'] = True
-                            card_entry['cmc'] = card['card_faces'][0]['cmc']
-                            card_entry['card_text'] = card['card_faces'][0]['oracle_text']
-                            card_entry['back_card_text'] = card['card_faces'][1]['oracle_text']
-                            print(card_entry['Name'])
+                            cur.execute("""INSERT INTO data_owner.card_data (\"Name\", id, image_uri, back_image_uri, commander_legal, cmc, card_text, back_card_text)
+                                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s);""", (card['name'].split(' // ')[0], card['id'],
+                                                                                    card['card_faces'][0]['image_uris']['large'], card['card_faces'][1]['image_uris']['large'],
+                                                                                    True, card['card_faces'][0]['cmc'],card['card_faces'][0]['oracle_text'],
+                                                                                    card['card_faces'][1]['oracle_text']))
+                            print('Add ' + card['name'])
 
             conn.commit()
+            print("Kartendaten erfolgreich aktualisiert...")
     except Exception as e:
         print('Exception: ' + str(e))
 
