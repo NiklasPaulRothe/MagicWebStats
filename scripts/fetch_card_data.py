@@ -30,7 +30,7 @@ if __name__ == '__main__':
                 f.write(card_data.content)
             else:
                 total_length = int(total_length)
-                for data in card_data.iter_content(chunk_size=50):
+                for data in card_data.iter_content(chunk_size=1000):
                     f.write(data)
         print('Bulk Data loaded...')
     except Exception:
