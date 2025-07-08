@@ -96,7 +96,6 @@ a:hover {
 }
 
 section {
-    width: 80%;
     background-color: #282c34;
     margin: 10px 0;
     padding: 20px;
@@ -114,26 +113,31 @@ table {
     border-collapse: collapse;
     margin-left: auto;
     margin-right: auto;
+    border:1px solid;
 }
 
 th, td {
-    border: 1px solid #ddd;
+    border: none;
     padding: 6px 8px;
     text-align: center;
     font-size: 15px;
 }
 
 th {
-    background-color: #282c34;
+    background-color: black;
+    color: #f4c430;
     cursor: pointer;
+    text-align: left;
+}
+
+td {
+    text-align: left;
+    margin-left: 2px;
+    height: 30px;
 }
 
 tr:nth-child(even) {
     background-color: #121212;
-}
-
-tr:hover {
-    background-color: #282c34;
 }
 
 .ascii-table pre {
