@@ -148,8 +148,17 @@ new Chart(document.getElementById('finalBlowChart'), {
         datasets: [{
             data: fbCounts,
             backgroundColor: [
-                '#f4c430', '#FF6384', '#36A2EB', '#9966FF', '#FF9F40'
-            ],
+                '#f4c430',  // golden yellow
+                '#e6194b',  // strong red
+                '#3cb44b',  // green
+                '#4363d8',  // royal blue
+                '#f58231',  // orange
+                '#911eb4',  // purple
+                '#46f0f0',  // cyan
+                '#a9a9a9',  // gray
+                '#ffe119',  // bright yellow
+                '#000075'   // deep navy
+            ]
         }]
     },
     options: {
@@ -158,15 +167,34 @@ new Chart(document.getElementById('finalBlowChart'), {
             legend: {
                 position: 'bottom',
                 labels: {
-                    color: '#fff'
+                    color: 'antiquewhite',   // 👈 Legend labels
+                    usePointStyle: true,
+                    padding: 20,
+                    boxWidth: 12
                 }
             },
             title: {
                 display: true,
                 text: 'Final Blow Distribution',
                 color: '#f4c430',
-                font: { weight: 'bold' }
+                font: { weight: 'bold', size: 16 }
+            },
+            tooltip: {
+                bodyColor: 'black',       // 👈 Tooltip text
+                titleColor: 'black',
+                backgroundColor: '#f4f4f4'
+            },
+            datalabels: {
+                color: 'black', // 👈 This sets the numbers inside the pie chart to black
+                font: {
+                    weight: 'bold',
+                    size: 12
+                },
+                formatter: (value, ctx) => value
             }
+        },
+        layout: {
+            padding: { top: 10, bottom: 10 }
         }
     }
 });

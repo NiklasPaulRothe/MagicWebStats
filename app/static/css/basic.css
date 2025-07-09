@@ -408,3 +408,14 @@ th.sorted-desc > span::after {
     width: 380px;
     height: 380px;
 }
+
+#finalBlowChart {
+    margin-bottom: 10px;
+}
+
+.chart-container .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
+}
