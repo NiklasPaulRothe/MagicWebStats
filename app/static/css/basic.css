@@ -99,8 +99,9 @@ main a:visited {
     color: antiquewhite;
 }
 
-main a:hover {
+main a:link:hover {
     color: white;
+    font-weight: bold;
 }
 
 section {
@@ -304,4 +305,41 @@ form button:hover,
 form input[type="submit"]:hover {
     background-color: #f4c430;
     color: black;
+}
+
+.players-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+}
+
+#players-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: flex-start;
+}
+
+.player-fields {
+    flex: 1 1 300px;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.field-list-item {
+    flex: 1 1 320px;
+    max-width: 400px;
+    box-sizing: border-box;
+}
+
+/* Sorting indicators for all <th> span elements */
+th.sorted-asc > span::after {
+    content: " ↑";
+}
+
+th.sorted-desc > span::after {
+    content: " ↓";
 }

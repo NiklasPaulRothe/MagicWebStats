@@ -1,6 +1,6 @@
 from flask import render_template, flash, redirect, url_for, request, session, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, desc
 
 from app import db, models, third_party_data
 from app.auth import role_required
@@ -59,6 +59,7 @@ def deck_show(deckname):
     deck = models.Deck.query.filter(Deck.Name == deckname).first()
     games = models.Participant.query.filter(and_(Participant.player_id == deck.Player, Participant.deck_id == deck.id)).all()
     row = []
+    games = reversed(games)
     for game in games:
         game_data = models.Game.query.filter_by(id = game.game_id).first()
         opponents = models.Participant.query.filter(and_(Participant.game_id == game.game_id,

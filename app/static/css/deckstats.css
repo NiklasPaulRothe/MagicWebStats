@@ -1,8 +1,1 @@
-/* Sorting indicators for all <th> span elements */
-th.sorted-asc > span::after {
-    content: " ↑";
-}
 
-th.sorted-desc > span::after {
-    content: " ↓";
-}
