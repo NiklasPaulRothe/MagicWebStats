@@ -84,82 +84,90 @@ def set_commander_image(deckname):
     return redirect(url_for('decks.deck_show', deckname=deckname))
 
 
+from collections import defaultdict
+
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def deck_show(deckname):
     current_app.logger.info(deckname)
 
-    deck = models.Deck.query.filter(Deck.Name == deckname).first()
-    if not deck:
-        flash("Deck nicht gefunden.", "error")
-        return redirect(url_for("main.index"))
+    deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
 
-    # Fetch games for this deck
-    deck_participations = models.Participant.query.filter(
-        and_(
-            Participant.player_id == deck.Player,
-            Participant.deck_id == deck.id
-        )
-    ).all()
-    print("Test 1")
-    games = reversed(deck_participations)
+    # 1. Get all games for this deck
+    participants = models.Participant.query.filter_by(
+        player_id=deck.Player,
+        deck_id=deck.id
+    ).order_by(models.Participant.game_id.desc()).all()
 
-    row = []
-    for game in games:
-        game_data = models.Game.query.filter_by(id=game.game_id).first()
+    game_ids = [p.game_id for p in participants]
+    if not game_ids:
+        games = []
+    else:
+        # 2. Get all relevant games
+        games = {g.id: g for g in models.Game.query.filter(models.Game.id.in_(game_ids)).all()}
 
-        # Get opponent participants
-        opponents = models.Participant.query.filter(
-            and_(
-                Participant.game_id == game.game_id,
-                Participant.player_id != deck.Player
-            )
+        # 3. Get all participants for these games
+        all_participants = models.Participant.query.filter(
+            models.Participant.game_id.in_(game_ids)
         ).all()
 
+        # 4. Get all involved player and deck IDs
+        player_ids = set(p.player_id for p in all_participants)
+        deck_ids = set(p.deck_id for p in all_participants)
+
+        players = {p.id: p for p in models.Player.query.filter(models.Player.id.in_(player_ids)).all()}
+        decks = {d.id: d for d in models.Deck.query.filter(models.Deck.id.in_(deck_ids)).all()}
+
+        # 5. Group participants by game_id
+        participants_by_game = defaultdict(list)
+        for p in all_participants:
+            participants_by_game[p.game_id].append(p)
+
+    row = []
+    for game_id in game_ids:
+        game_data = games[game_id]
+        opponents = [p for p in participants_by_game[game_id] if p.player_id != deck.Player]
+
         opponent_data = []
-        for opponent in opponents:
-            player = models.Player.query.filter_by(id=opponent.player_id).first()
-            opponent_deck = models.Deck.query.filter_by(id=opponent.deck_id).first()
-            commander_name = opponent_deck.Commander if opponent_deck else None
+        for opp in opponents:
+            player = players.get(opp.player_id)
+            deck_obj = decks.get(opp.deck_id)
 
             opponent_data.append({
-                "player_name": player.Name,
-                "deck_name": opponent_deck.Name if opponent_deck else "Unknown Deck",
-                "commander_image": opponent_deck.image_uri if opponent_deck and opponent_deck.image_uri else "/static/img/default_commander.png"
+                "player_name": player.Name if player else "Unknown",
+                "deck_name": deck_obj.Name if deck_obj else "Unknown Deck",
+                "commander_image": deck_obj.image_uri if deck_obj and deck_obj.image_uri else "/static/img/default_commander.png"
             })
+
+        winner_name = players.get(game_data.Winner).Name if players.get(game_data.Winner) else "Unbekannt"
 
         row.append({
             "Datum": game_data.Date.strftime("%Y-%m-%d"),
             "Gegner": opponent_data,
-            "Winner": models.Player.query.filter_by(id=game_data.Winner).first().Name,
+            "Winner": winner_name,
         })
-    print("Test 2")
-    # Compute deck stats
-    total_games = len(deck_participations)
-    win_count = 0
-    last_played = None
 
-    for participation in deck_participations:
-        game_obj = models.Game.query.filter_by(id=participation.game_id).first()
-        if game_obj.Winner == deck.Player:
-            win_count += 1
-        if not last_played or game_obj.Date > last_played:
-            last_played = game_obj.Date
+    # Stats for deck header
+    total_games = len(game_ids)
+    wins = sum(1 for g in game_ids if games[g].Winner == deck.Player)
+    winrate = round((wins / total_games) * 100, 1) if total_games else 0
+    last_played = games[game_ids[0]].Date.strftime("%Y-%m-%d") if game_ids else "Nie"
 
     deck_stats = {
         "games": total_games,
-        "wins": win_count,
-        "winrate": round((win_count / total_games) * 100, 1) if total_games > 0 else 0,
-        "last_played": last_played.strftime("%Y-%m-%d") if last_played else "—",
+        "wins": wins,
+        "winrate": winrate,
+        "last_played": last_played
     }
-    print("Test 3")
+
     return render_template(
         'decks/show.html',
-        deckname=deckname,
+        deckname=deck.Name,
         commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
         deck_stats=deck_stats
     )
+
 
 
 @bp.route('/elo', methods=['GET'])
