@@ -136,5 +136,39 @@
             }
         }
     });
+    const finalBlowData = JSON.parse(document.getElementById('final-blow-data').textContent);
+
+const fbLabels = Object.keys(finalBlowData);
+const fbCounts = Object.values(finalBlowData);
+
+new Chart(document.getElementById('finalBlowChart'), {
+    type: 'pie',
+    data: {
+        labels: fbLabels,
+        datasets: [{
+            data: fbCounts,
+            backgroundColor: [
+                '#f4c430', '#FF6384', '#36A2EB', '#9966FF', '#FF9F40'
+            ],
+        }]
+    },
+    options: {
+        responsive: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    color: '#fff'
+                }
+            },
+            title: {
+                display: true,
+                text: 'Final Blow Distribution',
+                color: '#f4c430',
+                font: { weight: 'bold' }
+            }
+        }
+    }
+});
 
 });

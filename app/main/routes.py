@@ -41,11 +41,21 @@ def index():
     avg_turns = round(statistics.mean(turns_list), 2) if turns_list else 0
     median_turns = round(statistics.median(turns_list), 2) if turns_list else 0
 
+    # Final blow pie chart data
+    final_blow_counts = (
+        db.session.query(Game.final_blow)
+        .filter(Game.final_blow.isnot(None))
+        .all()
+    )
+    final_blow_flat = [fb[0] for fb in final_blow_counts]
+    final_blow_counter = dict(Counter(final_blow_flat))
+
     return render_template(
         'index.html',
         color_usage=color_usage_data,
         color_usage_player=color_usage_player,
-        turn_data=turn_data
+        turn_data=turn_data,
+        final_blow_data=final_blow_counter
     )
 
 

@@ -19,6 +19,7 @@
             <canvas id="averageChart" width="300" height="200"></canvas>
             <canvas id="deckPercentageChart" width="300" height="200"></canvas>
             <canvas id="turnsChart" width="300" height="200"></canvas>
+            <canvas id="finalBlowChart" width="300" height="200"></canvas>
         </div>
         <div id="player-table">
             <table id="color_usage_player">
@@ -56,6 +57,9 @@
     </script>
     <script type="application/json" id="turn-data">
         {{ turn_data | tojson }}
+    </script>
+    <script type="application/json" id="final-blow-data">
+        {{ final_blow_data | tojson }}
     </script>
 </main>
 {% endblock %}
