@@ -358,11 +358,12 @@ th.sorted-desc > span::after {
     border-radius: 8px;
     padding: 12px;
 }
- .deckpage {
+.deckpage {
     display: flex;
+    flex-direction: row;
     justify-content: flex-start;
-    align-items: flex-start;
-    gap: 20px;
+    gap: 30px;
+    flex-wrap: wrap;
     padding: 20px;
 }
 
@@ -380,5 +381,30 @@ th.sorted-desc > span::after {
 }
 
 #player-table {
-    flex-grow: 1;
+    max-width: 600px;
+    overflow-x: auto;
+}
+
+#player-section {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+#player-table {
+    max-width: 600px;
+    overflow-x: auto;
+}
+
+.chart-box {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 380px;
+    height: 380px;
 }
