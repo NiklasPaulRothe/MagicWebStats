@@ -1,36 +1,172 @@
-deckpage {
+/* Layout container */
+.deck-container {
     display: flex;
-    flex-direction: row;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 30px;
 }
 
-#index {
-    margin:5px
-}
-
-#left {
-    width:20%;
-}
-
-#left img {
-    width:100%;
-}
-
-#right {
-    width:70%;
-}
-
-#inner {
+/* Deck header section */
+.deck-header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
     width: 100%;
-    border: none;
+    max-width: 900px;
+}
+
+.commander-image {
+    width: 120px;
+    height: auto;
+    border-radius: 8px;
+    border: 2px solid #f4c430;
+}
+
+.deck-header h1 {
+    font-size: 2rem;
+    color: #f4c430;
+}
+
+/* Games section */
+.deck-games {
+    width: 100%;
+    max-width: 900px;
+}
+
+.deck-games h2 {
+    margin-bottom: 12px;
+    color: #f4c430;
+}
+
+/* Table styling */
+.deck-games-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #282c34;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.deck-games-table th, .deck-games-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #444;
     text-align: left;
 }
 
-#inner td {
-    text-align: left;
-    border: none;
+.deck-games-table th {
+    background-color: #111;
+    color: #f4c430;
 }
 
-#table_left {
-    width: 15%;
+.deck-games-table tr:nth-child(even) {
+    background-color: #1e1e1e;
+}
+
+/* Opponent list styling */
+.opponent-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.opponent-list li {
+    padding: 4px 0;
+    color: antiquewhite;
+}
+
+/* Main layout */
+.deck-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 30px;
+}
+
+.deck-header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
+    width: 100%;
+    max-width: 1000px;
+}
+
+.commander-image {
+    width: 120px;
+    height: auto;
+    border-radius: 8px;
+    border: 2px solid #f4c430;
+}
+
+.deck-header h1 {
+    font-size: 2rem;
+    color: #f4c430;
+}
+
+.deck-games {
+    width: 100%;
+    max-width: 1000px;
+}
+
+.deck-games-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #282c34;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.deck-games-table th,
+.deck-games-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #444;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.deck-games-table th {
+    background-color: #111;
+    color: #f4c430;
+}
+
+.deck-games-table tr:nth-child(even) {
+    background-color: #1e1e1e;
+}
+
+/* Opponent layout inside a row */
+.opponent-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.opponent-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    text-align: center;
+}
+
+.opponent-commander-img {
+    width: 80px;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid #f4c430;
+}
+
+.opponent-info {
+    margin-top: 6px;
+    font-size: 12px;
+    color: antiquewhite;
 }

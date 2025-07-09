@@ -7,30 +7,44 @@
 {% endblock %}
 
 {% block content %}
-    <h1>{{ deckname }}</h1>
-    <deckpage>
-        <div id="left"><img src="{{ commander }}" width="200px"></div>
-        <div id="right"><table id="user-deck-stats-table">
-                <thead>
-                    <tr>
-                        <th data-type="number">Datum</th>
-                        <th data-type="string">Gegner</th>
-                        <th data-type="string">Sieger</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for game in games %}
+<main class="deck-container">
+    <section class="deck-header">
+        <img src="{{ commander }}" alt="Commander Image" class="commander-image">
+        <h1>{{ deckname }}</h1>
+    </section>
+
+    <section class="deck-games">
+        <h2>Gespielte Spiele</h2>
+        <table class="deck-games-table">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Gegner</th>
+                    <th>Sieger</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for game in games %}
                 <tr>
                     <td>{{ game.Datum }}</td>
-                    <td><table id="inner">
-                        {% for opponent in game.Gegner %}
-                            <tr><td id="table_left">{{ opponent[0] }}</td> <td>- {{ opponent[1] }} ({{ opponent[2] }})</td></tr>
-                        {% endfor %}
-                    </table></td>
+                    <td>
+                        <div class="opponent-row">
+                            {% for opponent in game.Gegner %}
+                                <div class="opponent-card">
+                                    <img src="{{ opponent[2] }}" alt="Commander" class="opponent-commander-img">
+                                    <div class="opponent-info">
+                                        <strong>{{ opponent[0] }}</strong><br>
+                                        <span>{{ opponent[1] }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </td>
                     <td>{{ game.Winner }}</td>
                 </tr>
-                {% endfor %}
-                </tbody>
-            </table></div>
-    </deckpage>
-{%  endblock %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endblock %}

@@ -1,6 +1,6 @@
 from flask import render_template, flash, redirect, url_for, request, session, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import select, and_, desc
+from sqlalchemy import select, and_, desc, func
 
 from app import db, models, third_party_data
 from app.auth import role_required
@@ -57,28 +57,52 @@ def deck_edit(deckname):
 def deck_show(deckname):
     current_app.logger.info(deckname)
     deck = models.Deck.query.filter(Deck.Name == deckname).first()
-    games = models.Participant.query.filter(and_(Participant.player_id == deck.Player, Participant.deck_id == deck.id)).all()
+    games = models.Participant.query.filter(
+        and_(Participant.player_id == deck.Player, Participant.deck_id == deck.id)
+    ).all()
+
     row = []
     games = reversed(games)
+
     for game in games:
-        game_data = models.Game.query.filter_by(id = game.game_id).first()
-        opponents = models.Participant.query.filter(and_(Participant.game_id == game.game_id,
-                                                         Participant.player_id != deck.Player)).all()
+        game_data = models.Game.query.filter_by(id=game.game_id).first()
+        opponents = models.Participant.query.filter(
+            and_(Participant.game_id == game.game_id,
+                 Participant.player_id != deck.Player)
+        ).all()
+
+        opponent_data = []
+        for opponent in opponents:
+            player = models.Player.query.filter_by(id=opponent.player_id).first()
+            opponent_deck = models.Deck.query.filter_by(id=opponent.deck_id).first()
+            commander_name = opponent_deck.Commander if opponent_deck else None
+
+            # Default fallback if commander image isn't found
+            commander_image = None
+
+            if commander_name:
+                commander_card = models.Card.query.filter_by(Name=commander_name).first()
+                if commander_card and commander_card.image_uri:
+                    commander_image = commander_card.image_uri
+
+            opponent_data.append((
+                player.Name,
+                opponent_deck.Name if opponent_deck else "Unknown Deck",
+                commander_image or "/static/img/default_commander.png"
+            ))
 
         row.append({
-            "Datum": game_data.Date,
-            "Gegner": {(models.Player.query.filter_by(id = opponent.player_id).first().Name,
-                        models.Deck.query.filter_by(id=opponent.deck_id).first().Name,
-                        models.Deck.query.filter_by(id=opponent.deck_id).first().Commander) for opponent in opponents},
-            "Winner": models.Player.query.filter_by(id = game_data.Winner).first().Name,
+            "Datum": game_data.Date.strftime("%Y-%m-%d"),
+            "Gegner": opponent_data,
+            "Winner": models.Player.query.filter_by(id=game_data.Winner).first().Name,
         })
 
-    card = models.Card.query.filter_by(Name=models.Deck.query.filter_by(Name=deckname).first().Commander).first()
-    commander = None
-    if card is not None:
-        commander = card.image_uri
+    # Commander image for main deck
+    card = models.Card.query.filter_by(Name=deck.Commander).first()
+    commander = card.image_uri if card else "/static/img/default_commander.png"
 
     return render_template('decks/show.html', deckname=deckname, commander=commander, games=row)
+
 
 @bp.route('/elo', methods=['GET'])
 @role_required('admin')
