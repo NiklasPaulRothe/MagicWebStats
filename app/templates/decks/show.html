@@ -8,9 +8,18 @@
 
 {% block content %}
 <main class="deck-container">
+
     <section class="deck-header">
         <img src="{{ commander }}" alt="Commander Image" class="commander-image">
-        <h1>{{ deckname }}</h1>
+        <div class="deck-header-text">
+            <h1>{{ deckname }}</h1>
+            <div class="deck-stats-summary">
+                <p><strong>Gespielte Spiele:</strong> {{ deck_stats.games }}</p>
+                <p><strong>Siege:</strong> {{ deck_stats.wins }}</p>
+                <p><strong>Winrate:</strong> {{ deck_stats.winrate }}%</p>
+                <p><strong>Zuletzt gespielt:</strong> {{ deck_stats.last_played }}</p>
+            </div>
+        </div>
     </section>
 
     <section class="deck-games">

@@ -56,19 +56,32 @@ def deck_edit(deckname):
 @login_required
 def deck_show(deckname):
     current_app.logger.info(deckname)
+
     deck = models.Deck.query.filter(Deck.Name == deckname).first()
-    games = models.Participant.query.filter(
-        and_(Participant.player_id == deck.Player, Participant.deck_id == deck.id)
+    if not deck:
+        flash("Deck nicht gefunden.", "error")
+        return redirect(url_for("main.index"))
+
+    # Fetch games for this deck
+    deck_participations = models.Participant.query.filter(
+        and_(
+            Participant.player_id == deck.Player,
+            Participant.deck_id == deck.id
+        )
     ).all()
 
-    row = []
-    games = reversed(games)
+    games = reversed(deck_participations)
 
+    row = []
     for game in games:
         game_data = models.Game.query.filter_by(id=game.game_id).first()
+
+        # Get opponent participants
         opponents = models.Participant.query.filter(
-            and_(Participant.game_id == game.game_id,
-                 Participant.player_id != deck.Player)
+            and_(
+                Participant.game_id == game.game_id,
+                Participant.player_id != deck.Player
+            )
         ).all()
 
         opponent_data = []
@@ -79,7 +92,6 @@ def deck_show(deckname):
 
             # Default fallback if commander image isn't found
             commander_image = None
-
             if commander_name:
                 commander_card = models.Card.query.filter_by(Name=commander_name).first()
                 if commander_card and commander_card.image_uri:
@@ -101,7 +113,32 @@ def deck_show(deckname):
     card = models.Card.query.filter_by(Name=deck.Commander).first()
     commander = card.image_uri if card else "/static/img/default_commander.png"
 
-    return render_template('decks/show.html', deckname=deckname, commander=commander, games=row)
+    # Compute deck stats
+    total_games = len(deck_participations)
+    win_count = 0
+    last_played = None
+
+    for participation in deck_participations:
+        game_obj = models.Game.query.filter_by(id=participation.game_id).first()
+        if game_obj.Winner == deck.Player:
+            win_count += 1
+        if not last_played or game_obj.Date > last_played:
+            last_played = game_obj.Date
+
+    deck_stats = {
+        "games": total_games,
+        "wins": win_count,
+        "winrate": round((win_count / total_games) * 100, 1) if total_games > 0 else 0,
+        "last_played": last_played.strftime("%Y-%m-%d") if last_played else "—",
+    }
+
+    return render_template(
+        'decks/show.html',
+        deckname=deckname,
+        commander=commander,
+        games=row,
+        deck_stats=deck_stats
+    )
 
 
 @bp.route('/elo', methods=['GET'])
