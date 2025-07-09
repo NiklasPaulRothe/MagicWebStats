@@ -147,3 +147,76 @@ tr:nth-child(even) {
     overflow-x: auto;
     text-align: center;
 }
+/* --- Deckstats filter buttons --- */
+
+button {
+    background-color: black;
+    color: #f4c430;
+    border: 1px solid #f4c430;
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+    background-color: #f4c430;
+    color: black;
+}
+
+/* Optional: Style input number box to match dark theme */
+input[type="number"] {
+    background-color: #1e1e1e;
+    color: antiquewhite;
+    border: 1px solid #f4c430;
+    padding: 5px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Tighten spacing in the deckstats filter row */
+#deck-stats div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+/* --- Filter Dropdown Styling for Deck Stats --- */
+
+.filter-dropdown {
+    position: absolute;
+    display: none;
+    background-color: #1e1e1e;
+    color: antiquewhite;
+    border: 1px solid #f4c430;
+    padding: 12px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    min-width: 90px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 14px;
+}
+
+/* Checkbox label styling */
+.filter-dropdown label {
+    align-items: center;
+    margin: 4px 0;
+    cursor: pointer;
+}
+
+/* Checkbox input styling */
+.filter-dropdown input[type="checkbox"] {
+    accent-color: #f4c430;
+    transform: scale(1.1);
+    cursor: pointer;
+}
+
+/* Hover effect on label */
+.filter-dropdown label:hover {
+    background-color: #2a2a2a;
+    padding: 2px 4px;
+    border-radius: 3px;
+}

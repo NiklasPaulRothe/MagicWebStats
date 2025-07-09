@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 label.innerHTML = `<input type="checkbox" value="${playerName}" checked> ${playerName}`;
                 dropdown.appendChild(label);
                 dropdown.appendChild(document.createElement('br'));
+                dropdown.appendChild(document.createElement('br'));
             }
         });
 
