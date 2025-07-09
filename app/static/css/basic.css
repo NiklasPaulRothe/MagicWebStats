@@ -344,3 +344,41 @@ th.sorted-desc > span::after {
     content: " ↓";
 }
 
+.deckpage {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+#likelihoodChart,
+#averageChart {
+    width: 100%;
+    height: 200px;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 12px;
+}
+ .deckpage {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px;
+}
+
+#charts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#charts canvas {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+#player-table {
+    flex-grow: 1;
+}

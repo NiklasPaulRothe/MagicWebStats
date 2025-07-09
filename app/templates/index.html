@@ -3,69 +3,152 @@
 {% block head %}
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/basic.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 {% endblock %}
 
 {% block content %}
-    <main>
-        <h1>Metainformationen</h1>
-        <div class="deckpage">
-            <div id="index">
-                <table id="color_usage">
-                    <thead>
-                    <tr>
-                        <th data-type="string" data-key="color">Color</th>
-                        <th data-type="float" data-key="likelihood">likelihood</th>
-                        <th data-type="float" data-key="average">average</th>
-                        <th data-type="float" data-key="deck_percent">Deck Percentage</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for color in color_usage %}
-                        <tr>
-                            <td>{{ color.color }}</td>
-                            <td>{{ color.likelihood }}</td>
-                            <td>{{ color.average }}</td>
-                            <td>{{ color.deck_percentage }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div id="index">
-                <table id="color_usage_player">
-                    <thead>
-                    <tr>
-                        <th data-type="string" data-key="player">Player</th>
-                        <th data-type="integer" data-key="decks">Decks</th>
-                        <th data-type="float" data-key="white">White</th>
-                        <th data-type="float" data-key="blue">Blue</th>
-                        <th data-type="float" data-key="black">Black</th>
-                        <th data-type="float" data-key="red">Red</th>
-                        <th data-type="float" data-key="green">Green</th>
-                        <th data-type="float" data-key="avg_colors">Average Colors</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for color in color_usage_player %}
-                        <tr>
-                            <td>{{ color.Player }}</td>
-                            <td>{{ color.Decks }}</td>
-                            <td>{{ color.white }}</td>
-                            <td>{{ color.blue }}</td>
-                            <td>{{ color.black }}</td>
-                            <td>{{ color.red }}</td>
-                            <td>{{ color.green }}</td>
-                            <td>{{ color.avg_number_of_colors }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<main>
+    <h1>Metainformationen</h1>
+    <div class="deckpage">
+        <div id="charts">
+        <canvas id="likelihoodChart" width="300" height="200"></canvas>
+        <canvas id="averageChart" width="300" height="200"></canvas>
+        <canvas id="deckPercentageChart" width="300" height="200"></canvas>
         </div>
-    </main>
-    <script>
+        <div id="player-table">
+            <table id="color_usage_player">
+                <thead>
+                <tr>
+                    <th data-type="string" data-key="player">Player</th>
+                    <th data-type="integer" data-key="decks">Decks</th>
+                    <th data-type="float" data-key="white">White</th>
+                    <th data-type="float" data-key="blue">Blue</th>
+                    <th data-type="float" data-key="black">Black</th>
+                    <th data-type="float" data-key="red">Red</th>
+                    <th data-type="float" data-key="green">Green</th>
+                    <th data-type="float" data-key="avg_colors">Average Colors</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for color in color_usage_player %}
+                    <tr>
+                        <td>{{ color.Player }}</td>
+                        <td>{{ color.Decks }}</td>
+                        <td>{{ color.white }}</td>
+                        <td>{{ color.blue }}</td>
+                        <td>{{ color.black }}</td>
+                        <td>{{ color.red }}</td>
+                        <td>{{ color.green }}</td>
+                        <td>{{ color.avg_number_of_colors }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
 
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+<script>
+    const colorUsage = {{ color_usage | tojson }};
+
+    const labels = colorUsage.map(c => c.color);
+
+    Chart.register(ChartDataLabels);
+
+    // === Likelihood Chart ===
+    new Chart(document.getElementById('likelihoodChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Likelihood (%)',
+                data: colorUsage.map(c => c.likelihood),
+                backgroundColor: '#f4c430'
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Likelihood of Appearance (%)' },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#fff',
+                    font: { weight: 'bold' },
+                    formatter: value => value.toFixed(1)
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, max: 100 }
+            }
+        }
+    });
+
+    // === Average Chart ===
+    new Chart(document.getElementById('averageChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Average per Table',
+                data: colorUsage.map(c => c.average),
+                backgroundColor: '#f4c430',
+                borderColor: '#f4c430',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Average Decks per Table' },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#fff',
+                    font: { weight: 'bold' },
+                    formatter: value => value.toFixed(2)
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, max: 4 }
+            }
+        }
+    });
+
+    // === Deck Percentage Chart ===
+    new Chart(document.getElementById('deckPercentageChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Deck Usage (%)',
+                data: colorUsage.map(c => c.deck_percentage),
+                backgroundColor: '#f4c430'
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Decks Using Color (%)' },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#fff',
+                    font: { weight: 'bold' },
+                    formatter: value => value.toFixed(1)
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, max: 100 }
+            }
+        }
+    });
+</script>
 {% endblock %}
-

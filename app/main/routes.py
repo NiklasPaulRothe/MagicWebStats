@@ -11,10 +11,25 @@ from app.viewmodels import ColorUsage, ColorUsagePlayer
 @bp.route('/')
 @bp.route('/index')
 @login_required
-def index():  # put application's code here
+def index():
     color_usage = ColorUsage.query.all()
     color_usage_player = ColorUsagePlayer.query.all()
-    return render_template('index.html', color_usage=color_usage, color_usage_player=color_usage_player)
+
+    color_usage_data = [
+        {
+            'color': cu.color,
+            'likelihood': cu.likelihood,
+            'average': cu.average,
+            'deck_percentage': cu.deck_percentage
+        } for cu in color_usage
+    ]
+
+    return render_template(
+        'index.html',
+        color_usage=color_usage_data,
+        color_usage_player=color_usage_player
+    )
+
 
 @bp.route('/user/<username>')
 @login_required
