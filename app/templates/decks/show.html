@@ -39,13 +39,13 @@
                     <td>
                         <div class="opponent-row">
                             {% for opponent in game.Gegner %}
-                                <div class="opponent-card">
-                                    <img src="{{ opponent[2] }}" alt="Commander" class="opponent-commander-img">
+                                <a href="{{ url_for('decks.deck_show', deckname=opponent.deck_name) }}" class="opponent-card" title="Zum Deck: {{ opponent.deck_name }}">
+                                    <img src="{{ opponent.commander_image }}" alt="Commander" class="opponent-commander-img">
                                     <div class="opponent-info">
-                                        <strong>{{ opponent[0] }}</strong><br>
-                                        <span>{{ opponent[1] }}</span>
+                                        <strong>{{ opponent.player_name }}</strong><br>
+                                        <span>{{ opponent.deck_name }}</span>
                                     </div>
-                                </div>
+                                </a>
                             {% endfor %}
                         </div>
                     </td>

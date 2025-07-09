@@ -97,11 +97,11 @@ def deck_show(deckname):
                 if commander_card and commander_card.image_uri:
                     commander_image = commander_card.image_uri
 
-            opponent_data.append((
-                player.Name,
-                opponent_deck.Name if opponent_deck else "Unknown Deck",
-                commander_image or "/static/img/default_commander.png"
-            ))
+            opponent_data.append({
+                "player_name": player.Name,
+                "deck_name": opponent_deck.Name if opponent_deck else "Unknown Deck",
+                "commander_image": commander_image or "/static/img/default_commander.png"
+            })
 
         row.append({
             "Datum": game_data.Date.strftime("%Y-%m-%d"),

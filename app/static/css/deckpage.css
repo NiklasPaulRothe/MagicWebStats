@@ -182,3 +182,8 @@
     color: antiquewhite;
     font-size: 14px;
 }
+
+.opponent-card {
+    text-decoration: none;
+    color: inherit;
+}
