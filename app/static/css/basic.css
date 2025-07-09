@@ -82,17 +82,17 @@ main {
     padding: 20px;
 }
 
-a:link {
+main a:link {
     color: antiquewhite;
-    text-decoration: underline dotted;
-}
-
-a:visited {
-    color: antiquewhite;
-}
-
-a:hover {
     text-decoration: underline;
+}
+
+main a:visited {
+    color: antiquewhite;
+}
+
+main a:hover {
+    color: white;
 }
 
 section {

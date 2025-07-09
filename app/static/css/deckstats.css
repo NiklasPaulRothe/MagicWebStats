@@ -1,0 +1,31 @@
+.filter-dropdown {
+    position: absolute;
+    display: none;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    padding: 10px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+.filter-btn {
+    margin-left: 5px;
+    cursor: pointer;
+}
+
+.filter-dropdown input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+button {
+    margin-left: 5px;
+}
+
+/* Sorting indicators for all <th> span elements */
+th.sorted-asc > span::after {
+    content: " ↑";
+}
+
+th.sorted-desc > span::after {
+    content: " ↓";
+}

@@ -1,194 +1,37 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <section id="deck-stats">
-        <h2>Deck Stats</h2>
+<section id="deck-stats">
+    <h2>Deck Stats</h2>
 
-        <!-- Filter Input and Button -->
-        <div>
-            <label for="min-spiele-filter">Minimum Spiele:</label>
-            <input type="number" id="min-spiele-filter" placeholder="Enter minimum value">
-            <button id="apply-min-spiele-filter">Apply Filter</button>
-        </div>
-        <table id="deck-stats-table">
-            <thead>
-            <tr>
-                <th data-type="string" data-key="Deckname">Deckname</th>
-                <th data-type="string" data-key="Spieler">Spieler
-                    <button class="filter-btn" id="spieler-filter-btn">Filter</button>
-                    <div class="filter-dropdown" id="spieler-filter-dropdown">
-                        <!-- Checkboxes will be populated here -->
-                    </div>
-                </th>
-                <th data-type="string" data-key="Commander">Commander</th>
-                <th data-type="string" data-key="Farbe">Farbe</th>
-                <th data-type="number" data-key="Spiele">Spiele</th>
-                <th data-type="number" data-key="Siege">Siege</th>
-                <th data-type="number" data-key="Winrate (in %)">Winrate (in %)</th>
-            </tr>
-            </thead>
-            <tbody>
-            <!-- Deck stats data will be populated here -->
-            </tbody>
-        </table>
-    </section>
+    <div>
+        <label for="min-spiele-filter">Minimum Spiele:</label>
+        <input type="number" id="min-spiele-filter" placeholder="Enter minimum value">
+        <button id="apply-min-spiele-filter">Apply Filter</button>
+        <button id="reset-filters">Reset Filters</button>
+    </div>
 
-    <style>
-        .filter-dropdown {
-            position: absolute;
-            display: none;
-            background-color: #f9f9f9;
-            border: 1px solid #ccc;
-            padding: 10px;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-        }
+    <table id="deck-stats-table">
+        <thead>
+        <tr>
+            <th data-type="string" data-key="Deckname"><span>Deckname</span></th>
+            <th data-type="string" data-key="Spieler">
+                <span>Spieler</span>
+                <button class="filter-btn" id="spieler-filter-btn">Filter</button>
+                <div class="filter-dropdown" id="spieler-filter-dropdown"></div>
+            </th>
+            <th data-type="string" data-key="Commander"><span>Commander</span></th>
+            <th data-type="string" data-key="Farbe"><span>Farbe</span></th>
+            <th data-type="number" data-key="Spiele"><span>Spiele</span></th>
+            <th data-type="number" data-key="Siege"><span>Siege</span></th>
+            <th data-type="number" data-key="Winrate (in %)"><span>Winrate (in %)</span></th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</section>
 
-        .filter-btn {
-            margin-left: 5px;
-            cursor: pointer;
-        }
-
-        .filter-dropdown input[type="checkbox"] {
-            margin-right: 5px;
-        }
-    </style>
-
-    <script>
-        function encode(Deck) {
-            return encodeURIComponent(Deck);
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-
-            // Add event listener for the "Spiele" filter button
-            document.getElementById('apply-min-spiele-filter').addEventListener('click', function () {
-                const minSpieleValue = parseInt(document.getElementById('min-spiele-filter').value, 10) || 0;
-                filterTableByMinSpiele(minSpieleValue);
-            });
-
-            // Function to filter table rows by minimum "Spiele" value
-            function filterTableByMinSpiele(minValue) {
-                const rows = document.querySelectorAll('#deck-stats-table tbody tr');
-                rows.forEach(row => {
-                    const spieleCell = row.querySelector('td:nth-child(5)'); // The "Spiele" column
-                    const spieleValue = parseInt(spieleCell.textContent.trim(), 10);
-                    row.style.display = (spieleValue >= minValue) ? '' : 'none'; // Show/hide row based on value
-                });
-            }
-
-            // Fetch and populate Deck Stats table
-            fetch('/api/deck-data')
-                .then(response => response.json())
-                .then(data => {
-                    populateTable('deck-stats-table', data);
-                    populateSpielerFilter('spieler-filter-dropdown', data);
-                });
-
-            // Function to populate table using data keys
-            function populateTable(tableId, data) {
-                const tbody = document.querySelector(`#${tableId} tbody`);
-                const headers = document.querySelectorAll(`#${tableId} thead th`);
-                tbody.innerHTML = ''; // Clear existing table data
-                let Deck = "dummy"
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = Array.from(headers).map(header => {
-                        const key = header.getAttribute('data-key');
-                        if (key == 'Deckname') {
-                            Deck = item[key]
-                            let URL= encode(Deck)
-                            console.log('Test')
-                            return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a></td>`
-                        }
-                        if (key == 'Commander') {
-                            return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
-                        }
-                        return `<td>${item[key] || ''}</td>`
-
-                    }).join('');
-                    tbody.appendChild(row);
-
-                    decklist = document.getElementById(String(Deck).concat("-list"));
-                    let url = item["Decklist"]
-                    if (url[0] != null) {
-                        decklist.href = url;
-                    } else {
-                        decklist.removeAttribute("href")
-                    }
-                });
-            }
-
-            // Function to populate the Spieler filter dropdown, ensuring uniqueness
-            function populateSpielerFilter(filterId, data) {
-                const dropdown = document.getElementById(filterId);
-                const uniquePlayers = [];
-
-                data.forEach(item => {
-                    if (!uniquePlayers.includes(item.Spieler[0])) {
-                        uniquePlayers.push(item.Spieler[0]);
-                        const label = document.createElement('label');
-                        label.innerHTML = `<input type="checkbox" value="${item.Spieler}" checked> ${item.Spieler}`;
-                        dropdown.appendChild(label);
-                        dropdown.appendChild(document.createElement('br'));
-                    }
-                });
-
-                // Add event listener to checkboxes to filter the table
-                dropdown.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    checkbox.addEventListener('change', function () {
-                        filterTableBySpieler(dropdown);
-                    });
-                });
-            }
-
-            // Function to filter table rows by Spieler
-            function filterTableBySpieler(dropdown) {
-                const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
-                const checkedValues = Array.from(checkboxes)
-                    .filter(checkbox => checkbox.checked)
-                    .map(checkbox => checkbox.value);
-
-                const rows = document.querySelectorAll('#deck-stats-table tbody tr');
-                rows.forEach(row => {
-                    const spielerCell = row.querySelector('td:nth-child(2)').textContent.trim();
-                    row.style.display = checkedValues.includes(spielerCell) ? '' : 'none';
-                });
-            }
-
-            // Toggle the visibility of the filter dropdown
-            document.getElementById('spieler-filter-btn').addEventListener('click', function (event) {
-                const dropdown = document.getElementById('spieler-filter-dropdown');
-                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-
-                // Position the dropdown below the button
-                const rect = event.target.getBoundingClientRect();
-                dropdown.style.left = `${rect.left}px`;
-                dropdown.style.top = `${rect.bottom}px`;
-            });
-
-            // Hide dropdown if clicked outside
-            document.addEventListener('click', function (event) {
-                const dropdown = document.getElementById('spieler-filter-dropdown');
-                if (!dropdown.contains(event.target) && event.target.id !== 'spieler-filter-btn') {
-                    dropdown.style.display = 'none';
-                }
-            });
-
-            // Sort table functionality
-            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
-
-            const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
-                    v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
-            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
-
-            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function () {
-                const table = th.closest('table');
-                const tbody = table.querySelector('tbody');
-                Array.from(tbody.querySelectorAll('tr'))
-                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
-                    .forEach(tr => tbody.appendChild(tr));
-            }));
-        });
-    </script>
+<!-- Link to external files -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/deckstats.css') }}">
+<script src="{{ url_for('static', filename='js/deckstats.js') }}"></script>
 {% endblock %}

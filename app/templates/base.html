@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic: The Gathering Stats</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles/basic.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/basic.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body>
     <header>
-        <h1>Magic: The Gathering Stats</h1>
         <nav>
             <ul>
                 <li><a href="{{ url_for('main.index') }}">Home</a></li>
