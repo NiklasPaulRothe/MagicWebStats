@@ -9,12 +9,29 @@
         <div id="players-fields">
             {% for player_form in form.players %}
                 <div class="field-list-item player-fields">
-                    <p>{{ player_form.player.label }} {{ player_form.player() }}</p>
-                    <p>{{ player_form.deck.label }} {{ player_form.deck() }}</p>
-                    <p>{{ player_form.borrowed.label }} {{ player_form.borrowed() }}</p>
-                    <p class="borrowed">{{ player_form.lender.label }} {{ player_form.lender() }}</p>
-                    <p>{{ player_form.early_fast_mana.label }} {{ player_form.early_fast_mana() }}</p>
-                    <button type="button" class="remove-player">Remove</button>
+                    <div>
+                        {{ player_form.player.label }}
+                        {{ player_form.player() }}
+                    </div>
+                    <div>
+                        {{ player_form.deck.label }}
+                        {{ player_form.deck() }}
+                    </div>
+                    <div>
+                        {{ player_form.borrowed.label }}
+                        {{ player_form.borrowed() }}
+                    </div>
+                    <div class="borrowed">
+                        {{ player_form.lender.label }}
+                        {{ player_form.lender() }}
+                    </div>
+                    <div>
+                        {{ player_form.early_fast_mana.label }}
+                        {{ player_form.early_fast_mana() }}
+                    </div>
+                    <div style="grid-column: 1 / -1;">
+                        <button type="button" class="remove-player">Remove</button>
+                    </div>
                 </div>
             {% endfor %}
         </div>
