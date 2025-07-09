@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy import desc
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm
-from app.models import Player, Deck, Game, Participant, ColorIdentity
+from app.models import Player, Deck, Game, Participant, ColorIdentity, Card
 
 
 def get_player():
@@ -67,12 +67,17 @@ def deck_add():
         partner = None
         if form.partner.data != '':
             partner = form.partner.data
+
+        # Commander image for main deck
+        img = Card.query.filter_by(Name=form.commander.data).first().image_uri
+
         deck = Deck(
             Name = form.name.data,
             Commander = form.commander.data,
             Player = player,
             Color_Identity = form.color_identity.data,
-            Partner = partner
+            Partner = partner,
+            image_uri = img
         )
         db.session.add(deck)
         db.session.commit()

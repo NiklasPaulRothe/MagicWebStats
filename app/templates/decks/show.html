@@ -10,7 +10,9 @@
 <main class="deck-container">
 
     <section class="deck-header">
-        <img src="{{ commander }}" alt="Commander Image" class="commander-image">
+        <a href="{{ url_for('decks.choose_commander_image', deckname=deckname) }}">
+            <img src="{{ commander }}" alt="Commander Image" class="commander-image" title="Bild ändern">
+        </a>
         <div class="deck-header-text">
             <h1>{{ deckname }}</h1>
             <div class="deck-stats-summary">

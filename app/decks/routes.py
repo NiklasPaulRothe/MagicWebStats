@@ -51,6 +51,38 @@ def deck_edit(deckname):
 
     return render_template('decks/edit.html', form=form, deckname=deckname)
 
+@bp.route('/choose_image/<deckname>', methods=['GET'], strict_slashes=False)
+@login_required
+def choose_commander_image(deckname):
+    deck = models.Deck.query.filter_by(Name=deckname).first()
+    if not deck:
+        flash("Deck not found", "error")
+        return redirect(url_for('main.index'))
+
+    # Get all cards that match the commander's name (could be different versions)
+    cards = models.Card.query.filter_by(Name=deck.Commander).all()
+
+    images = [card.image_uri for card in cards if card.image_uri]
+
+    return render_template('decks/choose_image.html', deckname=deckname, commander=deck.Commander, images=images)
+
+@bp.route('/set_commander_image/<deckname>', methods=['POST'])
+@login_required
+def set_commander_image(deckname):
+    image_uri = request.form.get('image_uri')
+    deck = models.Deck.query.filter_by(Name=deckname).first()
+
+    if not deck or not image_uri:
+        flash("Fehler beim Aktualisieren des Bildes", "error")
+        return redirect(url_for('decks.deck_show', deckname=deckname))
+    print(deck.Name)
+    deck.image_uri = image_uri
+    print('Test' + deck.image_uri)
+    db.session.commit()
+
+    flash("Commander-Bild aktualisiert!", "success")
+    return redirect(url_for('decks.deck_show', deckname=deckname))
+
 
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required

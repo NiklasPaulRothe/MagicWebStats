@@ -71,6 +71,7 @@ class Deck(db.Model):
     decklist = db.Column(db.String)
     decksite = db.Column(db.String)
     archidekt_id = db.Column(db.String)
+    image_uri = db.Column(db.String)
 
 class Game(db.Model):
     __tablename__ = 'Games'
