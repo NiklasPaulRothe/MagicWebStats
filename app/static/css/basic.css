@@ -7,11 +7,19 @@ body {
     color: antiquewhite;
 }
 
-header {
-    background-color: black;
-    color: #f4c430;
-    padding: 20px;
-    text-align: center;
+.deckpage {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 24px; /* spacing between the two tables */
+    flex-wrap: wrap; /* allow wrapping on smaller screens */
+    margin-top: 20px;
+}
+
+.deckpage #index {
+    flex: 1 1 45%;
+    min-width: 300px;
 }
 
 nav ul {
@@ -96,7 +104,6 @@ main a:hover {
 }
 
 section {
-    background-color: #282c34;
     margin: 10px 0;
     padding: 20px;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
@@ -137,7 +144,7 @@ td {
 }
 
 tr:nth-child(even) {
-    background-color: #121212;
+    background-color: #282c34;
 }
 
 .ascii-table pre {

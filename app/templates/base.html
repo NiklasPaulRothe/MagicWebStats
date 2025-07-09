@@ -8,7 +8,6 @@
     {% block head %}{% endblock %}
 </head>
 <body>
-    <header>
         <nav>
             <ul>
                 <li><a href="{{ url_for('main.index') }}">Home</a></li>
@@ -37,7 +36,6 @@
                 {% endif %}
             </ul>
         </nav>
-    </header>
 
     <main>
         {% with messages = get_flashed_messages() %}
