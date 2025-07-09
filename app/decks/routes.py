@@ -101,7 +101,7 @@ def deck_show(deckname):
             Participant.deck_id == deck.id
         )
     ).all()
-
+    print("Test 1")
     games = reversed(deck_participations)
 
     row = []
@@ -122,17 +122,10 @@ def deck_show(deckname):
             opponent_deck = models.Deck.query.filter_by(id=opponent.deck_id).first()
             commander_name = opponent_deck.Commander if opponent_deck else None
 
-            # Default fallback if commander image isn't found
-            commander_image = None
-            if commander_name:
-                commander_card = models.Card.query.filter_by(Name=commander_name).first()
-                if commander_card and commander_card.image_uri:
-                    commander_image = commander_card.image_uri
-
             opponent_data.append({
                 "player_name": player.Name,
                 "deck_name": opponent_deck.Name if opponent_deck else "Unknown Deck",
-                "commander_image": commander_image or "/static/img/default_commander.png"
+                "commander_image": opponent_deck.image_uri if opponent_deck and opponent_deck.image_uri else "/static/img/default_commander.png"
             })
 
         row.append({
@@ -140,11 +133,7 @@ def deck_show(deckname):
             "Gegner": opponent_data,
             "Winner": models.Player.query.filter_by(id=game_data.Winner).first().Name,
         })
-
-    # Commander image for main deck
-    card = models.Card.query.filter_by(Name=deck.Commander).first()
-    commander = card.image_uri if card else "/static/img/default_commander.png"
-
+    print("Test 2")
     # Compute deck stats
     total_games = len(deck_participations)
     win_count = 0
@@ -163,11 +152,11 @@ def deck_show(deckname):
         "winrate": round((win_count / total_games) * 100, 1) if total_games > 0 else 0,
         "last_played": last_played.strftime("%Y-%m-%d") if last_played else "—",
     }
-
+    print("Test 3")
     return render_template(
         'decks/show.html',
         deckname=deckname,
-        commander=commander,
+        commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
         deck_stats=deck_stats
     )
