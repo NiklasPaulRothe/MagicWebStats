@@ -4,6 +4,9 @@
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/basic.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script defer src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </head>
 {% endblock %}
 
@@ -12,9 +15,10 @@
     <h1>Metainformationen</h1>
     <div class="deckpage">
         <div id="charts">
-        <canvas id="likelihoodChart" width="300" height="200"></canvas>
-        <canvas id="averageChart" width="300" height="200"></canvas>
-        <canvas id="deckPercentageChart" width="300" height="200"></canvas>
+            <canvas id="likelihoodChart" width="300" height="200"></canvas>
+            <canvas id="averageChart" width="300" height="200"></canvas>
+            <canvas id="deckPercentageChart" width="300" height="200"></canvas>
+            <canvas id="turnsChart" width="300" height="200"></canvas>
         </div>
         <div id="player-table">
             <table id="color_usage_player">
@@ -47,108 +51,11 @@
             </table>
         </div>
     </div>
+    <script type="application/json" id="color-usage-data">
+        {{ color_usage | tojson }}
+    </script>
+    <script type="application/json" id="turn-data">
+        {{ turn_data | tojson }}
+    </script>
 </main>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-
-<script>
-    const colorUsage = {{ color_usage | tojson }};
-
-    const labels = colorUsage.map(c => c.color);
-
-    Chart.register(ChartDataLabels);
-
-    // === Likelihood Chart ===
-    new Chart(document.getElementById('likelihoodChart'), {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Likelihood (%)',
-                data: colorUsage.map(c => c.likelihood),
-                backgroundColor: '#f4c430'
-            }]
-        },
-        options: {
-            responsive: false,
-            plugins: {
-                legend: { display: false },
-                title: { display: true, text: 'Likelihood of Appearance (%)' },
-                datalabels: {
-                    anchor: 'end',
-                    align: 'top',
-                    color: '#fff',
-                    font: { weight: 'bold' },
-                    formatter: value => value.toFixed(1)
-                }
-            },
-            scales: {
-                y: { beginAtZero: true, max: 100 }
-            }
-        }
-    });
-
-    // === Average Chart ===
-    new Chart(document.getElementById('averageChart'), {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Average per Table',
-                data: colorUsage.map(c => c.average),
-                backgroundColor: '#f4c430',
-                borderColor: '#f4c430',
-                fill: false
-            }]
-        },
-        options: {
-            responsive: false,
-            plugins: {
-                legend: { display: false },
-                title: { display: true, text: 'Average Decks per Table' },
-                datalabels: {
-                    anchor: 'end',
-                    align: 'top',
-                    color: '#fff',
-                    font: { weight: 'bold' },
-                    formatter: value => value.toFixed(2)
-                }
-            },
-            scales: {
-                y: { beginAtZero: true, max: 4 }
-            }
-        }
-    });
-
-    // === Deck Percentage Chart ===
-    new Chart(document.getElementById('deckPercentageChart'), {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Deck Usage (%)',
-                data: colorUsage.map(c => c.deck_percentage),
-                backgroundColor: '#f4c430'
-            }]
-        },
-        options: {
-            responsive: false,
-            plugins: {
-                legend: { display: false },
-                title: { display: true, text: 'Decks Using Color (%)' },
-                datalabels: {
-                    anchor: 'end',
-                    align: 'top',
-                    color: '#fff',
-                    font: { weight: 'bold' },
-                    formatter: value => value.toFixed(1)
-                }
-            },
-            scales: {
-                y: { beginAtZero: true, max: 100 }
-            }
-        }
-    });
-</script>
 {% endblock %}

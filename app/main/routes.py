@@ -1,3 +1,6 @@
+import statistics
+from collections import Counter
+
 from app import db
 from app.main import bp
 from flask import render_template
@@ -24,10 +27,25 @@ def index():
         } for cu in color_usage
     ]
 
+    # === Turn Chart Data ===
+    from app.models import Game
+    games = Game.query.with_entities(Game.turns).filter(Game.turns.isnot(None)).all()
+    turns_list = [g.turns for g in games]
+
+    # Count per turn
+    turn_counts = Counter(turns_list)
+    sorted_turns = sorted(turn_counts.items())
+    turn_data = [{"turn": t, "count": count} for t, count in sorted_turns]
+
+    # Compute average and median
+    avg_turns = round(statistics.mean(turns_list), 2) if turns_list else 0
+    median_turns = round(statistics.median(turns_list), 2) if turns_list else 0
+
     return render_template(
         'index.html',
         color_usage=color_usage_data,
-        color_usage_player=color_usage_player
+        color_usage_player=color_usage_player,
+        turn_data=turn_data
     )
 
 
