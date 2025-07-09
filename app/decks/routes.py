@@ -92,6 +92,9 @@ def deck_show(deckname):
     current_app.logger.info(deckname)
 
     deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
+    user = models.User.query.filter_by(username=current_user.username).one()
+
+    is_owner = (deck.Player == user.id)
 
     # 1. Get all games for this deck
     participants = models.Participant.query.filter_by(
@@ -165,7 +168,8 @@ def deck_show(deckname):
         deckname=deck.Name,
         commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
-        deck_stats=deck_stats
+        deck_stats=deck_stats,
+        is_owner=is_owner
     )
 
 

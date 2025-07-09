@@ -10,9 +10,13 @@
 <main class="deck-container">
 
     <section class="deck-header">
+    {% if is_owner %}
         <a href="{{ url_for('decks.choose_commander_image', deckname=deckname) }}">
             <img src="{{ commander }}" alt="Commander Image" class="commander-image" title="Bild ändern">
         </a>
+    {% else %}
+        <img src="{{ commander }}" alt="Commander Image" class="commander-image">
+    {% endif %}
         <div class="deck-header-text">
             <h1>{{ deckname }}</h1>
             <div class="deck-stats-summary">

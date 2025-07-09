@@ -343,3 +343,4 @@ th.sorted-asc > span::after {
 th.sorted-desc > span::after {
     content: " ↓";
 }
+
