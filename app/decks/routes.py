@@ -86,6 +86,9 @@ def set_commander_image(deckname):
 
 from collections import defaultdict
 
+from collections import defaultdict, Counter
+import statistics
+
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def deck_show(deckname):
@@ -95,53 +98,44 @@ def deck_show(deckname):
     user = models.User.query.filter_by(username=current_user.username).one()
     is_owner = (deck.Player == user.id)
 
-    # 1. Get all game participations for this deck
     participants = models.Participant.query.filter_by(
         player_id=deck.Player,
         deck_id=deck.id
     ).order_by(models.Participant.game_id.desc()).all()
 
     game_ids = [p.game_id for p in participants]
-    if not game_ids:
-        games = {}
-        participants_by_game = {}
-        players = {}
-        decks = {}
-    else:
-        # 2. Get all games
-        games = {g.id: g for g in models.Game.query.filter(models.Game.id.in_(game_ids)).all()}
+    games = {}
+    participants_by_game = defaultdict(list)
+    players, decks = {}, {}
 
-        # 3. Get all participants for these games
+    if game_ids:
+        games = {g.id: g for g in models.Game.query.filter(models.Game.id.in_(game_ids)).all()}
         all_participants = models.Participant.query.filter(
             models.Participant.game_id.in_(game_ids)
         ).all()
 
-        # 4. Collect players and decks used
         player_ids = {p.player_id for p in all_participants}
         deck_ids = {p.deck_id for p in all_participants}
 
         players = {p.id: p for p in models.Player.query.filter(models.Player.id.in_(player_ids)).all()}
         decks = {d.id: d for d in models.Deck.query.filter(models.Deck.id.in_(deck_ids)).all()}
 
-        # 5. Group participants by game
-        participants_by_game = defaultdict(list)
         for p in all_participants:
             participants_by_game[p.game_id].append(p)
 
-    # === Collect data rows and win turn stats ===
     row = []
     win_turns = []
+    games_by_size = {3: [], 4: [], 5: []}
+    win_turns_by_size = {3: [], 4: [], 5: []}
+    wins_by_size = {3: 0, 4: 0, 5: 0}
+    total_by_size = {3: 0, 4: 0, 5: 0}
 
     for game_id in game_ids:
         game_data = games[game_id]
-        if game_data.Winner == deck.Player and game_data.turns:
-            win_turns.append(game_data.turns)
+        all_participants_in_game = participants_by_game.get(game_id, [])
+        num_players = len(all_participants_in_game)
 
-        opponents = [
-            p for p in participants_by_game.get(game_id, [])
-            if p.player_id != deck.Player
-        ]
-
+        opponents = [p for p in all_participants_in_game if p.player_id != deck.Player]
         opponent_data = []
         for opp in opponents:
             player = players.get(opp.player_id)
@@ -160,7 +154,19 @@ def deck_show(deckname):
             "Winner": winner_name,
         })
 
-    # === Basic deck stats ===
+        # Collect full win turn stats
+        if game_data.Winner == deck.Player and game_data.turns:
+            win_turns.append(game_data.turns)
+
+        # Stats by table size
+        if num_players in (3, 4, 5):
+            total_by_size[num_players] += 1
+            if game_data.Winner == deck.Player:
+                wins_by_size[num_players] += 1
+                if game_data.turns:
+                    win_turns_by_size[num_players].append(game_data.turns)
+
+    # === General deck stats ===
     total_games = len(game_ids)
     wins = sum(1 for g in game_ids if games[g].Winner == deck.Player)
     winrate = round((wins / total_games) * 100, 1) if total_games else 0
@@ -178,14 +184,30 @@ def deck_show(deckname):
         "max_turns": max(win_turns) if win_turns else "–"
     }
 
+    deck_stats_by_size = {}
+    for size in (3, 4, 5):
+        games = total_by_size[size]
+        wins = wins_by_size[size]
+        turns = win_turns_by_size[size]
+
+        deck_stats_by_size[size] = {
+            "games": games,
+            "wins": wins,
+            "winrate": round((wins / games) * 100, 1) if games else "–",
+            "avg_turns": round(statistics.mean(turns), 1) if turns else "–",
+            "median_turns": statistics.median(turns) if turns else "–"
+        }
+
     return render_template(
         'decks/show.html',
         deckname=deck.Name,
         commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
         deck_stats=deck_stats,
+        deck_stats_by_size=deck_stats_by_size,
         is_owner=is_owner
     )
+
 
 
 

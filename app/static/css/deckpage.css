@@ -187,3 +187,16 @@
     text-decoration: none;
     color: inherit;
 }
+
+.deck-stats-breakdown {
+    margin-top: 20px;
+    display: flex;
+    gap: 40px;
+    justify-content: space-between;
+    color: antiquewhite;
+}
+
+.stat-group h4 {
+    margin-bottom: 8px;
+    color: #f4c430;
+}

@@ -31,6 +31,20 @@
                 <p><strong>Winning Turn Range:</strong> {{ deck_stats.min_turns }} – {{ deck_stats.max_turns }}</p>
             </div>
         </div>
+            <div class="deck-stats-breakdown">
+                {% for size in [3, 4, 5] %}
+                    <div class="stat-group">
+                        <h4>{{ size }} Spieler:</h4>
+                        <p><strong>Spiele:</strong> {{ deck_stats_by_size[size].games }}</p>
+                        <p><strong>Siege:</strong> {{ deck_stats_by_size[size].wins }}</p>
+                        <p><strong>Winrate:</strong> {{ deck_stats_by_size[size].winrate }}%</p>
+                        <p><strong>Avg Win Turns:</strong> {{ deck_stats_by_size[size].avg_turns }}</p>
+                        <p><strong>Median Win Turns:</strong> {{ deck_stats_by_size[size].median_turns }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+
     </section>
 
     <section class="deck-games">
