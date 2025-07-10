@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block head %}
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/choose_image.css') }}">
+</head>
+{% endblock %}
+
+{% block content %}
+<main class="image-selection-container">
+    <h1>Wähle ein Bild für {{ commander }}</h1>
+
+    <div class="image-grid">
+        {% for uri in images %}
+            <form method="post" action="{{ url_for('decks.set_commander_image', deckname=deckname) }}">
+                <input type="hidden" name="image_uri" value="{{ uri }}">
+                <button type="submit" class="image-select-btn">
+                    <img src="{{ uri }}" alt="Commander Image Option" class="selectable-image">
+                </button>
+            </form>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}

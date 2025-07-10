@@ -11,7 +11,7 @@
                         <th data-type="string">Name</th>
                         <th data-type="string">Commander</th>
                         <th data-type="string">Color Identity</th>
-                        <th data-type="number">Zuletzt gespielt</th>
+                        <th data-type="date">Zuletzt gespielt</th>
                         <th data-type="number">Spiele</th>
                         <th data-type="number">Siege</th>
                         <th data-type="number">Winrate (in %)</th>
@@ -73,9 +73,28 @@
             // Sort table functionality
             const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
 
-            const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
-                v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
-            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+            const parseDate = (str) => {
+                // Handles "dd.mm.yyyy" or "yyyy-mm-dd"
+                if (!str) return new Date(0);  // fallback for empty
+                if (str.includes('.')) {
+                    const [day, month, year] = str.split('.');
+                    return new Date(`${year}-${month}-${day}`);
+                }
+                return new Date(str); // fallback to ISO or standard parseable
+            };
+
+            const comparer = (idx, asc, type) => (a, b) => {
+                const v1 = getCellValue(asc ? a : b, idx);
+                const v2 = getCellValue(asc ? b : a, idx);
+
+                if (type === 'number') {
+                    return parseFloat(v1) - parseFloat(v2);
+                } else if (type === 'date') {
+                    return parseDate(v1) - parseDate(v2);
+                } else {
+                    return v1.toString().localeCompare(v2);
+                }
+            };
 
             document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
                 const table = th.closest('table');

@@ -5,7 +5,8 @@ from wtforms.validators import ValidationError, DataRequired, NumberRange, Optio
 from wtforms_sqlalchemy.fields import QuerySelectField
 import sqlalchemy as sa
 from app import db
-from app.models import Player, Deck
+from app.models import Player, Deck, Card
+
 
 class PlayerAddForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])
@@ -30,6 +31,11 @@ class DeckAddForm(FlaskForm):
             Deck.Name == name.data))
         if name is not None:
             raise ValidationError('Es gibt schon ein Deck mit diesem Namen.')
+
+    def validate_commander(self, commander):
+        commander = db.session.scalar(sa.select(Card).where(Card.Name == commander.data))
+        if commander is None:
+            raise ValidationError('Der Commander existiert nicht.')
 
 # Define a subform for Player-related fields
 class PlayerForm(Form):

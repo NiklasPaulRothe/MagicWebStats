@@ -2,35 +2,64 @@
 
 {% block head %}
 <head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles/deckpage.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/deckpage.css') }}">
 </head>
 {% endblock %}
 
 {% block content %}
-    <h1>{{ deckname }}</h1>
-    <deckpage>
-        <div id="left"><img src="{{ commander }}" width="200px"></div>
-        <div id="right"><table id="user-deck-stats-table">
-                <thead>
-                    <tr>
-                        <th data-type="number">Datum</th>
-                        <th data-type="string">Gegner</th>
-                        <th data-type="string">Sieger</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for game in games %}
+<main class="deck-container">
+
+    <section class="deck-header">
+    {% if is_owner %}
+        <a href="{{ url_for('decks.choose_commander_image', deckname=deckname) }}">
+            <img src="{{ commander }}" alt="Commander Image" class="commander-image" title="Bild ändern">
+        </a>
+    {% else %}
+        <img src="{{ commander }}" alt="Commander Image" class="commander-image">
+    {% endif %}
+        <div class="deck-header-text">
+            <h1>{{ deckname }}</h1>
+            <div class="deck-stats-summary">
+                <p><strong>Gespielte Spiele:</strong> {{ deck_stats.games }}</p>
+                <p><strong>Siege:</strong> {{ deck_stats.wins }}</p>
+                <p><strong>Winrate:</strong> {{ deck_stats.winrate }}%</p>
+                <p><strong>Zuletzt gespielt:</strong> {{ deck_stats.last_played }}</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="deck-games">
+        <h2>Gespielte Spiele</h2>
+        <table class="deck-games-table">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Gegner</th>
+                    <th>Sieger</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for game in games %}
                 <tr>
                     <td>{{ game.Datum }}</td>
-                    <td><table id="inner">
-                        {% for opponent in game.Gegner %}
-                            <tr><td id="table_left">{{ opponent[0] }}</td> <td>- {{ opponent[1] }} ({{ opponent[2] }})</td></tr>
-                        {% endfor %}
-                    </table></td>
+                    <td>
+                        <div class="opponent-row">
+                            {% for opponent in game.Gegner %}
+                                <a href="{{ url_for('decks.deck_show', deckname=opponent.deck_name) }}" class="opponent-card" title="Zum Deck: {{ opponent.deck_name }}">
+                                    <img src="{{ opponent.commander_image }}" alt="Commander" class="opponent-commander-img">
+                                    <div class="opponent-info">
+                                        <strong>{{ opponent.player_name }}</strong><br>
+                                        <span>{{ opponent.deck_name }}</span>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </td>
                     <td>{{ game.Winner }}</td>
                 </tr>
-                {% endfor %}
-                </tbody>
-            </table></div>
-    </deckpage>
-{%  endblock %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endblock %}

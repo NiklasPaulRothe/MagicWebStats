@@ -1,6 +1,6 @@
 from flask import render_template, flash, redirect, url_for, request, session, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, desc, func
 
 from app import db, models, third_party_data
 from app.auth import role_required
@@ -51,33 +51,128 @@ def deck_edit(deckname):
 
     return render_template('decks/edit.html', form=form, deckname=deckname)
 
+@bp.route('/choose_image/<deckname>', methods=['GET'], strict_slashes=False)
+@login_required
+def choose_commander_image(deckname):
+    deck = models.Deck.query.filter_by(Name=deckname).first()
+    if not deck:
+        flash("Deck not found", "error")
+        return redirect(url_for('main.index'))
+
+    # Get all cards that match the commander's name (could be different versions)
+    cards = models.Card.query.filter_by(Name=deck.Commander).all()
+
+    images = [card.image_uri for card in cards if card.image_uri]
+
+    return render_template('decks/choose_image.html', deckname=deckname, commander=deck.Commander, images=images)
+
+@bp.route('/set_commander_image/<deckname>', methods=['POST'])
+@login_required
+def set_commander_image(deckname):
+    image_uri = request.form.get('image_uri')
+    deck = models.Deck.query.filter_by(Name=deckname).first()
+
+    if not deck or not image_uri:
+        flash("Fehler beim Aktualisieren des Bildes", "error")
+        return redirect(url_for('decks.deck_show', deckname=deckname))
+    print(deck.Name)
+    deck.image_uri = image_uri
+    print('Test' + deck.image_uri)
+    db.session.commit()
+
+    flash("Commander-Bild aktualisiert!", "success")
+    return redirect(url_for('decks.deck_show', deckname=deckname))
+
+
+from collections import defaultdict
 
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def deck_show(deckname):
     current_app.logger.info(deckname)
-    deck = models.Deck.query.filter(Deck.Name == deckname).first()
-    games = models.Participant.query.filter(and_(Participant.player_id == deck.Player, Participant.deck_id == deck.id)).all()
+
+    deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
+    user = models.User.query.filter_by(username=current_user.username).one()
+
+    is_owner = (deck.Player == user.id)
+
+    # 1. Get all games for this deck
+    participants = models.Participant.query.filter_by(
+        player_id=deck.Player,
+        deck_id=deck.id
+    ).order_by(models.Participant.game_id.desc()).all()
+
+    game_ids = [p.game_id for p in participants]
+    if not game_ids:
+        games = []
+    else:
+        # 2. Get all relevant games
+        games = {g.id: g for g in models.Game.query.filter(models.Game.id.in_(game_ids)).all()}
+
+        # 3. Get all participants for these games
+        all_participants = models.Participant.query.filter(
+            models.Participant.game_id.in_(game_ids)
+        ).all()
+
+        # 4. Get all involved player and deck IDs
+        player_ids = set(p.player_id for p in all_participants)
+        deck_ids = set(p.deck_id for p in all_participants)
+
+        players = {p.id: p for p in models.Player.query.filter(models.Player.id.in_(player_ids)).all()}
+        decks = {d.id: d for d in models.Deck.query.filter(models.Deck.id.in_(deck_ids)).all()}
+
+        # 5. Group participants by game_id
+        participants_by_game = defaultdict(list)
+        for p in all_participants:
+            participants_by_game[p.game_id].append(p)
+
     row = []
-    for game in games:
-        game_data = models.Game.query.filter_by(id = game.game_id).first()
-        opponents = models.Participant.query.filter(and_(Participant.game_id == game.game_id,
-                                                         Participant.player_id != deck.Player)).all()
+    for game_id in game_ids:
+        game_data = games[game_id]
+        opponents = [p for p in participants_by_game[game_id] if p.player_id != deck.Player]
+
+        opponent_data = []
+        for opp in opponents:
+            player = players.get(opp.player_id)
+            deck_obj = decks.get(opp.deck_id)
+
+            opponent_data.append({
+                "player_name": player.Name if player else "Unknown",
+                "deck_name": deck_obj.Name if deck_obj else "Unknown Deck",
+                "commander_image": deck_obj.image_uri if deck_obj and deck_obj.image_uri else "/static/img/default_commander.png"
+            })
+
+        winner_name = players.get(game_data.Winner).Name if players.get(game_data.Winner) else "Unbekannt"
 
         row.append({
-            "Datum": game_data.Date,
-            "Gegner": {(models.Player.query.filter_by(id = opponent.player_id).first().Name,
-                        models.Deck.query.filter_by(id=opponent.deck_id).first().Name,
-                        models.Deck.query.filter_by(id=opponent.deck_id).first().Commander) for opponent in opponents},
-            "Winner": models.Player.query.filter_by(id = game_data.Winner).first().Name,
+            "Datum": game_data.Date.strftime("%Y-%m-%d"),
+            "Gegner": opponent_data,
+            "Winner": winner_name,
         })
 
-    card = models.Card.query.filter_by(Name=models.Deck.query.filter_by(Name=deckname).first().Commander).first()
-    commander = None
-    if card is not None:
-        commander = card.image_uri
+    # Stats for deck header
+    total_games = len(game_ids)
+    wins = sum(1 for g in game_ids if games[g].Winner == deck.Player)
+    winrate = round((wins / total_games) * 100, 1) if total_games else 0
+    last_played = games[game_ids[0]].Date.strftime("%Y-%m-%d") if game_ids else "Nie"
 
-    return render_template('decks/show.html', deckname=deckname, commander=commander, games=row)
+    deck_stats = {
+        "games": total_games,
+        "wins": wins,
+        "winrate": winrate,
+        "last_played": last_played
+    }
+
+    return render_template(
+        'decks/show.html',
+        deckname=deck.Name,
+        commander=deck.image_uri or "/static/img/default_commander.png",
+        games=row,
+        deck_stats=deck_stats,
+        is_owner=is_owner
+    )
+
+
 
 @bp.route('/elo', methods=['GET'])
 @role_required('admin')

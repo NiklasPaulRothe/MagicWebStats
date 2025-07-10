@@ -6,21 +6,22 @@ from flask import render_template, flash, redirect, url_for
 from flask_login import login_required
 from app.auth import role_required
 import sqlalchemy as sa
+from sqlalchemy import desc
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm
-from app.models import Player, Deck, Game, Participant, ColorIdentity
+from app.models import Player, Deck, Game, Participant, ColorIdentity, Card
 
 
 def get_player():
     player_list = []
-    player = Player.query.all()
+    player = Player.query.order_by(Player.Name).all()
     for player in player:
         player_list.append(player.Name)
     return player_list
 
 def get_decks():
     deck_list = []
-    decks = Deck.query.all()
+    decks = Deck.query.order_by(desc(Deck.Name)).all()
     for deck in decks:
         player = Player.query.filter_by(id = deck.Player).first()
         if deck.Active:
@@ -66,12 +67,17 @@ def deck_add():
         partner = None
         if form.partner.data != '':
             partner = form.partner.data
+
+        # Commander image for main deck
+        img = Card.query.filter_by(Name=form.commander.data).first().image_uri
+
         deck = Deck(
             Name = form.name.data,
             Commander = form.commander.data,
             Player = player,
             Color_Identity = form.color_identity.data,
-            Partner = partner
+            Partner = partner,
+            image_uri = img
         )
         db.session.add(deck)
         db.session.commit()
@@ -118,7 +124,7 @@ def game_add():
                      Winner = winner,
                      Planechase = form.planechase.data,
                      turns = form.turns.data,
-                     final_blow = form.final_blow.data
+                     final_blow = form.final_blow.data if form.final_blow.data else None
         )
         db.session.add(game)
         db.session.commit()

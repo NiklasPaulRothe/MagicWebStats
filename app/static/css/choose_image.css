@@ -1,0 +1,31 @@
+.image-selection-container {
+    padding: 20px;
+    text-align: center;
+}
+
+.image-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.selectable-image {
+    width: 120px;
+    border: 2px solid #f4c430;
+    border-radius: 6px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.selectable-image:hover {
+    transform: scale(1.05);
+    border-color: #ffd700;
+}
+
+.image-select-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
