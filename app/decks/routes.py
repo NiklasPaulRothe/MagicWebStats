@@ -1,3 +1,5 @@
+import statistics
+
 from flask import render_template, flash, redirect, url_for, request, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import select, and_, desc, func
@@ -75,9 +77,7 @@ def set_commander_image(deckname):
     if not deck or not image_uri:
         flash("Fehler beim Aktualisieren des Bildes", "error")
         return redirect(url_for('decks.deck_show', deckname=deckname))
-    print(deck.Name)
     deck.image_uri = image_uri
-    print('Test' + deck.image_uri)
     db.session.commit()
 
     flash("Commander-Bild aktualisiert!", "success")
@@ -93,10 +93,9 @@ def deck_show(deckname):
 
     deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
     user = models.User.query.filter_by(username=current_user.username).one()
-
     is_owner = (deck.Player == user.id)
 
-    # 1. Get all games for this deck
+    # 1. Get all game participations for this deck
     participants = models.Participant.query.filter_by(
         player_id=deck.Player,
         deck_id=deck.id
@@ -104,9 +103,12 @@ def deck_show(deckname):
 
     game_ids = [p.game_id for p in participants]
     if not game_ids:
-        games = []
+        games = {}
+        participants_by_game = {}
+        players = {}
+        decks = {}
     else:
-        # 2. Get all relevant games
+        # 2. Get all games
         games = {g.id: g for g in models.Game.query.filter(models.Game.id.in_(game_ids)).all()}
 
         # 3. Get all participants for these games
@@ -114,28 +116,36 @@ def deck_show(deckname):
             models.Participant.game_id.in_(game_ids)
         ).all()
 
-        # 4. Get all involved player and deck IDs
-        player_ids = set(p.player_id for p in all_participants)
-        deck_ids = set(p.deck_id for p in all_participants)
+        # 4. Collect players and decks used
+        player_ids = {p.player_id for p in all_participants}
+        deck_ids = {p.deck_id for p in all_participants}
 
         players = {p.id: p for p in models.Player.query.filter(models.Player.id.in_(player_ids)).all()}
         decks = {d.id: d for d in models.Deck.query.filter(models.Deck.id.in_(deck_ids)).all()}
 
-        # 5. Group participants by game_id
+        # 5. Group participants by game
         participants_by_game = defaultdict(list)
         for p in all_participants:
             participants_by_game[p.game_id].append(p)
 
+    # === Collect data rows and win turn stats ===
     row = []
+    win_turns = []
+
     for game_id in game_ids:
         game_data = games[game_id]
-        opponents = [p for p in participants_by_game[game_id] if p.player_id != deck.Player]
+        if game_data.Winner == deck.Player and game_data.turns:
+            win_turns.append(game_data.turns)
+
+        opponents = [
+            p for p in participants_by_game.get(game_id, [])
+            if p.player_id != deck.Player
+        ]
 
         opponent_data = []
         for opp in opponents:
             player = players.get(opp.player_id)
             deck_obj = decks.get(opp.deck_id)
-
             opponent_data.append({
                 "player_name": player.Name if player else "Unknown",
                 "deck_name": deck_obj.Name if deck_obj else "Unknown Deck",
@@ -150,17 +160,22 @@ def deck_show(deckname):
             "Winner": winner_name,
         })
 
-    # Stats for deck header
+    # === Basic deck stats ===
     total_games = len(game_ids)
     wins = sum(1 for g in game_ids if games[g].Winner == deck.Player)
     winrate = round((wins / total_games) * 100, 1) if total_games else 0
     last_played = games[game_ids[0]].Date.strftime("%Y-%m-%d") if game_ids else "Nie"
 
+    # === Turn stats for wins ===
     deck_stats = {
         "games": total_games,
         "wins": wins,
         "winrate": winrate,
-        "last_played": last_played
+        "last_played": last_played,
+        "avg_turns": round(statistics.mean(win_turns), 1) if win_turns else "–",
+        "median_turns": statistics.median(win_turns) if win_turns else "–",
+        "min_turns": min(win_turns) if win_turns else "–",
+        "max_turns": max(win_turns) if win_turns else "–"
     }
 
     return render_template(
