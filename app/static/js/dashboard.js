@@ -158,16 +158,22 @@ new Chart(document.getElementById('finalBlowChart'), {
                 '#a9a9a9',  // gray
                 '#ffe119',  // bright yellow
                 '#000075'   // deep navy
-            ]
+            ],
+            borderColor: '#222',
+            borderWidth: 2,
+            hoverOffset: 10
         }]
     },
     options: {
         responsive: false,
+        layout: {
+            padding: 10
+        },
         plugins: {
             legend: {
                 position: 'bottom',
                 labels: {
-                    color: 'antiquewhite',   // 👈 Legend labels
+                    color: 'antiquewhite',
                     usePointStyle: true,
                     padding: 20,
                     boxWidth: 12
@@ -180,12 +186,12 @@ new Chart(document.getElementById('finalBlowChart'), {
                 font: { weight: 'bold', size: 16 }
             },
             tooltip: {
-                bodyColor: 'black',       // 👈 Tooltip text
+                bodyColor: 'black',
                 titleColor: 'black',
                 backgroundColor: '#f4f4f4'
             },
             datalabels: {
-                color: 'black', // 👈 This sets the numbers inside the pie chart to black
+                color: 'black', 
                 font: {
                     weight: 'bold',
                     size: 12
