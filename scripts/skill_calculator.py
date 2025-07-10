@@ -96,8 +96,8 @@ def calculate_skill(Participants, Winner):
     for player in player_list_sorted:
         if player['in_database']:
             cur = conn.cursor()
-            cur.execute("UPDATE data_owner.skill_level SET mu = %s, sigma = %s WHERE \"Player\" = %s and \"Deck\" = %s",
-                        (player['rating'].mu, player['rating'].sigma, player['Player'], player['Deck']))
+            cur.execute("UPDATE data_owner.skill_level SET mu = %s, sigma = %s, skill_rate = %s WHERE \"Player\" = %s and \"Deck\" = %s",
+                        (player['rating'].mu, player['rating'].sigma, player['rating'].ordinal(), player['Player'], player['Deck']))
     conn.commit()
 
 if __name__ == '__main__':
