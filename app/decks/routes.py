@@ -172,6 +172,10 @@ def deck_show(deckname):
     winrate = round((wins / total_games) * 100, 1) if total_games else 0
     last_played = games[game_ids[0]].Date.strftime("%Y-%m-%d") if game_ids else "Nie"
 
+    # === Average participant count ===
+    participant_counts = [len(participants_by_game[gid]) for gid in game_ids if gid in participants_by_game]
+    average_participants = round(statistics.mean(participant_counts), 1) if participant_counts else "–"
+
     # === Turn stats for wins ===
     deck_stats = {
         "games": total_games,
@@ -181,7 +185,8 @@ def deck_show(deckname):
         "avg_turns": round(statistics.mean(win_turns), 1) if win_turns else "–",
         "median_turns": statistics.median(win_turns) if win_turns else "–",
         "min_turns": min(win_turns) if win_turns else "–",
-        "max_turns": max(win_turns) if win_turns else "–"
+        "max_turns": max(win_turns) if win_turns else "–",
+        "avg_participants": average_participants
     }
 
     deck_stats_by_size = {}
