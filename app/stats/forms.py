@@ -51,6 +51,8 @@ class GameAddForm(FlaskForm):
     first = SelectField('First', choices=[])
     turns = IntegerField('Turns', validators=[Optional()])
     final_blow = TextAreaField('Final Blow', validators=[Optional()])
+    first_ko_turn = IntegerField('First KO in Turn', validators=[Optional()])
+    first_ko_by = TextAreaField('First KO by', validators=[Optional()])
     fun = IntegerField('Fun', validators=[Optional(), NumberRange(min=0, max=10)])
     mulligan = IntegerField('Mulligan', validators=[Optional(), NumberRange(min=0, max=7)])
     landdrops = IntegerField('Landdrops', validators=[Optional()])

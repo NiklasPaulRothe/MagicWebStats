@@ -83,6 +83,8 @@ class Game(db.Model):
     Planechase = db.Column(db.Boolean, nullable=False, default=False)
     turns = db.Column(db.Integer)
     final_blow = db.Column(db.String)
+    first_ko_turn = db.Column(db.Integer)
+    first_ko_by = db.Column(db.String)
 
 class Participant(db.Model):
     __tablename__ = 'Participants'

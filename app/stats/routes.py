@@ -124,7 +124,9 @@ def game_add():
                      Winner = winner,
                      Planechase = form.planechase.data,
                      turns = form.turns.data,
-                     final_blow = form.final_blow.data if form.final_blow.data else None
+                     final_blow = form.final_blow.data if form.final_blow.data else None,
+                     first_ko_turn = form.first_ko_turn.data,
+                     first_ko_by = form.first_ko_by.data if form.first_ko_by.data else None
         )
         db.session.add(game)
         db.session.commit()
