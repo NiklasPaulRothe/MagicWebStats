@@ -54,7 +54,7 @@ if __name__ == '__main__':
                 if 'paper' in card['games'] and typeline_filter:
 
                     # Cards that have only one face (no MDFC, Adventure etc...)
-                    if not '//' in card['name']:
+                    if not '//' in card['name'] or 'SP//dr' in  card['name']:
                         cur = conn.cursor()
                         cur.execute("SELECT id FROM data_owner.card_data WHERE id = %s", (card['id'],))
                         if cur.fetchone() != None:
