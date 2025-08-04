@@ -20,6 +20,7 @@ def on_identity_loaded(sender, identity):
     # Assuming the User model has a list of roles, update the
     # identity with the roles that the user provides
     identity.provides.add(RoleNeed('admin'))
+    identity.provides.add(RoleNeed('maintainer'))
 
 @app.shell_context_processor
 def make_shell_context():
