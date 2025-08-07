@@ -40,7 +40,6 @@ def get_ci():
 
 @bp.route('/PlayerAdd', methods=['GET', 'POST'])
 @role_required('admin')
-@role_required('maintainer')
 @login_required
 def player_add():
     form = PlayerAddForm()
@@ -54,7 +53,6 @@ def player_add():
 
 @bp.route('/DeckAdd', methods=['GET', 'POST'])
 @role_required('admin')
-@role_required('maintainer')
 @login_required
 def deck_add():
     form = DeckAddForm()
@@ -91,7 +89,6 @@ def deck_add():
 
 @bp.route('/game-add', methods=['GET', 'POST'])
 @role_required('admin')
-@role_required('maintainer')
 @login_required
 def game_add():
     form = GameAddForm()
