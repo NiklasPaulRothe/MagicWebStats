@@ -160,7 +160,8 @@ def game_add():
                     deckplan = form.deckplan.data,
                     unanswered_threats = form.unanswered_threats.data,
                     loss_without_answer = form.loss_without_answer.data,
-                    selfmade_win = form.selfmade_win.data
+                    selfmade_win = form.selfmade_win.data,
+                    fun_moments = form.fun_moments.data
                 )
             else:
                 participant = Participant(

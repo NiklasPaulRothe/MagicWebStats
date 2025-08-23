@@ -104,6 +104,7 @@ class Participant(db.Model):
     unanswered_threats = db.Column(db.Boolean)
     loss_without_answer = db.Column(db.Boolean)
     selfmade_win = db.Column(db.Boolean)
+    fun_moments = db.Column(db.Boolean)
 
 class Player(db.Model):
     __tablename__ = 'Player'

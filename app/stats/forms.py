@@ -65,6 +65,7 @@ class GameAddForm(FlaskForm):
     unanswered_threats = BooleanField('Unanswered Threats', default=False)
     loss_without_answer = BooleanField('Lockout/Loss ohne Antwort', default=False)
     selfmade_win = BooleanField('Selbst erspielter sieg', default=False)
+    fun_moments = BooleanField('Fun Moments', default=False)
     planechase = BooleanField('Planechase', default=False)
 
     # Repeating fields for players, decks, and early fast mana
