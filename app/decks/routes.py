@@ -147,11 +147,16 @@ def deck_show(deckname):
             })
 
         winner_name = players.get(game_data.Winner).Name if players.get(game_data.Winner) else "Unbekannt"
+        turn_count = game_data.turns if game_data.turns else "-"
+        final_blow = game_data.final_blow if game_data.final_blow else "Not Tracked"
+
 
         row.append({
             "Datum": game_data.Date.strftime("%Y-%m-%d"),
             "Gegner": opponent_data,
             "Winner": winner_name,
+            "Turns": turn_count,
+            "Final_Blow": final_blow
         })
 
         # Collect full win turn stats

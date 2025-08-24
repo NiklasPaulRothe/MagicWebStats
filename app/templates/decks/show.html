@@ -56,6 +56,8 @@
                     <th>Datum</th>
                     <th>Gegner</th>
                     <th>Sieger</th>
+                    <th>Turns</th>
+                    <th>Final Blow</th>
                 </tr>
             </thead>
             <tbody>
@@ -76,6 +78,8 @@
                         </div>
                     </td>
                     <td>{{ game.Winner }}</td>
+                    <td>{{ game.Turns}}</td>
+                    <td>{{ game.Final_Blow }}</td>
                 </tr>
             {% endfor %}
             </tbody>
