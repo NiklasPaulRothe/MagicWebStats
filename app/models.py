@@ -98,6 +98,7 @@ class Participant(db.Model):
     mulligans = db.Column(db.Integer)
     comments = db.Column(db.String)
     landdrops = db.Column(db.Integer)
+    lands = db.Column(db.Integer)
     enough_mana = db.Column(db.Boolean)
     enough_gas = db.Column(db.Boolean)
     deckplan = db.Column(db.Boolean)

@@ -155,6 +155,7 @@ def game_add():
                     mulligans = form.mulligan.data,
                     comments = form.comment.data,
                     landdrops = form.landdrops.data,
+                    lands = form.lands.data,
                     enough_mana = form.enough_mana.data,
                     enough_gas = form.enough_gas.data,
                     deckplan = form.deckplan.data,
