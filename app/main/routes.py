@@ -37,6 +37,14 @@ def index():
     sorted_turns = sorted(turn_counts.items())
     turn_data = [{"turn": t, "count": count} for t, count in sorted_turns]
 
+    games = Game.query.with_entities(Game.first_ko_turn).filter(Game.first_ko_turn.isnot(None)).all()
+    ko_turns_list = [g.first_ko_turn for g in games]
+
+    # Count per ko_turn
+    ko_turn_counts = Counter(ko_turns_list)
+    sorted_ko_turns = sorted(ko_turn_counts.items())
+    ko_turn_data = [{"turn": t, "count": count} for t, count in sorted_ko_turns]
+
     # Compute average and median
     avg_turns = round(statistics.mean(turns_list), 2) if turns_list else 0
     median_turns = round(statistics.median(turns_list), 2) if turns_list else 0
@@ -65,7 +73,8 @@ def index():
         color_usage_player=color_usage_player,
         turn_data=turn_data,
         final_blow_data=final_blow_counter,
-        first_ko_data=first_ko_counter
+        first_ko_data=first_ko_counter,
+        ko_turn_data=ko_turn_data
     )
 
 

@@ -136,6 +136,47 @@
             }
         }
     });
+
+        // === First Ko Line Chart ===
+    const rawKoTurnData = document.getElementById('ko-turn-data').textContent;
+    const koturnData = JSON.parse(rawKoTurnData);
+
+    new Chart(document.getElementById('koturnsChart'), {
+        type: 'line',
+        data: {
+            labels: koturnData.map(d => d.turn),
+            datasets: [{
+                label: 'Turn of First Ko',
+                data: koturnData.map(d => d.count),
+                backgroundColor: '#f4c430',
+                borderColor: '#f4c430',
+                fill: false,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Turn of First Ko' },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#fff',
+                    font: { weight: 'bold' },
+                    formatter: value => value
+                }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Ko Turn Count' } },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Number of Games' }
+                }
+            }
+        }
+    });
+
     const finalBlowData = JSON.parse(document.getElementById('final-blow-data').textContent);
 
 const fbLabels = Object.keys(finalBlowData);
