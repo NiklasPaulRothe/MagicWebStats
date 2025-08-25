@@ -2,8 +2,9 @@
 
 {% block content %}
     <main>
-        <section id="player-stats">
             <h2>Player Stats</h2>
+    <div class="deckpage">
+        <div id="player-stats">
             <table id="player-stats-table">
                 <thead>
                     <tr>
@@ -21,7 +22,38 @@
                     <!-- Player stats data will be populated here -->
                 </tbody>
             </table>
-        </section>
+        </div>
+    <div id="player-table">
+            <table id="color_usage_player">
+                <thead>
+                <tr>
+                    <th data-type="string" data-key="player">Player</th>
+                    <th data-type="integer" data-key="decks">Decks</th>
+                    <th data-type="float" data-key="white">White</th>
+                    <th data-type="float" data-key="blue">Blue</th>
+                    <th data-type="float" data-key="black">Black</th>
+                    <th data-type="float" data-key="red">Red</th>
+                    <th data-type="float" data-key="green">Green</th>
+                    <th data-type="float" data-key="avg_colors">Average Colors</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for color in color_usage_player %}
+                    <tr>
+                        <td>{{ color.Player }}</td>
+                        <td>{{ color.Decks }}</td>
+                        <td>{{ color.white }}</td>
+                        <td>{{ color.blue }}</td>
+                        <td>{{ color.black }}</td>
+                        <td>{{ color.red }}</td>
+                        <td>{{ color.green }}</td>
+                        <td>{{ color.avg_number_of_colors }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
     </main>
     <script>
         function encode(Deck) {

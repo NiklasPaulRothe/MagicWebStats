@@ -10,6 +10,7 @@ from sqlalchemy import desc
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm
 from app.models import Player, Deck, Game, Participant, ColorIdentity, Card
+from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
 def get_player():
@@ -182,7 +183,8 @@ def game_add():
 @bp.route('/PlayerStats')
 @login_required
 def playerstats():
-    return render_template('stats/playerstats.html')
+    color_usage_player = ColorUsagePlayer.query.all()
+    return render_template('stats/playerstats.html', color_usage_player=color_usage_player)
 
 @bp.route('/ColorStats')
 @login_required

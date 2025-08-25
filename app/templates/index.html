@@ -18,47 +18,24 @@
             <canvas id="likelihoodChart" width="300" height="200"></canvas>
             <canvas id="averageChart" width="300" height="200"></canvas>
             <canvas id="deckPercentageChart" width="300" height="200"></canvas>
+        </div>
+        <div id="charts">
             <canvas id="turnsChart" width="300" height="200"></canvas>
             <canvas id="koturnsChart" width="300" height="200"></canvas>
-        </div>
-        <div id="player-table">
-            <table id="color_usage_player">
-                <thead>
-                <tr>
-                    <th data-type="string" data-key="player">Player</th>
-                    <th data-type="integer" data-key="decks">Decks</th>
-                    <th data-type="float" data-key="white">White</th>
-                    <th data-type="float" data-key="blue">Blue</th>
-                    <th data-type="float" data-key="black">Black</th>
-                    <th data-type="float" data-key="red">Red</th>
-                    <th data-type="float" data-key="green">Green</th>
-                    <th data-type="float" data-key="avg_colors">Average Colors</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for color in color_usage_player %}
-                    <tr>
-                        <td>{{ color.Player }}</td>
-                        <td>{{ color.Decks }}</td>
-                        <td>{{ color.white }}</td>
-                        <td>{{ color.blue }}</td>
-                        <td>{{ color.black }}</td>
-                        <td>{{ color.red }}</td>
-                        <td>{{ color.green }}</td>
-                        <td>{{ color.avg_number_of_colors }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <div class="metadata-box">
+                <div><span class="metainfo">Average Turns:</span> {{ avg_turns }} </div>
+                <span class="metainfo">Median Turns:</span> {{ median_turns }}
+            </div>
         </div>
 <div id="charts">
         <div id="final-blow-chart-container" class="chart-box">
             <canvas id="finalBlowChart" width="350" height="350"></canvas>
-        </div></br>
+        </div>
         <div id="final-blow-chart-container" class="chart-box">
             <canvas id="firstKoChart" width="350" height="350"></canvas>
         </div>
-    </div></div>
+    </div>
+    </div>
     <script type="application/json" id="color-usage-data">
         {{ color_usage | tojson }}
     </script>

@@ -409,6 +409,20 @@ th.sorted-desc > span::after {
     height: 380px;
 }
 
+.metadata-box {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
+    align-items: center;
+    justify-content: center;
+    width: 260px;
+}
+
+.metainfo {
+    color: #f4c430
+}
+
 #finalBlowChart {
     margin-bottom: 10px;
 }

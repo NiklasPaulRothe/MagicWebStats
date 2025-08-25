@@ -74,7 +74,9 @@ def index():
         turn_data=turn_data,
         final_blow_data=final_blow_counter,
         first_ko_data=first_ko_counter,
-        ko_turn_data=ko_turn_data
+        ko_turn_data=ko_turn_data,
+        avg_turns=avg_turns,
+        median_turns=median_turns
     )
 
 
