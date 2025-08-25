@@ -50,11 +50,14 @@
                 </tbody>
             </table>
         </div>
-
+<div id="charts">
         <div id="final-blow-chart-container" class="chart-box">
             <canvas id="finalBlowChart" width="350" height="350"></canvas>
+        </div></br>
+        <div id="final-blow-chart-container" class="chart-box">
+            <canvas id="firstKoChart" width="350" height="350"></canvas>
         </div>
-    </div>
+    </div></div>
     <script type="application/json" id="color-usage-data">
         {{ color_usage | tojson }}
     </script>
@@ -63,6 +66,9 @@
     </script>
     <script type="application/json" id="final-blow-data">
         {{ final_blow_data | tojson }}
+    </script>
+    <script type="application/json" id="first-ko-data">
+        {{ first_ko_data | tojson }}
     </script>
 </main>
 {% endblock %}

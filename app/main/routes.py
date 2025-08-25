@@ -50,12 +50,22 @@ def index():
     final_blow_flat = [fb[0] for fb in final_blow_counts]
     final_blow_counter = dict(Counter(final_blow_flat))
 
+    # First KO pie chart data
+    first_ko_counts = (
+        db.session.query(Game.first_ko_by)
+        .filter(Game.first_ko_by.isnot(None))
+        .all()
+    )
+    first_ko_flat = [fb[0] for fb in first_ko_counts]
+    first_ko_counter = dict(Counter(first_ko_flat))
+
     return render_template(
         'index.html',
         color_usage=color_usage_data,
         color_usage_player=color_usage_player,
         turn_data=turn_data,
-        final_blow_data=final_blow_counter
+        final_blow_data=final_blow_counter,
+        first_ko_data=first_ko_counter
     )
 
 

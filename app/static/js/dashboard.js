@@ -205,4 +205,73 @@ new Chart(document.getElementById('finalBlowChart'), {
     }
 });
 
+    const firstKoData = JSON.parse(document.getElementById('first-ko-data').textContent);
+
+const fkLabels = Object.keys(firstKoData);
+const fkCounts = Object.values(firstKoData);
+
+new Chart(document.getElementById('firstKoChart'), {
+    type: 'pie',
+    data: {
+        labels: fkLabels,
+        datasets: [{
+            data: fkCounts,
+            backgroundColor: [
+                '#e6194b',  // strong red
+                '#3cb44b',  // green
+                '#4363d8',  // royal blue
+                '#f58231',  // orange
+                '#911eb4',  // purple
+                '#a9a9a9',  // gray
+                '#f4c430',  // golden yellow
+                '#46f0f0',  // cyan
+                '#ffe119',  // bright yellow
+                '#000075'   // deep navy
+            ],
+            borderColor: '#222',
+            borderWidth: 2,
+            hoverOffset: 10
+        }]
+    },
+    options: {
+        responsive: false,
+        layout: {
+            padding: 10
+        },
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    color: 'antiquewhite',
+                    usePointStyle: true,
+                    padding: 20,
+                    boxWidth: 12
+                }
+            },
+            title: {
+                display: true,
+                text: 'First KO Distribution',
+                color: '#f4c430',
+                font: { weight: 'bold', size: 16 }
+            },
+            tooltip: {
+                bodyColor: 'black',
+                titleColor: 'black',
+                backgroundColor: '#f4f4f4'
+            },
+            datalabels: {
+                color: 'black',
+                font: {
+                    weight: 'bold',
+                    size: 12
+                },
+                formatter: (value, ctx) => value
+            }
+        },
+        layout: {
+            padding: { top: 10, bottom: 10 }
+        }
+    }
+});
+
 });
