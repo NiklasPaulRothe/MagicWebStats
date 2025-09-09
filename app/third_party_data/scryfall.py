@@ -61,7 +61,7 @@ def get_card_data():
                     if exists:
                         card_entry = models.Card.query.filter_by(id=card['id']).first()
 
-                    if not '//' in card['name']:
+                    if not ' // ' in card['name']:
                         card_entry.Name = card['name']
                         card_entry.id = card['id']
                         card_entry.image_uri = card['image_uris']['large']
