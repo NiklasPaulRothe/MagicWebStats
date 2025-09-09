@@ -50,6 +50,57 @@
 /* Achievements layout lives in same header grid area (columns 2-3) */
 .deck-header-achievements {
     grid-column: 2 / span 2;
+    display: block;
+}
+
+/* Modal (popup) styling */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;              /* toggled via JS to 'flex' */
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.6);
+    z-index: 1000;
+}
+
+.modal {
+    background: #1e1e1e;
+    color: antiquewhite;
+    border: 1px solid #3a3f4b;
+    border-radius: 10px;
+    width: min(520px, 92vw);
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+.modal h3 {
+    margin: 0 0 12px 0;
+    color: #f4c430;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row textarea {
+    background: #2a2f3a;
+    color: antiquewhite;
+    border: 1px solid #3a3f4b;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 10px;
 }
 
 /* Make a stable 3-column grid on wide screens without overlap */
@@ -142,6 +193,12 @@
     }
 }
 
+.achievements-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
 
 .commander-image {
     width: 120px;

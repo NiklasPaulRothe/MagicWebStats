@@ -1,4 +1,4 @@
-2024-08-18 16:41:06,321 ERROR: Exception on /favicon.ico [GET] [in C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:838]
+2024-08-18 16:59:57,887 ERROR: Exception on /auth/login [POST] [in C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:838]
 Traceback (most recent call last):
   File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
     self.dialect.do_execute(
@@ -18,53 +18,19 @@ Traceback (most recent call last):
   File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
     rv = self.handle_user_exception(e)
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 878, in full_dispatch_request
-    rv = self.preprocess_request()
-         ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1253, in preprocess_request
-    rv = self.ensure_sync(before_func)()
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_principal.py", line 479, in _on_before_request
-    self.set_identity(identity)
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_principal.py", line 418, in set_identity
-    self._set_thread_identity(identity)
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_principal.py", line 462, in _set_thread_identity
-    identity_loaded.send(current_app._get_current_object(),
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\blinker\base.py", line 279, in send
-    result = receiver(sender, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\webstats.py", line 17, in on_identity_loaded
-    if hasattr(current_user, 'id'):
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 318, in __get__
-    obj = instance._get_current_object()
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 526, in _get_current_object
-    return get_name(local())
-                    ^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 25, in <lambda>
-    current_user = LocalProxy(lambda: _get_user())
-                                      ^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 370, in _get_user
-    current_app.login_manager._load_user()
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\login_manager.py", line 364, in _load_user
-    user = self._user_callback(user_id)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\app\models.py", line 13, in load_user
-    return db.session.get(User, int(id))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1060, in get
-    return self._proxied.get(
+  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\paul-\PycharmProjects\MagicWebStats\app\auth\routes.py", line 19, in login
+    user = db.session.scalar(
            ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3693, in get
-    return self._get_impl(
-           ^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3873, in _get_impl
-    return db_load_fn(
-           ^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 694, in load_on_pk_identity
-    session.execute(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2362, in execute
+  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1843, in scalar
+    return self._proxied.scalar(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2410, in scalar
     return self._execute_internal(
            ^^^^^^^^^^^^^^^^^^^^^^^
   File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2247, in _execute_internal
@@ -97,9 +63,52 @@ sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) FEHLER:  Relat
 LINE 2: FROM data_owner."user" 
              ^
 
-[SQL: SELECT data_owner."user".id AS data_owner_user_id, data_owner."user".username AS data_owner_user_username, data_owner."user".email AS data_owner_user_email, data_owner."user".password_hash AS data_owner_user_password_hash 
+[SQL: SELECT data_owner."user".id, data_owner."user".username, data_owner."user".email, data_owner."user".password_hash 
 FROM data_owner."user" 
-WHERE data_owner."user".id = %(pk_1)s]
-[parameters: {'pk_1': 1}]
+WHERE data_owner."user".username = %(username_1)s]
+[parameters: {'username_1': 'Niklas'}]
 (Background on this error at: https://sqlalche.me/e/20/f405)
-2024-08-18 16:59:29,270 INFO: Webstats startup [in C:\Users\paul-\PycharmProjects\MagicWebStats\app\__init__.py:56]
+2024-08-18 17:01:31,411 INFO: Webstats startup [in C:\Users\paul-\PycharmProjects\MagicWebStats\app\__init__.py:56]
+2025-09-09 09:36:24,202 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 09:37:32,175 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 09:44:55,069 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:29:49,932 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:32:28,228 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:32:42,453 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:33:29,376 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:34:38,674 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:34:54,489 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:36:57,577 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:38:18,955 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:41:31,131 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:44:14,188 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:45:00,346 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:45:35,005 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:45:56,613 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:47:00,703 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:47:15,739 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:47:28,264 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:49:25,601 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:52:49,819 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:54:38,370 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:55:18,190 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 13:55:20,736 ERROR: Exception on /api/userdecks/Niklas [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\api\routes.py", line 201, in userdecks
+    .join(user, user.spieler == Player.id)
+                ^^^^^^^^^^^^
+AttributeError: 'function' object has no attribute 'spieler'
+2025-09-09 13:56:14,187 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 14:00:51,058 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

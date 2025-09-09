@@ -1,4 +1,4 @@
-2024-08-18 16:14:06,446 ERROR: Exception on /favicon.ico [GET] [in C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:838]
+2024-08-18 16:41:06,230 ERROR: Exception on / [GET] [in C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:838]
 Traceback (most recent call last):
   File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
     self.dialect.do_execute(
@@ -102,4 +102,3 @@ FROM data_owner."user"
 WHERE data_owner."user".id = %(pk_1)s]
 [parameters: {'pk_1': 1}]
 (Background on this error at: https://sqlalche.me/e/20/f405)
-2024-08-18 16:41:02,052 INFO: Webstats startup [in C:\Users\paul-\PycharmProjects\MagicWebStats\app\__init__.py:56]

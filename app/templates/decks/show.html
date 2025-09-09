@@ -82,6 +82,36 @@
             {% else %}
                 <p class="achievements-empty">Keine Achievements vorhanden.</p>
             {% endif %}
+            <!-- Add Achievement button (no functionality yet) -->
+            <div class="achievements-actions">
+                <button type="button" class="btn small primary" id="btn-add-achievement">Achievement hinzufügen</button>
+            </div>
+            <!-- Lightweight modal (no DB yet) -->
+            <div id="add-achievement-overlay" class="modal-overlay" style="display:none;">
+              <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-achievement-title">
+                <h3 id="add-achievement-title">Neues Achievement</h3>
+                <form id="add-achievement-form">
+                  <div class="form-row">
+                    <label for="ach-title">Titel</label>
+                    <input id="ach-title" name="titel" type="text" placeholder="z. B. First Blood" required>
+                  </div>
+                  <div class="form-row">
+                    <label for="ach-desc">Beschreibung</label>
+                    <textarea id="ach-desc" name="beschreibung" rows="3" placeholder="Kurze Beschreibung..."></textarea>
+                  </div>
+                  <div class="form-row">
+                    <label for="ach-count">Anzahl</label>
+                    <input id="ach-count" name="anzahl" type="number" min="1" value="1" required>
+                  </div>
+                  <div class="modal-actions">
+                    <button type="button" class="btn" id="btn-cancel-add">Abbrechen</button>
+                    <button type="submit" class="btn primary">Speichern</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+
         </div>
 
     </section>
@@ -143,17 +173,45 @@
     btnAch.classList.remove('primary');
   }
 
-  function showAchievements() {
+ function showAchievements() {
     statsText.style.display = 'none';
     statsBreakdown.style.display = 'none';
-    achBlock.style.display = 'flex';
+    achBlock.style.display = 'block';
     btnAch.classList.add('primary');
     btnStats.classList.remove('primary');
   }
 
 
+
   btnStats?.addEventListener('click', showStats);
   btnAch?.addEventListener('click', showAchievements);
+
+   // Modal open/close (no DB calls yet)
+  const addBtn = document.getElementById('btn-add-achievement');
+  const overlay = document.getElementById('add-achievement-overlay');
+  const cancelAdd = document.getElementById('btn-cancel-add');
+  const addForm = document.getElementById('add-achievement-form');
+
+  function openAddModal() {
+    overlay.style.display = 'flex';
+    // focus first field
+    setTimeout(() => document.getElementById('ach-title')?.focus(), 0);
+  }
+  function closeAddModal() {
+    overlay.style.display = 'none';
+    addForm?.reset();
+  }
+
+  addBtn?.addEventListener('click', openAddModal);
+  cancelAdd?.addEventListener('click', closeAddModal);
+  overlay?.addEventListener('click', (e) => {
+    if (e.target === overlay) closeAddModal();
+  });
+  addForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    // No DB yet; keep modal open or close with a toast in the future.
+    closeAddModal();
+  });
 
   // CSRF token from meta (if present)
   const csrfMeta = document.querySelector('meta[name="csrf-token"]');
