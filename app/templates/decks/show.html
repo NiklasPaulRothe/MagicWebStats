@@ -83,9 +83,11 @@
                 <p class="achievements-empty">Keine Achievements vorhanden.</p>
             {% endif %}
             <!-- Add Achievement button (no functionality yet) -->
+            {% if is_owner %}
             <div class="achievements-actions">
                 <button type="button" class="btn small primary" id="btn-add-achievement">Achievement hinzufügen</button>
             </div>
+            {% endif %}
 
             <div id="add-achievement-overlay" class="modal-overlay" style="display:none;">
               <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-achievement-title">
