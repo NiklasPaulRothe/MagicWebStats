@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import text
 import sqlalchemy as sa
 
-from app.models import Player
+from app.models import Player, User
 
 
 @bp.route('/data')
@@ -149,9 +149,9 @@ def deck_data():
 
     return jsonify(list)
 
-@bp.route('/userdecks')
+@bp.route('/userdecks/<spieler>')
 @login_required
-def userdecks():
+def userdecks(spieler):
     results = db.session.execute(text('''
     SELECT  "Name", 
             "Commander", 
@@ -194,8 +194,7 @@ def userdecks():
             decklist
     FROM "data_owner"."Decks"
     WHERE "Player" = :player AND "Active" = true
-    ORDER BY "Name";'''),
-        {'player': db.session.scalar(sa.select(Player.id).where(current_user.spieler == Player.id))})
+    ORDER BY "Name";'''),{'player': spieler})
 
     list = []
     for entry in results:

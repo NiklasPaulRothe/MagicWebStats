@@ -119,6 +119,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (key === 'Commander') {
                     return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`;
                 }
+                if (key === 'Spieler'){
+                    return `<td><a id="${item[key]}-link" href="/player/${item[key]}">${item[key] || ''}</a></td>`
+                }
                 return `<td>${item[key] || ''}</td>`;
             }).join('');
             tbody.appendChild(row);

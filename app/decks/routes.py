@@ -231,12 +231,13 @@ def calculate_elo():
     games = Game.query.all()
     for game in games:
         participants = Participant.query.filter_by(game_id=game.id).all()
-        if len(participants) < 3:
+        if len(participants) < 3 or len(participants) > 5:
             continue
 
         #if game.id > 158:
          #   continue
 
+        player = len(participants)
         deck_ratings = {p.deck_id: elo_ratings[p.deck_id]['elo_rating'] for p in participants if p.deck_id in elo_ratings}
 
         for participant in participants:
@@ -254,7 +255,7 @@ def calculate_elo():
             actual_score = 1 if game.Winner == participant.player_id else 0
             games_played = elo_ratings[participant.deck_id]['games_played']
             expected_score_avg = sum(filtered_expected_scores) / len(filtered_expected_scores)
-            adjusted_rating = update_elo_rating(rating, actual_score, expected_score_avg, games_played)
+            adjusted_rating = update_elo_rating(rating, actual_score, expected_score_avg, games_played, player)
 
             elo_ratings[participant.deck_id]['elo_rating'] = adjusted_rating
             elo_ratings[participant.deck_id]['games_played'] += 1
@@ -271,7 +272,7 @@ def calculate_elo():
 def expected_score(rating, opponent_rating):
     return 1 / (1 + 10 ** ((opponent_rating - rating) / 180))
 
-def update_elo_rating(current_rating, actual_score, expected_score, games_played):
+def update_elo_rating(current_rating, actual_score, expected_score, games_played, player):
     match games_played:
         case games_played if games_played > 50:
             adjustment_factor = 30
@@ -283,4 +284,4 @@ def update_elo_rating(current_rating, actual_score, expected_score, games_played
     if value > 0:
         return current_rating + value
     else:
-        return current_rating + value/3
+        return current_rating + value/(player-1)

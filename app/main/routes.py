@@ -4,10 +4,10 @@ from collections import Counter
 from app import db
 from app.main import bp
 from flask import render_template
-from flask_login import login_required
+from flask_login import login_required, current_user
 import sqlalchemy as sa
 
-from app.models import User
+from app.models import User, Player
 from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
@@ -80,9 +80,29 @@ def index():
     )
 
 
-@bp.route('/user/<username>')
+@bp.route('/user/<spieler>')
 @login_required
-def user(username):
-    user = db.first_or_404(sa.select(User).where(User.username == username))
-    return render_template(('user.html', user))
+def user(spieler):
+    print(spieler)
+    user = db.first_or_404(sa.select(User).where(User.username == spieler))
+    owner = (user.id == current_user.id)
+    spieler = db.session.scalar(sa.select(Player).where(Player.id == user.spieler))
+    return render_template(
+        'user.html',
+        spieler=spieler,
+        owner=owner)
+
+@bp.route('/player/<spieler>')
+@login_required
+def player(spieler):
+    player = db.session.scalar(sa.select(Player).where(Player.Name == spieler))
+    try:
+        user = db.first_or_null(sa.select(User).where(User.spieler == player.id))
+        owner = (user.id == current_user.id)
+    except:
+        owner = False
+    return render_template(
+        'user.html',
+        spieler=player,
+        owner=owner)
 

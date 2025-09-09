@@ -2,7 +2,7 @@
 
 {% block content %}
     <main>
-        <h1>Hi, {{ current_user.username }}!</h1>
+        <h1>{{ spieler.Name }} Deckübersicht</h1>
         <section id="deck-stats">
             <h2>Deck Stats</h2>
             <table id="user-deck-stats-table">
@@ -15,7 +15,9 @@
                         <th data-type="number">Spiele</th>
                         <th data-type="number">Siege</th>
                         <th data-type="number">Winrate (in %)</th>
+                        {% if owner %}
                         <th data-type="string"> </th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -30,7 +32,7 @@
         }
         document.addEventListener('DOMContentLoaded', function() {
             // Fetch and populate User Deck Stats table
-            fetch('/api/userdecks')
+            fetch('/api/userdecks/' + '{{ spieler.id }}')
                 .then(response => response.json())
                 .then(data => populateTable('user-deck-stats-table', data));
 

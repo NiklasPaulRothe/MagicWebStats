@@ -27,7 +27,7 @@
             <table id="color_usage_player">
                 <thead>
                 <tr>
-                    <th data-type="string" data-key="player">Player</th>
+                    <th data-type="string" data-key="player">Name</th>
                     <th data-type="integer" data-key="decks">Decks</th>
                     <th data-type="float" data-key="white">White</th>
                     <th data-type="float" data-key="blue">Blue</th>
@@ -70,13 +70,12 @@
                 const tbody = document.querySelector(`#${tableId} tbody`);
                 const headers = document.querySelectorAll(`#${tableId} thead th`);
                 tbody.innerHTML = ''; // Clear existing table data
-                let Deck = 'Dummy';
                 data.forEach(item => {
                     const row = document.createElement('tr');
                     row.innerHTML = Array.from(headers).map(header => {
-                        if (header.textContent.trim() == ''){
-                            let URL= encode(Deck)
-                            return `<td><a id="${Deck}-link" href="/decks/edit/${URL}">Bearbeiten</a></td>`
+                        if (header.textContent.trim() == 'Name'){
+                            const key = header.textContent.trim();
+                            return `<td><a id="${item[key]}-link" href="/player/${item[key]}">${item[key] || ''}</a></td>`
                         }
                         const key = header.textContent.trim();
                         return `<td>${item[key] || ''}</td>`;
