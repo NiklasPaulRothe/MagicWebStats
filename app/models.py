@@ -139,3 +139,13 @@ class DeckComponent(db.Model):
     card_id = db.Column(db.String, db.ForeignKey('data_owner.card_data.id'))
     count = db.Column(db.Integer)
     name = db.Column(db.String)
+
+class Achievement(db.Model):
+    __tablename__ = 'achievements'
+    __table_args__ = {'schema': 'data_owner'}
+    id = db.Column(db.Integer, primary_key=True)
+    titel = db.Column(db.String)
+    beschreibung = db.Column(db.String)
+    anzahl = db.Column(db.Integer)
+    deck = db.Column(db.Integer)
+    achieved = db.Column(db.Integer)
