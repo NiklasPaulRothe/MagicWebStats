@@ -58,7 +58,7 @@
         <!-- Achievements mode content (hidden by default). Spans the two right columns. -->
         <div id="deck-header-achievements" class="deck-header-achievements" style="display:none;">
             {% if achievements|length > 0 %}
-                <div class="achievements-grid">
+                <div class="achievements-grid" id="achievements-grid">
                     {% for a in achievements %}
                         <div class="achievement-card" data-achievement-id="{{ a.id }}">
                             <div class="achievement-header">
@@ -86,7 +86,7 @@
             <div class="achievements-actions">
                 <button type="button" class="btn small primary" id="btn-add-achievement">Achievement hinzufügen</button>
             </div>
-            <!-- Lightweight modal (no DB yet) -->
+
             <div id="add-achievement-overlay" class="modal-overlay" style="display:none;">
               <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-achievement-title">
                 <h3 id="add-achievement-title">Neues Achievement</h3>
@@ -186,7 +186,7 @@
   btnStats?.addEventListener('click', showStats);
   btnAch?.addEventListener('click', showAchievements);
 
-   // Modal open/close (no DB calls yet)
+ // Modal open/close
   const addBtn = document.getElementById('btn-add-achievement');
   const overlay = document.getElementById('add-achievement-overlay');
   const cancelAdd = document.getElementById('btn-cancel-add');
@@ -194,7 +194,6 @@
 
   function openAddModal() {
     overlay.style.display = 'flex';
-    // focus first field
     setTimeout(() => document.getElementById('ach-title')?.focus(), 0);
   }
   function closeAddModal() {
@@ -207,15 +206,92 @@
   overlay?.addEventListener('click', (e) => {
     if (e.target === overlay) closeAddModal();
   });
-  addForm?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    // No DB yet; keep modal open or close with a toast in the future.
-    closeAddModal();
-  });
 
-  // CSRF token from meta (if present)
+  // Create card DOM helper
+  function createAchievementCard(a) {
+    const card = document.createElement('div');
+    card.className = 'achievement-card';
+    card.setAttribute('data-achievement-id', a.id);
+    const checks = Array.from({length: a.anzahl || 0}, (_, i) => `
+      <label class="check" title="${i < (a.achieved||0) ? 'erreicht' : 'offen'}">
+        <input type="checkbox" class="achievement-check" ${i < (a.achieved||0) ? 'checked' : ''}>
+        <span></span>
+      </label>
+    `).join('');
+    card.innerHTML = `
+      <div class="achievement-header">
+        <h4 class="achievement-title"></h4>
+      </div>
+      <p class="achievement-desc"></p>
+      <div class="achievement-checks">${checks}</div>
+    `;
+    card.querySelector('.achievement-title').textContent = a.titel || '';
+    card.querySelector('.achievement-desc').textContent = a.beschreibung || '';
+    return card;
+  }
+
+  // Attach checkbox listeners for save (already present change handler)
+  function attachCardListeners(card) {
+    const initial = card.querySelectorAll('input.achievement-check:checked').length;
+    card.setAttribute('data-prev-count', String(initial));
+    card.addEventListener('change', (e) => {
+      if (e.target && e.target.matches('input.achievement-check')) {
+        onChecksChanged(card);
+      }
+    });
+  }
+
+  // Handle Save in the modal: POST to server, then append card to grid
   const csrfMeta = document.querySelector('meta[name="csrf-token"]');
   const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+  addForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const payload = {
+      deckname: "{{ deckname }}",
+      titel: addForm.titel.value.trim(),
+      beschreibung: addForm.beschreibung.value.trim(),
+      anzahl: parseInt(addForm.anzahl.value, 10) || 1
+    };
+    if (!payload.titel) {
+      addForm.titel.focus();
+      return;
+    }
+    fetch(`{{ url_for('decks.add_achievement') }}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
+      },
+      body: JSON.stringify(payload),
+      credentials: 'same-origin'
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok) throw new Error(data.message || 'Speichern fehlgeschlagen');
+      // Ensure grid exists and append into it (not after it)
+      let grid = document.getElementById('achievements-grid')
+              || document.querySelector('#deck-header-achievements .achievements-grid');
+      if (!grid) {
+        grid = document.createElement('div');
+        grid.className = 'achievements-grid';
+        grid.id = 'achievements-grid';
+        const actions = document.querySelector('.achievements-actions');
+        actions?.parentNode?.insertBefore(grid, actions);
+        const empty = document.querySelector('.achievements-empty');
+        empty?.remove();
+      }
+      // Append new card inside the grid
+      const card = createAchievementCard(data.achievement);
+      grid.appendChild(card);
+      attachCardListeners(card);
+      closeAddModal();
+      // Switch to achievements view to show result
+      const btnAch = document.getElementById('btn-mode-achievements');
+      btnAch?.click();
+    }).catch((err) => {
+      alert(err.message || 'Fehler beim Speichern.');
+    });
+  });
 
   // Handle checkbox changes: compute desired count and send to server
   function onChecksChanged(cardEl) {
