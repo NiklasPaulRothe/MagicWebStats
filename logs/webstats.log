@@ -1,42 +1,27 @@
-2025-09-09 14:43:11,484 ERROR: Exception on /player/Hauke [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 99, in player
-    user = db.first_or_null(sa.select(User).where(User.spieler == player.id))
-           ^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_sqlalchemy\extension.py", line 1008, in __getattr__
-    raise AttributeError(name)
-AttributeError: first_or_null. Did you mean: 'first_or_404'?
-2025-09-09 14:43:47,458 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:43:50,856 ERROR: Exception on /player/Hauke [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 103, in player
-    owner = (user.id == current_user.id)
-             ^^^^^^^
-AttributeError: 'NoneType' object has no attribute 'id'
-2025-09-09 14:44:34,034 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:45:52,738 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:49:19,217 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:20:47,148 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:22:29,191 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:22:37,009 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:22:40,395 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:24:34,938 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:24:37,180 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:26:36,765 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:26:39,149 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:27:32,099 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:27:33,385 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:31:30,211 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:31:32,922 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:32:25,526 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:32:28,414 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:32:58,933 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:33:02,915 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:33:31,229 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:37:48,499 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:37:52,392 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:38:21,945 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:38:23,823 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:38:50,247 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:38:51,871 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:39:35,203 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:39:57,661 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:40:01,612 INFO: Vorinclex Vincent [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:40:21,003 INFO: Here comes the Flood [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
