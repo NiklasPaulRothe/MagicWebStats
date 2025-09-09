@@ -20,6 +20,116 @@
     max-width: 900px;
 }
 
+/* Centered, non-intrusive controls above the header block */
+.deck-header-controls {
+    width: 100%;
+    max-width: 900px; /* align with header width */
+    margin: 0 auto 10px auto; /* small gap above header */
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Lightweight button styling that won't affect existing layout */
+.deck-header-controls .btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #f4c430;
+    background: transparent;
+    color: #f4c430;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.deck-header-controls .btn.primary {
+    background: #f4c430;
+    color: #1e1e1e;
+}
+
+/* Achievements layout lives in same header grid area (columns 2-3) */
+.deck-header-achievements {
+    grid-column: 2 / span 2;
+}
+
+/* Grid of achievement cards */
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+/* Single achievement card */
+.achievement-card {
+    background: #282c34;
+    border: 1px solid #3a3f4b;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+
+.achievement-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.achievement-title {
+    margin: 0;
+    font-size: 1rem;
+    color: #f4c430;
+}
+
+.achievement-desc {
+    margin: 0 0 10px 0;
+    color: antiquewhite;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+/* Row of checkboxes indicating how many times it can be achieved */
+.achievement-checks {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Styled checkbox (non-functional, disabled) */
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: not-allowed;
+}
+
+.check input[type="checkbox"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f4c430;
+    border-radius: 4px;
+    background: transparent;
+    position: relative;
+}
+
+.check input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    background: #f4c430;
+    border-radius: 2px;
+}
+
+/* Responsive stacking */
+@media (max-width: 900px) {
+    .deck-header-achievements {
+        grid-column: auto;
+    }
+    .achievements-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .commander-image {
     width: 120px;
     height: auto;
@@ -86,18 +196,6 @@
     align-items: center;
     padding: 20px;
     gap: 30px;
-}
-
-.deck-header {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    background-color: #1e1e1e;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
-    width: 100%;
-    max-width: 1000px;
 }
 
 .commander-image {

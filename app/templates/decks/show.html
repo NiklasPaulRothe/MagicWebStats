@@ -3,6 +3,10 @@
 {% block head %}
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/deckpage.css') }}">
+    {% if csrf_token %}
+      <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endif %}
+
 </head>
 {% endblock %}
 
@@ -10,6 +14,12 @@
 <main class="deck-container">
 
     <h1>{{ deckname }}</h1>
+    <!-- Non-intrusive controls above the header content -->
+    <div class="deck-header-controls">
+        <button type="button" id="btn-mode-stats" class="btn small primary">Stats</button>
+        <button type="button" id="btn-mode-achievements" class="btn small">Achievements</button>
+    </div>
+
     <section class="deck-header">
         <div>
             {% if is_owner %}
@@ -45,8 +55,37 @@
                 {% endfor %}
             </div>
 
+        <!-- Achievements mode content (hidden by default). Spans the two right columns. -->
+        <div id="deck-header-achievements" class="deck-header-achievements" style="display:none;">
+            {% if achievements|length > 0 %}
+                <div class="achievements-grid">
+                    {% for a in achievements %}
+                        <div class="achievement-card" data-achievement-id="{{ a.id }}">
+                            <div class="achievement-header">
+                                <h4 class="achievement-title">{{ a.titel }}</h4>
+                            </div>
+                            <p class="achievement-desc">{{ a.beschreibung }}</p>
+                            <div class="achievement-checks">
+                                {% set total = a.anzahl or 0 %}
+                                {% set done = a.achieved or 0 %}
+                                {% for i in range(total) %}
+                                    <label class="check" title="{{ i < done and 'erreicht' or 'offen' }}">
+                                        <input type="checkbox" class="achievement-check"
+                                               {% if i < done %}checked{% endif %}>
+                                        <span></span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="achievements-empty">Keine Achievements vorhanden.</p>
+            {% endif %}
+        </div>
 
     </section>
+
 
     <section class="deck-games">
         <h2>Gespielte Spiele</h2>
@@ -86,4 +125,87 @@
         </table>
     </section>
 </main>
+
+    <script>
+// Toggle between Stats (default) and Achievements without altering layout
+(function() {
+  const btnStats = document.getElementById('btn-mode-stats');
+  const btnAch = document.getElementById('btn-mode-achievements');
+  const statsText = document.querySelector('.deck-header-text');
+  const statsBreakdown = document.querySelector('.deck-stats-breakdown');
+  const achBlock = document.getElementById('deck-header-achievements');
+
+  function showStats() {
+    statsText.style.display = 'flex';
+    statsBreakdown.style.display = 'flex';
+    achBlock.style.display = 'none';
+    btnStats.classList.add('primary');
+    btnAch.classList.remove('primary');
+  }
+
+  function showAchievements() {
+    statsText.style.display = 'none';
+    statsBreakdown.style.display = 'none';
+    achBlock.style.display = 'flex';
+    btnAch.classList.add('primary');
+    btnStats.classList.remove('primary');
+  }
+
+
+  btnStats?.addEventListener('click', showStats);
+  btnAch?.addEventListener('click', showAchievements);
+
+  // CSRF token from meta (if present)
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+  // Handle checkbox changes: compute desired count and send to server
+  function onChecksChanged(cardEl) {
+    const achId = cardEl.getAttribute('data-achievement-id');
+    const checks = cardEl.querySelectorAll('input.achievement-check');
+    const desired = Array.from(checks).filter(c => c.checked).length;
+
+    fetch(`{{ url_for('decks.set_achievement_progress', achievement_id=0) }}`.replace('0', achId), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
+      },
+      body: JSON.stringify({achieved: desired}),
+      credentials: 'same-origin'
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok) {
+        throw new Error(data.message || 'Update failed');
+      }
+      // Normalize UI to what the server accepted (clamped)
+      const accepted = data.achieved ?? desired;
+      checks.forEach((c, idx) => { c.checked = idx < accepted; });
+    }).catch((err) => {
+      // On error, revert UI to previous state (best-effort)
+      const previous = cardEl.getAttribute('data-prev-count');
+      const prevCount = previous ? parseInt(previous, 10) : 0;
+      checks.forEach((c, idx) => { c.checked = idx < prevCount; });
+      console.warn('Achievement update failed:', err);
+    }).finally(() => {
+      // Store the latest accepted count for potential reverts later
+      const current = Array.from(checks).filter(c => c.checked).length;
+      cardEl.setAttribute('data-prev-count', String(current));
+    });
+  }
+
+  // Initialize prev-count and attach listeners
+  document.querySelectorAll('.achievement-card').forEach(card => {
+    const initial = card.querySelectorAll('input.achievement-check:checked').length;
+    card.setAttribute('data-prev-count', String(initial));
+    card.addEventListener('change', (e) => {
+      if (e.target && e.target.matches('input.achievement-check')) {
+        onChecksChanged(card);
+
+      }
+    });
+  });
+})();
+</script>
+
 {% endblock %}

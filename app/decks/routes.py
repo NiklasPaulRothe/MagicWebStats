@@ -208,6 +208,9 @@ def deck_show(deckname):
             "median_turns": statistics.median(turns) if turns else "–"
         }
 
+    # Load achievements for this deck (non-functional checkboxes for now)
+    achievements = models.Achievement.query.filter_by(deck=deck.id).all()
+
     return render_template(
         'decks/show.html',
         deckname=deck.Name,
@@ -215,8 +218,40 @@ def deck_show(deckname):
         games=row,
         deck_stats=deck_stats,
         deck_stats_by_size=deck_stats_by_size,
-        is_owner=is_owner
+        is_owner=is_owner,
+        achievements=achievements
+
     )
+
+@bp.route('/achievements/<int:achievement_id>/set', methods=['POST'])
+@login_required
+def set_achievement_progress(achievement_id):
+    from flask import request, jsonify
+
+    ach = models.Achievement.query.get_or_404(achievement_id)
+
+    # Read desired value from JSON
+    payload = request.get_json(silent=True) or {}
+    try:
+        desired = int(payload.get('achieved', 0))
+    except (TypeError, ValueError):
+        desired = ach.achieved or 0
+
+    # Clamp to [0, anzahl]
+    max_allowed = ach.anzahl or 0
+    desired = max(0, min(desired, max_allowed))
+
+    # Only write if changed
+    if (ach.achieved or 0) != desired:
+        ach.achieved = desired
+        db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "achievement_id": ach.id,
+        "achieved": ach.achieved or 0,
+        "max": max_allowed
+    })
 
 
 
