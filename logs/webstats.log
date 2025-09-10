@@ -29,3 +29,8 @@
 2025-09-09 21:47:00,333 INFO: Here comes the Flood [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
 2025-09-09 21:47:03,360 INFO: Kroxa [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
 2025-09-09 21:48:01,232 INFO: Kroxa [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:53:32,383 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:53:38,824 INFO: Kroxa [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:53:42,747 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-10 19:18:18,904 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-10 19:18:25,174 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]

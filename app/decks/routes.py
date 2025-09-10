@@ -258,11 +258,19 @@ def set_achievement_progress(achievement_id):
 def add_achievement():
     from flask import request, jsonify
 
-    data = request.get_json(silent=True) or {}
-    deckname = (data.get('deckname') or '').strip()
-    titel = (data.get('titel') or '').strip()
-    beschreibung = (data.get('beschreibung') or '').strip()
-    anzahl = data.get('anzahl')
+    # Accept both JSON and form submissions to improve robustness
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        deckname = (data.get('deckname') or '').strip()
+        titel = (data.get('titel') or '').strip()
+        beschreibung = (data.get('beschreibung') or '').strip()
+        anzahl = data.get('anzahl')
+    else:
+        form = request.form or {}
+        deckname = (form.get('deckname') or '').strip()
+        titel = (form.get('titel') or '').strip()
+        beschreibung = (form.get('beschreibung') or '').strip()
+        anzahl = form.get('anzahl')
 
     if not deckname or not titel:
         return jsonify({"ok": False, "message": "Deckname und Titel sind erforderlich."}), 400
@@ -296,6 +304,7 @@ def add_achievement():
             "achieved": ach.achieved
         }
     }), 201
+
 
 
 @bp.route('/elo', methods=['GET'])

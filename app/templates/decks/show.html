@@ -105,6 +105,10 @@
                     <label for="ach-count">Anzahl</label>
                     <input id="ach-count" name="anzahl" type="number" min="1" value="1" required>
                   </div>
+                  {% if csrf_token %}
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% endif %}
+                  <input type="hidden" name="deckname" value="{{ deckname }}">
                   <div class="modal-actions">
                     <button type="button" class="btn" id="btn-cancel-add">Abbrechen</button>
                     <button type="submit" class="btn primary">Speichern</button>
@@ -249,27 +253,32 @@
 
   addForm?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const payload = {
-      deckname: "{{ deckname }}",
-      titel: addForm.titel.value.trim(),
-      beschreibung: addForm.beschreibung.value.trim(),
-      anzahl: parseInt(addForm.anzahl.value, 10) || 1
-    };
-    if (!payload.titel) {
+    // Validate required fields on the client first
+    const titel = addForm.titel.value.trim();
+    if (!titel) {
       addForm.titel.focus();
       return;
     }
+    // Prefer a regular form submission via URL-encoded data to play nicely with CSRF middleware
+    const formData = new FormData(addForm);
+    // Use URLSearchParams to send as application/x-www-form-urlencoded
+    const body = new URLSearchParams(Array.from(formData.entries()));
+
     fetch(`{{ url_for('decks.add_achievement') }}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
+        // Let the browser set correct Content-Type for URLSearchParams
+        // No manual CSRF headers needed when we include the hidden csrf_token field
       },
-      body: JSON.stringify(payload),
+      body,
       credentials: 'same-origin'
     }).then(async (r) => {
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok) throw new Error(data.message || 'Speichern fehlgeschlagen');
+      // Try JSON first; if it fails, throw a user-friendly error
+      const data = await r.json().catch(() => null);
+      if (!r.ok || !data || !data.ok) {
+        const msg = (data && data.message) || 'Speichern fehlgeschlagen';
+        throw new Error(msg);
+      }
       // Ensure grid exists and append into it (not after it)
       let grid = document.getElementById('achievements-grid')
               || document.querySelector('#deck-header-achievements .achievements-grid');
@@ -294,6 +303,7 @@
       alert(err.message || 'Fehler beim Speichern.');
     });
   });
+
 
   // Handle checkbox changes: compute desired count and send to server
   function onChecksChanged(cardEl) {
