@@ -45,7 +45,7 @@ def deck_edit(deckname):
             except:
                 flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
                 db.session.rollback()
-        return redirect(url_for('main.user', username=current_user.username))
+        return redirect(url_for('main.user', spieler=current_user.username))
     form.name.default = deck.Name
     form.decklist.default = deck.decklist
     form.current_name.default = deck.Name
@@ -312,7 +312,7 @@ def add_achievement():
 @login_required
 def calculate_elo():
     decks = Deck.query.all()
-    elo_ratings = {deck.id: {'elo_rating': 1200, 'games_played': 0} for deck in decks}
+    elo_ratings = {deck.id: {'elo_rating': 1000, 'games_played': 0} for deck in decks}
 
     games = Game.query.all()
     for game in games:
@@ -328,7 +328,7 @@ def calculate_elo():
 
         for participant in participants:
             deck = Deck.query.get(participant.deck_id)
-            if deck.Player != participant.player_id:
+            if deck.Player != participant.player_id and deck.Player != 24:
                 continue
 
             rating = elo_ratings[participant.deck_id]['elo_rating']
@@ -356,16 +356,20 @@ def calculate_elo():
     return redirect(url_for('main.index'), code=302)
 
 def expected_score(rating, opponent_rating):
-    return 1 / (1 + 10 ** ((opponent_rating - rating) / 180))
+    return 1 / (1 + 10 ** ((opponent_rating - rating) / 150))
 
 def update_elo_rating(current_rating, actual_score, expected_score, games_played, player):
     match games_played:
         case games_played if games_played > 50:
-            adjustment_factor = 30
+            adjustment_factor = 15
         case games_played if games_played <= 50 & games_played > 30:
+            adjustment_factor = 40
+        case games_played if games_played <= 30 & games_played > 10:
             adjustment_factor = 75
-        case _:
+        case games_played if games_played <= 10 & games_played > 3:
             adjustment_factor = 150
+        case _:
+            adjustment_factor = 55
     value =  adjustment_factor * (actual_score - expected_score)
     if value > 0:
         return current_rating + value

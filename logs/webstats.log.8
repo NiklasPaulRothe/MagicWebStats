@@ -1,114 +1,59 @@
-2024-08-18 16:59:57,887 ERROR: Exception on /auth/login [POST] [in C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:838]
+2025-09-09 14:00:54,648 ERROR: Exception on /favicon.ico [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
-    cursor.execute(statement, parameters)
-psycopg2.errors.UndefinedTable: FEHLER:  Relation »data_owner.user« existiert nicht
-LINE 2: FROM data_owner."user" 
-             ^
-
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
-    response = self.full_dispatch_request()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
     rv = self.dispatch_request()
-         ^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 865, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\app\auth\routes.py", line 19, in login
-    user = db.session.scalar(
-           ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1843, in scalar
-    return self._proxied.scalar(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2410, in scalar
-    return self._execute_internal(
-           ^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2247, in _execute_internal
-    result: Result[Any] = compile_state_cls.orm_execute_statement(
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 293, in orm_execute_statement
-    result = conn.execute(
-             ^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
-    return meth(
-           ^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_connection
-    return connection._execute_clauseelement(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clauseelement
-    ret = self._execute_context(
-          ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
-    return self._exec_single_context(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
-    self._handle_dbapi_exception(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
-    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
-    cursor.execute(statement, parameters)
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) FEHLER:  Relation »data_owner.user« existiert nicht
-LINE 2: FROM data_owner."user" 
-             ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
 
-[SQL: SELECT data_owner."user".id, data_owner."user".username, data_owner."user".email, data_owner."user".password_hash 
-FROM data_owner."user" 
-WHERE data_owner."user".username = %(username_1)s]
-[parameters: {'username_1': 'Niklas'}]
-(Background on this error at: https://sqlalche.me/e/20/f405)
-2024-08-18 17:01:31,411 INFO: Webstats startup [in C:\Users\paul-\PycharmProjects\MagicWebStats\app\__init__.py:56]
-2025-09-09 09:36:24,202 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 09:37:32,175 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 09:44:55,069 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:29:49,932 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:32:28,228 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:32:42,453 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:33:29,376 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:34:38,674 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:34:54,489 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:36:57,577 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:38:18,955 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:41:31,131 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:44:14,188 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:45:00,346 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:45:35,005 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:45:56,613 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:47:00,703 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:47:15,739 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:47:28,264 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:49:25,601 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:52:49,819 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:54:38,370 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:55:18,190 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 13:55:20,736 ERROR: Exception on /api/userdecks/Niklas [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+During handling of the above exception, another exception occurred:
+
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
     rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\api\routes.py", line 201, in userdecks
-    .join(user, user.spieler == Player.id)
-                ^^^^^^^^^^^^
-AttributeError: 'function' object has no attribute 'spieler'
-2025-09-09 13:56:14,187 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:00:51,058 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 802, in handle_user_exception
+    return self.handle_http_exception(e)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 777, in handle_http_exception
+    return self.ensure_sync(handler)(e)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "D:\PycharmProjects\MagicWebStats\app\errors\handlers.py", line 7, in not_found_error
+    return render_template('errors/404.html'), 404
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\PycharmProjects\MagicWebStats\app\templates\errors\404.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "D:\PycharmProjects\MagicWebStats\app\templates\base.html", line 34, in top-level template code
+    <li><a href="{{ url_for('main.user', username=current_user.username) }}">Profile</a></li>
+    ^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1121, in url_for
+    return self.handle_url_build_error(error, endpoint, values)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1110, in url_for
+    rv = url_adapter.build(  # type: ignore[union-attr]
+        endpoint,
+    ...<3 lines>...
+        force_external=_external,
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\routing\map.py", line 924, in build
+    raise BuildError(endpoint, values, method, self)
+werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'main.user' with values ['username']. Did you forget to specify values ['spieler']?
+2025-09-09 14:01:41,753 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

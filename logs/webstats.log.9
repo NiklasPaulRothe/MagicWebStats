@@ -1,105 +1,125 @@
-2024-08-18 16:41:06,321 ERROR: Exception on /favicon.ico [GET] [in C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:838]
+2025-09-09 14:00:54,248 ERROR: Exception on /user/Schlangenbob [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
     self.dialect.do_execute(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
     cursor.execute(statement, parameters)
-psycopg2.errors.UndefinedTable: FEHLER:  Relation »data_owner.user« existiert nicht
-LINE 2: FROM data_owner."user" 
-             ^
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidTextRepresentation: invalid input syntax for type integer: "Schlangenbob"
+LINE 3: WHERE data_owner."user".spieler = 'Schlangenbob'
+                                          ^
 
 
 The above exception was the direct cause of the following exception:
 
 Traceback (most recent call last):
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
     rv = self.handle_user_exception(e)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 878, in full_dispatch_request
-    rv = self.preprocess_request()
-         ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1253, in preprocess_request
-    rv = self.ensure_sync(before_func)()
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_principal.py", line 479, in _on_before_request
-    self.set_identity(identity)
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_principal.py", line 418, in set_identity
-    self._set_thread_identity(identity)
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_principal.py", line 462, in _set_thread_identity
-    identity_loaded.send(current_app._get_current_object(),
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\blinker\base.py", line 279, in send
-    result = receiver(sender, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\webstats.py", line 17, in on_identity_loaded
-    if hasattr(current_user, 'id'):
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 318, in __get__
-    obj = instance._get_current_object()
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 526, in _get_current_object
-    return get_name(local())
-                    ^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 25, in <lambda>
-    current_user = LocalProxy(lambda: _get_user())
-                                      ^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 370, in _get_user
-    current_app.login_manager._load_user()
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\login_manager.py", line 364, in _load_user
-    user = self._user_callback(user_id)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\app\models.py", line 13, in load_user
-    return db.session.get(User, int(id))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1060, in get
-    return self._proxied.get(
-           ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3693, in get
-    return self._get_impl(
-           ^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3873, in _get_impl
-    return db_load_fn(
-           ^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 694, in load_on_pk_identity
-    session.execute(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2362, in execute
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 86, in user
+    user = db.first_or_404(sa.select(User).where(User.spieler == spieler))
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_sqlalchemy\extension.py", line 778, in first_or_404
+    value = self.session.execute(statement).scalar()
+            ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 779, in execute
+    return self._proxied.execute(
+           ~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
     return self._execute_internal(
-           ^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2247, in _execute_internal
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
     result: Result[Any] = compile_state_cls.orm_execute_statement(
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 293, in orm_execute_statement
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
     result = conn.execute(
-             ^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
+        statement, params or {}, execution_options=execution_options
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
     return meth(
-           ^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_connection
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
     return connection._execute_clauseelement(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clauseelement
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
     ret = self._execute_context(
-          ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
     return self._exec_single_context(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
     self._handle_dbapi_exception(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
     self.dialect.do_execute(
-  File "C:\Users\paul-\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
     cursor.execute(statement, parameters)
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) FEHLER:  Relation »data_owner.user« existiert nicht
-LINE 2: FROM data_owner."user" 
-             ^
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DataError: (psycopg2.errors.InvalidTextRepresentation) invalid input syntax for type integer: "Schlangenbob"
+LINE 3: WHERE data_owner."user".spieler = 'Schlangenbob'
+                                          ^
 
-[SQL: SELECT data_owner."user".id AS data_owner_user_id, data_owner."user".username AS data_owner_user_username, data_owner."user".email AS data_owner_user_email, data_owner."user".password_hash AS data_owner_user_password_hash 
+[SQL: SELECT data_owner."user".id, data_owner."user".username, data_owner."user".email, data_owner."user".password_hash, data_owner."user".spieler, data_owner."user".active, data_owner."user".role 
 FROM data_owner."user" 
-WHERE data_owner."user".id = %(pk_1)s]
-[parameters: {'pk_1': 1}]
-(Background on this error at: https://sqlalche.me/e/20/f405)
-2024-08-18 16:59:29,270 INFO: Webstats startup [in C:\Users\paul-\PycharmProjects\MagicWebStats\app\__init__.py:56]
+WHERE data_owner."user".spieler = %(spieler_1)s]
+[parameters: {'spieler_1': 'Schlangenbob'}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
