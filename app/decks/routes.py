@@ -211,6 +211,49 @@ def deck_show(deckname):
     # Load achievements for this deck (non-functional checkboxes for now)
     achievements = models.Achievement.query.filter_by(deck=deck.id).all()
 
+    # === Participant field averages (strictly for Player 1 and User ID 1) ===
+    show_private_avgs = (deck.Player == 1 and getattr(current_user, "id", None) == 1)
+    participant_avgs = {}
+    if show_private_avgs and participants:
+        fields = [
+            "mulligans",
+            "landdrops",
+            "enough_mana",
+            "enough_gas",
+            "deckplan",
+            "unanswered_threats",
+            "fun_moments",
+            "lands",
+        ]
+        percent_fields = {"enough_mana", "enough_gas", "deckplan", "unanswered_threats", "fun_moments"}
+        for f in fields:
+            numeric_values = []
+            for p in participants:
+                if not hasattr(p, f):
+                    continue
+                raw = getattr(p, f)
+                if raw is None:
+                    continue
+                try:
+                    num = float(raw)
+                except Exception:
+                    continue
+                # Ignore -1 for 'lands'
+                if (f == "lands" or f == "landdrops") and num == -1:
+                    continue
+                numeric_values.append(num)
+
+            if not numeric_values:
+                participant_avgs[f] = "–"
+                continue
+
+            if f in percent_fields:
+                # Convert mean to percentage string
+                participant_avgs[f] = f"{round(statistics.mean(numeric_values) * 100, 1)}%"
+            else:
+                # Keep as numeric average (e.g., mulligans, landdrops, lands)
+                participant_avgs[f] = round(statistics.mean(numeric_values), 2)
+
     return render_template(
         'decks/show.html',
         deckname=deck.Name,
@@ -219,9 +262,11 @@ def deck_show(deckname):
         deck_stats=deck_stats,
         deck_stats_by_size=deck_stats_by_size,
         is_owner=is_owner,
-        achievements=achievements
-
+        achievements=achievements,
+        show_private_avgs=show_private_avgs,
+        participant_avgs=participant_avgs
     )
+
 
 @bp.route('/achievements/<int:achievement_id>/set', methods=['POST'])
 @login_required

@@ -40,6 +40,8 @@
                 <p><strong>Average Winning Turn:</strong> {{ deck_stats.avg_turns }}</p>
                 <p><strong>Median Winning Turn:</strong> {{ deck_stats.median_turns }}</p>
                 <p><strong>Winning Turn Range:</strong> {{ deck_stats.min_turns }} – {{ deck_stats.max_turns }}</p>
+
+
             </div>
         </div>
             <div class="deck-stats-breakdown">
@@ -54,6 +56,7 @@
                     </div>
                 {% endfor %}
             </div>
+
 
         <!-- Achievements mode content (hidden by default). Spans the two right columns. -->
         <div id="deck-header-achievements" class="deck-header-achievements" style="display:none;">
@@ -122,6 +125,31 @@
 
     </section>
 
+     {% if show_private_avgs %}
+    <section class="deck-participant-averages" aria-label="Participant Averages" style="width:100%; margin-top:12px;">
+      <!-- Wrap in a .deck-header container so the same background/border/shadow rules apply -->
+      <div class="deck-header">
+        <div class="deck-header-text">
+          <div class="deck-stats-summary">
+            <h3 style="margin-top:0;">Participant Averages</h3>
+            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px; align-items:start;">
+              <div><strong>Mulligans:</strong> {{ participant_avgs.mulligans }}</div>
+              <div><strong>Landdrops:</strong> {{ participant_avgs.landdrops }}</div>
+              <div><strong>Enough Mana:</strong> {{ participant_avgs.enough_mana }}</div>
+              <div><strong>Enough Gas:</strong> {{ participant_avgs.enough_gas }}</div>
+              <div><strong>Deck Plan:</strong> {{ participant_avgs.deckplan }}</div>
+              <div><strong>Unanswered Threats:</strong> {{ participant_avgs.unanswered_threats }}</div>
+              <div><strong>Fun Moments:</strong> {{ participant_avgs.fun_moments }}</div>
+              <div><strong>Lands:</strong> {{ participant_avgs.lands }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+
+
 
     <section class="deck-games">
         <h2>Gespielte Spiele</h2>
@@ -170,23 +198,26 @@
   const statsText = document.querySelector('.deck-header-text');
   const statsBreakdown = document.querySelector('.deck-stats-breakdown');
   const achBlock = document.getElementById('deck-header-achievements');
+  const statsExtra = document.querySelector('.deck-participant-averages');
+
 
   function showStats() {
     statsText.style.display = 'flex';
     statsBreakdown.style.display = 'flex';
+    if (statsExtra) statsExtra.style.display = 'block'; // new
     achBlock.style.display = 'none';
     btnStats.classList.add('primary');
     btnAch.classList.remove('primary');
   }
 
- function showAchievements() {
+  function showAchievements() {
     statsText.style.display = 'none';
     statsBreakdown.style.display = 'none';
+    if (statsExtra) statsExtra.style.display = 'none'; // new
     achBlock.style.display = 'block';
     btnAch.classList.add('primary');
     btnStats.classList.remove('primary');
   }
-
 
 
   btnStats?.addEventListener('click', showStats);
