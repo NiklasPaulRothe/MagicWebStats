@@ -25,3 +25,40 @@
 2025-09-16 13:31:38,819 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
 2025-09-16 13:33:06,461 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
 2025-09-16 13:33:13,287 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:33:59,353 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-16 13:34:02,678 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:35:43,063 INFO: Wort, the Raidmother [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:36:08,250 INFO: Yisan [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:37:02,300 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:37:23,197 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:40:25,285 INFO: Avacyn [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:50:24,863 INFO: Cid through the Ages [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 13:50:47,635 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 14:02:30,766 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-16 14:02:34,016 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 14:02:34,293 ERROR: Exception on /decks/show/Lord Selbstläufer [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 269, in deck_show
+    game_obj = games.get(p.game_id)
+               ^^^^^^^^^
+AttributeError: 'int' object has no attribute 'get'
+2025-09-16 14:07:12,301 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-16 14:07:15,704 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 14:08:33,169 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-16 14:08:36,275 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 14:08:53,040 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 14:09:07,376 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 14:09:34,199 INFO: Guy with a Sword [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-16 14:09:54,652 INFO: Bunnies and Tokens [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]

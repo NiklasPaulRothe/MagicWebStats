@@ -196,14 +196,14 @@ def deck_show(deckname):
 
     deck_stats_by_size = {}
     for size in (3, 4, 5):
-        games = total_by_size[size]
-        wins = wins_by_size[size]
+        games_count = total_by_size[size]
+        wins_count = wins_by_size[size]
         turns = win_turns_by_size[size]
 
         deck_stats_by_size[size] = {
-            "games": games,
-            "wins": wins,
-            "winrate": round((wins / games) * 100, 1) if games else "–",
+            "games": games_count,
+            "wins": wins_count,
+            "winrate": round((wins_count / games_count) * 100, 1) if games_count else "–",
             "avg_turns": round(statistics.mean(turns), 1) if turns else "–",
             "median_turns": statistics.median(turns) if turns else "–"
         }
@@ -254,6 +254,31 @@ def deck_show(deckname):
                 # Keep as numeric average (e.g., mulligans, landdrops, lands)
                 participant_avgs[f] = round(statistics.mean(numeric_values), 2)
 
+        # === Private comments (Player 1 owner and User ID 1) ===
+        show_private_comments = (deck.Player == 1 and getattr(current_user, "id", None) == 1)
+        private_comments = []
+        if show_private_comments and participants:
+            # Try to fetch a last rework date if present on the deck model; optional
+            last_rework_date = getattr(deck, "last_rework_date", None) or getattr(deck, "last_rework", None)
+            # Build a quick game lookup if not already done
+            # games dict already exists above keyed by id
+            for p in participants:
+                text = getattr(p, "comments", None)
+                if not text:
+                    continue
+                game_obj = games.get(p.game_id)
+                if not game_obj:
+                    continue
+                if last_rework_date and game_obj.Date and game_obj.Date < last_rework_date:
+                    continue
+                private_comments.append({
+                    "game_id": p.game_id,
+                    "date": game_obj.Date.strftime("%Y-%m-%d") if getattr(game_obj, "Date", None) else "",
+                    "text": text
+                })
+            # Sort newest first
+            private_comments.sort(key=lambda x: x["date"], reverse=True)
+
     return render_template(
         'decks/show.html',
         deckname=deck.Name,
@@ -264,7 +289,9 @@ def deck_show(deckname):
         is_owner=is_owner,
         achievements=achievements,
         show_private_avgs=show_private_avgs,
-        participant_avgs=participant_avgs
+        participant_avgs=participant_avgs,
+        show_private_comments=show_private_comments,
+        private_comments=private_comments
     )
 
 

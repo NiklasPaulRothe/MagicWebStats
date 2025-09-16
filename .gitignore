@@ -14,5 +14,5 @@ lib64
 __pycache__
 
 .env
-/logs/
-/files/
+logs/
+files/

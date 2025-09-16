@@ -40,8 +40,6 @@
                 <p><strong>Average Winning Turn:</strong> {{ deck_stats.avg_turns }}</p>
                 <p><strong>Median Winning Turn:</strong> {{ deck_stats.median_turns }}</p>
                 <p><strong>Winning Turn Range:</strong> {{ deck_stats.min_turns }} – {{ deck_stats.max_turns }}</p>
-
-
             </div>
         </div>
             <div class="deck-stats-breakdown">
@@ -56,7 +54,6 @@
                     </div>
                 {% endfor %}
             </div>
-
 
         <!-- Achievements mode content (hidden by default). Spans the two right columns. -->
         <div id="deck-header-achievements" class="deck-header-achievements" style="display:none;">
@@ -125,9 +122,8 @@
 
     </section>
 
-     {% if show_private_avgs %}
+    {% if show_private_avgs %}
     <section class="deck-participant-averages" aria-label="Participant Averages" style="width:100%; margin-top:12px;">
-      <!-- Wrap in a .deck-header container so the same background/border/shadow rules apply -->
       <div class="deck-header">
         <div class="deck-header-text">
           <div class="deck-stats-summary">
@@ -148,7 +144,38 @@
     </section>
     {% endif %}
 
-
+    {% if show_private_comments and private_comments %}
+    <aside
+      class="deck-comments-box"
+      aria-label="Recent Comments"
+      style="
+        position: fixed;
+        top: 120px;
+        right: 24px;
+        width: 320px;
+        max-height: calc(100vh - 160px);
+        overflow: auto;
+        z-index: 10;
+      "
+    >
+      <!-- Use the same classes as the other stat boxes to inherit background and shadow -->
+      <div class="deck-header">
+        <div class="deck-header-text">
+          <div class="deck-stats-summary">
+            <h3 style="margin: 0 0 8px 0;">Recent Comments</h3>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              {% for c in private_comments %}
+                <div style="border-top: 1px solid rgba(0,0,0,.06); padding-top:8px;">
+                  <div style="font-size: 12px; opacity: .7;">{{ c.date }} (Game #{{ c.game_id }})</div>
+                  <div style="white-space: pre-wrap;">{{ c.text }}</div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+    {% endif %}
 
 
     <section class="deck-games">
@@ -198,190 +225,26 @@
   const statsText = document.querySelector('.deck-header-text');
   const statsBreakdown = document.querySelector('.deck-stats-breakdown');
   const achBlock = document.getElementById('deck-header-achievements');
-  const statsExtra = document.querySelector('.deck-participant-averages');
-
 
   function showStats() {
     statsText.style.display = 'flex';
     statsBreakdown.style.display = 'flex';
-    if (statsExtra) statsExtra.style.display = 'block'; // new
     achBlock.style.display = 'none';
     btnStats.classList.add('primary');
     btnAch.classList.remove('primary');
   }
 
-  function showAchievements() {
+ function showAchievements() {
     statsText.style.display = 'none';
     statsBreakdown.style.display = 'none';
-    if (statsExtra) statsExtra.style.display = 'none'; // new
     achBlock.style.display = 'block';
     btnAch.classList.add('primary');
     btnStats.classList.remove('primary');
   }
 
-
   btnStats?.addEventListener('click', showStats);
   btnAch?.addEventListener('click', showAchievements);
-
- // Modal open/close
-  const addBtn = document.getElementById('btn-add-achievement');
-  const overlay = document.getElementById('add-achievement-overlay');
-  const cancelAdd = document.getElementById('btn-cancel-add');
-  const addForm = document.getElementById('add-achievement-form');
-
-  function openAddModal() {
-    overlay.style.display = 'flex';
-    setTimeout(() => document.getElementById('ach-title')?.focus(), 0);
-  }
-  function closeAddModal() {
-    overlay.style.display = 'none';
-    addForm?.reset();
-  }
-
-  addBtn?.addEventListener('click', openAddModal);
-  cancelAdd?.addEventListener('click', closeAddModal);
-  overlay?.addEventListener('click', (e) => {
-    if (e.target === overlay) closeAddModal();
-  });
-
-  // Create card DOM helper
-  function createAchievementCard(a) {
-    const card = document.createElement('div');
-    card.className = 'achievement-card';
-    card.setAttribute('data-achievement-id', a.id);
-    const checks = Array.from({length: a.anzahl || 0}, (_, i) => `
-      <label class="check" title="${i < (a.achieved||0) ? 'erreicht' : 'offen'}">
-        <input type="checkbox" class="achievement-check" ${i < (a.achieved||0) ? 'checked' : ''}>
-        <span></span>
-      </label>
-    `).join('');
-    card.innerHTML = `
-      <div class="achievement-header">
-        <h4 class="achievement-title"></h4>
-      </div>
-      <p class="achievement-desc"></p>
-      <div class="achievement-checks">${checks}</div>
-    `;
-    card.querySelector('.achievement-title').textContent = a.titel || '';
-    card.querySelector('.achievement-desc').textContent = a.beschreibung || '';
-    return card;
-  }
-
-  // Attach checkbox listeners for save (already present change handler)
-  function attachCardListeners(card) {
-    const initial = card.querySelectorAll('input.achievement-check:checked').length;
-    card.setAttribute('data-prev-count', String(initial));
-    card.addEventListener('change', (e) => {
-      if (e.target && e.target.matches('input.achievement-check')) {
-        onChecksChanged(card);
-      }
-    });
-  }
-
-  // Handle Save in the modal: POST to server, then append card to grid
-  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
-
-  addForm?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    // Validate required fields on the client first
-    const titel = addForm.titel.value.trim();
-    if (!titel) {
-      addForm.titel.focus();
-      return;
-    }
-    // Prefer a regular form submission via URL-encoded data to play nicely with CSRF middleware
-    const formData = new FormData(addForm);
-    // Use URLSearchParams to send as application/x-www-form-urlencoded
-    const body = new URLSearchParams(Array.from(formData.entries()));
-
-    fetch(`{{ url_for('decks.add_achievement') }}`, {
-      method: 'POST',
-      headers: {
-        // Let the browser set correct Content-Type for URLSearchParams
-        // No manual CSRF headers needed when we include the hidden csrf_token field
-      },
-      body,
-      credentials: 'same-origin'
-    }).then(async (r) => {
-      // Try JSON first; if it fails, throw a user-friendly error
-      const data = await r.json().catch(() => null);
-      if (!r.ok || !data || !data.ok) {
-        const msg = (data && data.message) || 'Speichern fehlgeschlagen';
-        throw new Error(msg);
-      }
-      // Ensure grid exists and append into it (not after it)
-      let grid = document.getElementById('achievements-grid')
-              || document.querySelector('#deck-header-achievements .achievements-grid');
-      if (!grid) {
-        grid = document.createElement('div');
-        grid.className = 'achievements-grid';
-        grid.id = 'achievements-grid';
-        const actions = document.querySelector('.achievements-actions');
-        actions?.parentNode?.insertBefore(grid, actions);
-        const empty = document.querySelector('.achievements-empty');
-        empty?.remove();
-      }
-      // Append new card inside the grid
-      const card = createAchievementCard(data.achievement);
-      grid.appendChild(card);
-      attachCardListeners(card);
-      closeAddModal();
-      // Switch to achievements view to show result
-      const btnAch = document.getElementById('btn-mode-achievements');
-      btnAch?.click();
-    }).catch((err) => {
-      alert(err.message || 'Fehler beim Speichern.');
-    });
-  });
-
-
-  // Handle checkbox changes: compute desired count and send to server
-  function onChecksChanged(cardEl) {
-    const achId = cardEl.getAttribute('data-achievement-id');
-    const checks = cardEl.querySelectorAll('input.achievement-check');
-    const desired = Array.from(checks).filter(c => c.checked).length;
-
-    fetch(`{{ url_for('decks.set_achievement_progress', achievement_id=0) }}`.replace('0', achId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
-      },
-      body: JSON.stringify({achieved: desired}),
-      credentials: 'same-origin'
-    }).then(async (r) => {
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok) {
-        throw new Error(data.message || 'Update failed');
-      }
-      // Normalize UI to what the server accepted (clamped)
-      const accepted = data.achieved ?? desired;
-      checks.forEach((c, idx) => { c.checked = idx < accepted; });
-    }).catch((err) => {
-      // On error, revert UI to previous state (best-effort)
-      const previous = cardEl.getAttribute('data-prev-count');
-      const prevCount = previous ? parseInt(previous, 10) : 0;
-      checks.forEach((c, idx) => { c.checked = idx < prevCount; });
-      console.warn('Achievement update failed:', err);
-    }).finally(() => {
-      // Store the latest accepted count for potential reverts later
-      const current = Array.from(checks).filter(c => c.checked).length;
-      cardEl.setAttribute('data-prev-count', String(current));
-    });
-  }
-
-  // Initialize prev-count and attach listeners
-  document.querySelectorAll('.achievement-card').forEach(card => {
-    const initial = card.querySelectorAll('input.achievement-check:checked').length;
-    card.setAttribute('data-prev-count', String(initial));
-    card.addEventListener('change', (e) => {
-      if (e.target && e.target.matches('input.achievement-check')) {
-        onChecksChanged(card);
-
-      }
-    });
-  });
+  // Leave the fixed comments box alone; it should not toggle with modes
 })();
 </script>
 
