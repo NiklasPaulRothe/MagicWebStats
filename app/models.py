@@ -72,6 +72,7 @@ class Deck(db.Model):
     decksite = db.Column(db.String)
     archidekt_id = db.Column(db.String)
     image_uri = db.Column(db.String)
+    last_patch = db.Column(db.Date)
 
 class Game(db.Model):
     __tablename__ = 'Games'

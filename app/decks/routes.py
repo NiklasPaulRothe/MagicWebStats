@@ -258,8 +258,8 @@ def deck_show(deckname):
         show_private_comments = (deck.Player == 1 and getattr(current_user, "id", None) == 1)
         private_comments = []
         if show_private_comments and participants:
-            # Try to fetch a last rework date if present on the deck model; optional
-            last_rework_date = getattr(deck, "last_rework_date", None) or getattr(deck, "last_rework", None)
+            # Try to fetch a last rework date if present on the deck model;
+            last_rework_date = getattr(deck, "last_patch")
             # Build a quick game lookup if not already done
             # games dict already exists above keyed by id
             for p in participants:
@@ -269,7 +269,7 @@ def deck_show(deckname):
                 game_obj = games.get(p.game_id)
                 if not game_obj:
                     continue
-                if last_rework_date and game_obj.Date and game_obj.Date < last_rework_date:
+                if game_obj.Date < last_rework_date:
                     continue
                 private_comments.append({
                     "game_id": p.game_id,
