@@ -325,6 +325,25 @@ def set_achievement_progress(achievement_id):
         "max": max_allowed
     })
 
+@bp.route('/achievements/<int:achievement_id>/delete', methods=['POST'])
+@login_required
+def delete_achievement(achievement_id):
+    from flask import jsonify
+
+    ach = models.Achievement.query.get_or_404(achievement_id)
+
+    # Only the deck owner may delete an achievement
+    deck = models.Deck.query.get_or_404(ach.deck)
+    user = models.User.query.filter_by(username=current_user.username).one()
+    if deck.Player != user.spieler:
+        return jsonify({"ok": False, "message": "Nicht berechtigt."}), 403
+
+    db.session.delete(ach)
+    db.session.commit()
+
+    return jsonify({"ok": True, "deleted_id": achievement_id})
+
+
 @bp.route('/achievements/add', methods=['POST'])
 @login_required
 def add_achievement():

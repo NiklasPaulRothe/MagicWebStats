@@ -61,9 +61,13 @@
                 <div class="achievements-grid" id="achievements-grid">
                     {% for a in achievements %}
                         <div class="achievement-card" data-achievement-id="{{ a.id }}">
-                            <div class="achievement-header">
-                                <h4 class="achievement-title">{{ a.titel }}</h4>
+                            <div class="achievement-header" style="display:flex; align-items:center; justify-content:space-between;">
+                                <h4 class="achievement-title" style="margin:0;">{{ a.titel }}</h4>
+                                {% if is_owner %}
+                                <button type="button" class="btn small btn-ach-delete" title="Achievement löschen" aria-label="Achievement löschen">✕</button>
+                                {% endif %}
                             </div>
+
                             <p class="achievement-desc">{{ a.beschreibung }}</p>
                             <div class="achievement-checks">
                                 {% set total = a.anzahl or 0 %}
@@ -82,7 +86,6 @@
             {% else %}
                 <p class="achievements-empty">Keine Achievements vorhanden.</p>
             {% endif %}
-            <!-- Add Achievement button (no functionality yet) -->
             {% if is_owner %}
             <div class="achievements-actions">
                 <button type="button" class="btn small primary" id="btn-add-achievement">Achievement hinzufügen</button>
@@ -217,7 +220,7 @@
     </section>
 </main>
 
-    <script>
+<script>
 // Toggle between Stats (default) and Achievements without altering layout
 (function() {
   const btnStats = document.getElementById('btn-mode-stats');
@@ -234,7 +237,7 @@
     btnAch.classList.remove('primary');
   }
 
- function showAchievements() {
+  function showAchievements() {
     statsText.style.display = 'none';
     statsBreakdown.style.display = 'none';
     achBlock.style.display = 'block';
@@ -244,8 +247,191 @@
 
   btnStats?.addEventListener('click', showStats);
   btnAch?.addEventListener('click', showAchievements);
-  // Leave the fixed comments box alone; it should not toggle with modes
+
+  // Modal open/close
+  const addBtn = document.getElementById('btn-add-achievement');
+  const overlay = document.getElementById('add-achievement-overlay');
+  const cancelAdd = document.getElementById('btn-cancel-add');
+  const addForm = document.getElementById('add-achievement-form');
+
+  function openAddModal() {
+    overlay.style.display = 'flex';
+    setTimeout(() => document.getElementById('ach-title')?.focus(), 0);
+  }
+  function closeAddModal() {
+    overlay.style.display = 'none';
+    addForm?.reset();
+  }
+
+  addBtn?.addEventListener('click', openAddModal);
+  cancelAdd?.addEventListener('click', closeAddModal);
+  overlay?.addEventListener('click', (e) => {
+    if (e.target === overlay) closeAddModal();
+  });
+
+  // Create card DOM helper
+  function createAchievementCard(a) {
+    const card = document.createElement('div');
+    card.className = 'achievement-card';
+    card.setAttribute('data-achievement-id', a.id);
+    const checks = Array.from({length: a.anzahl || 0}, (_, i) => `
+      <label class="check" title="${i < (a.achieved||0) ? 'erreicht' : 'offen'}">
+        <input type="checkbox" class="achievement-check" ${i < (a.achieved||0) ? 'checked' : ''}>
+        <span></span>
+      </label>
+    `).join('');
+    card.innerHTML = `
+      <div class="achievement-header" style="display:flex; align-items:center; justify-content:space-between;">
+        <h4 class="achievement-title" style="margin:0;"></h4>
+        <button type="button" class="btn small btn-ach-delete" title="Achievement löschen" aria-label="Achievement löschen">✕</button>
+      </div>
+      <p class="achievement-desc"></p>
+      <div class="achievement-checks">${checks}</div>
+    `;
+    card.querySelector('.achievement-title').textContent = a.titel || '';
+    card.querySelector('.achievement-desc').textContent = a.beschreibung || '';
+    return card;
+  }
+
+  // Attach checkbox listeners for save (already present change handler)
+  function attachCardListeners(card) {
+    const initial = card.querySelectorAll('input.achievement-check:checked').length;
+    card.setAttribute('data-prev-count', String(initial));
+    card.addEventListener('change', (e) => {
+      if (e.target && e.target.matches('input.achievement-check')) {
+        onChecksChanged(card);
+      }
+    });
+    // Delete button
+    const delBtn = card.querySelector('.btn-ach-delete');
+    delBtn?.addEventListener('click', () => onDeleteAchievement(card));
+  }
+
+  // CSRF token
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+  // Handle Save in the modal: POST to server, then append card to grid
+  addForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const titel = addForm.titel.value.trim();
+    if (!titel) {
+      addForm.titel.focus();
+      return;
+    }
+    const formData = new FormData(addForm);
+    const body = new URLSearchParams(Array.from(formData.entries()));
+
+    fetch(`{{ url_for('decks.add_achievement') }}`, {
+      method: 'POST',
+      body,
+      credentials: 'same-origin'
+    }).then(async (r) => {
+      const data = await r.json().catch(() => null);
+      if (!r.ok || !data || !data.ok) {
+        const msg = (data && data.message) || 'Speichern fehlgeschlagen';
+        throw new Error(msg);
+      }
+      let grid = document.getElementById('achievements-grid')
+              || document.querySelector('#deck-header-achievements .achievements-grid');
+      if (!grid) {
+        grid = document.createElement('div');
+        grid.className = 'achievements-grid';
+        grid.id = 'achievements-grid';
+        const actions = document.querySelector('.achievements-actions');
+        actions?.parentNode?.insertBefore(grid, actions);
+        const empty = document.querySelector('.achievements-empty');
+        empty?.remove();
+      }
+      const card = createAchievementCard(data.achievement);
+      grid.appendChild(card);
+      attachCardListeners(card);
+      closeAddModal();
+      const btnAch = document.getElementById('btn-mode-achievements');
+      btnAch?.click();
+    }).catch((err) => {
+      alert(err.message || 'Fehler beim Speichern.');
+    });
+  });
+
+  // Handle checkbox changes: compute desired count and send to server
+  function onChecksChanged(cardEl) {
+    const achId = cardEl.getAttribute('data-achievement-id');
+    const checks = cardEl.querySelectorAll('input.achievement-check');
+    const desired = Array.from(checks).filter(c => c.checked).length;
+
+    fetch(`{{ url_for('decks.set_achievement_progress', achievement_id=0) }}`.replace('0', achId), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
+      },
+      body: JSON.stringify({achieved: desired}),
+      credentials: 'same-origin'
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.ok) {
+        throw new Error(data.message || 'Update failed');
+      }
+      const accepted = data.achieved ?? desired;
+      checks.forEach((c, idx) => { c.checked = idx < accepted; });
+    }).catch((err) => {
+      const previous = cardEl.getAttribute('data-prev-count');
+      const prevCount = previous ? parseInt(previous, 10) : 0;
+      checks.forEach((c, idx) => { c.checked = idx < prevCount; });
+      console.warn('Achievement update failed:', err);
+    }).finally(() => {
+      const current = Array.from(checks).filter(c => c.checked).length;
+      cardEl.setAttribute('data-prev-count', String(current));
+    });
+  }
+
+  // Delete achievement
+  function onDeleteAchievement(cardEl) {
+    const achId = cardEl.getAttribute('data-achievement-id');
+    if (!achId) return;
+    if (!confirm('Achievement wirklich löschen?')) return;
+
+    fetch(`{{ url_for('decks.delete_achievement', achievement_id=0) }}`.replace('0', achId), {
+      method: 'POST',
+      headers: {
+        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
+      },
+      credentials: 'same-origin'
+    }).then(async (r) => {
+      const data = await r.json().catch(() => null);
+      if (!r.ok || !data || !data.ok) {
+        const msg = (data && data.message) || 'Löschen fehlgeschlagen';
+        throw new Error(msg);
+      }
+      cardEl.remove();
+      // If grid becomes empty, show placeholder
+      const grid = document.getElementById('achievements-grid');
+      if (grid && grid.children.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'achievements-empty';
+        p.textContent = 'Keine Achievements vorhanden.';
+        grid.parentNode.insertBefore(p, grid.nextSibling);
+      }
+    }).catch((err) => {
+      alert(err.message || 'Fehler beim Löschen.');
+    });
+  }
+
+  // Initialize prev-count and attach listeners
+  document.querySelectorAll('.achievement-card').forEach(card => {
+    const initial = card.querySelectorAll('input.achievement-check:checked').length;
+    card.setAttribute('data-prev-count', String(initial));
+    card.addEventListener('change', (e) => {
+      if (e.target && e.target.matches('input.achievement-check')) {
+        onChecksChanged(card);
+      }
+    });
+    const delBtn = card.querySelector('.btn-ach-delete');
+    delBtn?.addEventListener('click', () => onDeleteAchievement(card));
+  });
 })();
 </script>
+
 
 {% endblock %}
