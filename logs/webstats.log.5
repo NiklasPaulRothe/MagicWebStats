@@ -1,101 +1,85 @@
-2025-09-09 14:43:11,484 ERROR: Exception on /player/Hauke [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 99, in player
-    user = db.first_or_null(sa.select(User).where(User.spieler == player.id))
-           ^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_sqlalchemy\extension.py", line 1008, in __getattr__
-    raise AttributeError(name)
-AttributeError: first_or_null. Did you mean: 'first_or_404'?
-2025-09-09 14:43:47,458 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:43:50,856 ERROR: Exception on /player/Hauke [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 103, in player
-    owner = (user.id == current_user.id)
-             ^^^^^^^
-AttributeError: 'NoneType' object has no attribute 'id'
-2025-09-09 14:44:34,034 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:45:52,738 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:49:19,217 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:50:02,479 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:52:06,731 INFO: 40Kane [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 15:04:07,116 INFO: Scarabs Heritage [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 18:40:30,640 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 18:40:48,282 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 18:42:57,065 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 18:57:59,777 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 18:58:05,280 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:01:16,964 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:01:19,636 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:01:42,237 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:01:43,508 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:01:46,251 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:02:06,037 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:02:11,866 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:02:13,903 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:03:29,753 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:03:40,608 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:04:10,564 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:04:15,266 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:04:17,667 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:04:42,374 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:04:44,986 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:05:01,781 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:06:43,617 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:06:45,912 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:09:31,121 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:09:34,539 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:10:22,083 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:10:25,416 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:13:52,564 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:13:54,863 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:29:39,995 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:31:15,228 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:31:17,913 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:33:46,317 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:33:51,416 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:36:04,989 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:36:19,504 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:37:13,361 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:37:18,364 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 19:37:40,145 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 19:37:45,253 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 20:09:13,314 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 20:09:18,783 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 20:17:29,345 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 20:17:34,381 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 20:17:34,625 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
-2025-09-09 20:19:01,685 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 20:19:04,699 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 20:19:04,947 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
-2025-09-09 20:19:24,505 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 20:19:27,513 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 20:19:27,753 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
-2025-09-09 20:21:08,943 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 20:21:15,796 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 20:21:16,042 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
-2025-09-09 20:23:03,760 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-09 20:23:03,992 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:23:23,139 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:23:23,379 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:24:32,654 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:24:35,290 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:24:35,545 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:25:05,974 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:25:06,585 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:25:06,820 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:26:28,170 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:26:29,625 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:26:30,218 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:26:48,085 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:26:50,237 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:26:50,494 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:26:59,585 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:26:59,832 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:29:16,511 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:29:18,721 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:29:18,992 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:29:43,287 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:29:43,548 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:30:04,396 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:30:04,655 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:30:32,562 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:30:32,831 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:31:24,040 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:31:24,302 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:32:43,068 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:32:43,330 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:32:47,829 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:32:49,137 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:32:49,373 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:34:28,912 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:34:29,152 WARNING: Could not load achievements for deck 176: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:36:19,155 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:36:21,969 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:36:22,214 WARNING: Could not load achievements for deck 176: Entity namespace for "data_owner.Achievements" has no property "deck_id" [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:36:43,467 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:36:43,709 WARNING: Could not load achievements for deck 176: Entity namespace for "data_owner.Achievements" has no property "deck_id" [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:36:48,746 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:36:50,560 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:36:50,881 WARNING: Could not load achievements for deck 176: (psycopg2.errors.UndefinedTable) relation "data_owner.Achievements" does not exist
+LINE 2: FROM data_owner."Achievements" 
+             ^
+
+[SQL: SELECT data_owner."Achievements".id AS "data_owner_Achievements_id", data_owner."Achievements".titel AS "data_owner_Achievements_titel", data_owner."Achievements".beschreibung AS "data_owner_Achievements_beschreibung", data_owner."Achievements".anzahl AS "data_owner_Achievements_anzahl", data_owner."Achievements".deck AS "data_owner_Achievements_deck", data_owner."Achievements".achieved AS "data_owner_Achievements_achieved" 
+FROM data_owner."Achievements" 
+WHERE data_owner."Achievements".deck = %(deck_1)s]
+[parameters: {'deck_1': 176}]
+(Background on this error at: https://sqlalche.me/e/20/f405) [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:37:13,263 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:37:14,723 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:37:58,678 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:38:04,628 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:38:06,357 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:39:45,861 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:39:47,925 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:42:06,881 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:42:08,243 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:53:54,220 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:53:57,377 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:54:09,449 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:54:22,152 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:58:15,442 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:58:16,887 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:59:12,021 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:01:16,718 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:02:00,230 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:03:00,756 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:03:17,356 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:06:33,838 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:06:34,809 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:08:43,897 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:08:47,321 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:08:50,562 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:09:19,919 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:15:07,372 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:15:08,548 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:18:10,478 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:18:12,795 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:18:42,630 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:18:45,043 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:19:41,077 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 21:19:44,837 INFO: Tribute [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 21:20:45,751 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

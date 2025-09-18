@@ -1,42 +1,4 @@
-2025-09-16 12:46:50,045 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:46:52,314 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:04:38,026 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:04:42,710 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:05:36,533 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:05:40,454 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:06:51,570 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:06:55,282 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:18:37,183 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:18:56,515 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:20:19,493 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:20:23,457 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:22:04,504 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:22:07,693 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:24:57,768 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:25:01,152 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:26:17,695 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:26:21,009 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:27:48,474 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:27:51,531 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:29:28,168 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:29:31,338 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:30:51,208 INFO: Chatterfang [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:31:35,221 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:31:38,819 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:33:06,461 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:33:13,287 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:33:59,353 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 13:34:02,678 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:35:43,063 INFO: Wort, the Raidmother [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:36:08,250 INFO: Yisan [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:37:02,300 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:37:23,197 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:40:25,285 INFO: Avacyn [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:50:24,863 INFO: Cid through the Ages [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 13:50:47,635 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 14:02:30,766 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 14:02:34,016 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 14:02:34,293 ERROR: Exception on /decks/show/Lord Selbstläufer [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2025-09-18 12:41:03,430 ERROR: Exception on /decks/show/Hapatra, Vizier of Poisons [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -50,20 +12,7 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
     return current_app.ensure_sync(func)(*args, **kwargs)
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 269, in deck_show
-    game_obj = games.get(p.game_id)
-               ^^^^^^^^^
-AttributeError: 'int' object has no attribute 'get'
-2025-09-16 14:07:12,301 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 14:07:15,704 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 14:08:33,169 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 14:08:36,275 INFO: Lord Selbstläufer [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 14:08:53,040 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 14:09:07,376 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 14:09:34,199 INFO: Guy with a Sword [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 14:09:54,652 INFO: Bunnies and Tokens [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-17 09:23:59,061 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-17 09:24:15,064 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-17 09:24:30,529 INFO: Just Gonti Things [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-17 09:24:36,919 INFO: Just Gonti Things [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-17 09:30:00,616 INFO: Just Gonti Things [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 293, in deck_show
+    show_private_comments=show_private_comments,
+                          ^^^^^^^^^^^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'show_private_comments' where it is not associated with a value

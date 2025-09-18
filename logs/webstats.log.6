@@ -1,146 +1,4 @@
-2025-09-09 14:10:06,291 ERROR: Exception on /user/Schlangenbob [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-psycopg2.errors.InvalidTextRepresentation: invalid input syntax for type integer: "Schlangenbob"
-LINE 3: WHERE data_owner."user".spieler = 'Schlangenbob'
-                                          ^
-
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 87, in user
-    user = db.first_or_404(sa.select(User).where(User.spieler == spieler))
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_sqlalchemy\extension.py", line 778, in first_or_404
-    value = self.session.execute(statement).scalar()
-            ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 779, in execute
-    return self._proxied.execute(
-           ~~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-    ...<4 lines>...
-        _add_event=_add_event,
-        ^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
-    return self._execute_internal(
-           ~~~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-    ...<4 lines>...
-        _add_event=_add_event,
-        ^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
-    result: Result[Any] = compile_state_cls.orm_execute_statement(
-                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self,
-        ^^^^^
-    ...<4 lines>...
-        conn,
-        ^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
-    result = conn.execute(
-        statement, params or {}, execution_options=execution_options
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
-    return meth(
-        self,
-        distilled_parameters,
-        execution_options or NO_OPTIONS,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
-    return connection._execute_clauseelement(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self, distilled_params, execution_options
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
-    ret = self._execute_context(
-        dialect,
-    ...<8 lines>...
-        cache_hit=cache_hit,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
-    return self._exec_single_context(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^
-        dialect, context, statement, parameters
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
-    self._handle_dbapi_exception(
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        e, str_statement, effective_parameters, cursor, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
-    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-sqlalchemy.exc.DataError: (psycopg2.errors.InvalidTextRepresentation) invalid input syntax for type integer: "Schlangenbob"
-LINE 3: WHERE data_owner."user".spieler = 'Schlangenbob'
-                                          ^
-
-[SQL: SELECT data_owner."user".id, data_owner."user".username, data_owner."user".email, data_owner."user".password_hash, data_owner."user".spieler, data_owner."user".active, data_owner."user".role 
-FROM data_owner."user" 
-WHERE data_owner."user".spieler = %(spieler_1)s]
-[parameters: {'spieler_1': 'Schlangenbob'}]
-(Background on this error at: https://sqlalche.me/e/20/9h9h)
-2025-09-09 14:15:37,029 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:18:26,833 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:25:48,204 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:27:52,632 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:33:45,681 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:34:01,412 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:34:23,065 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:34:34,880 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:36:41,855 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:37:15,714 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:37:32,206 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:38:46,848 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:40:58,277 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:41:40,564 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:41:58,292 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:42:20,017 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:42:53,339 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-09 14:42:56,112 ERROR: Exception on /player/Hauke [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2025-09-09 14:43:11,484 ERROR: Exception on /player/Hauke [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -155,9 +13,89 @@ Traceback (most recent call last):
     return current_app.ensure_sync(func)(*args, **kwargs)
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
   File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 99, in player
-    user = db.first(sa.select(User).where(User.spieler == player.id))
-           ^^^^^^^^
+    user = db.first_or_null(sa.select(User).where(User.spieler == player.id))
+           ^^^^^^^^^^^^^^^^
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_sqlalchemy\extension.py", line 1008, in __getattr__
     raise AttributeError(name)
-AttributeError: first
-2025-09-09 14:43:08,575 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+AttributeError: first_or_null. Did you mean: 'first_or_404'?
+2025-09-09 14:43:47,458 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 14:43:50,856 ERROR: Exception on /player/Hauke [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\main\routes.py", line 103, in player
+    owner = (user.id == current_user.id)
+             ^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'id'
+2025-09-09 14:44:34,034 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 14:45:52,738 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 14:49:19,217 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 14:50:02,479 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 14:52:06,731 INFO: 40Kane [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 15:04:07,116 INFO: Scarabs Heritage [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 18:40:30,640 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 18:40:48,282 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 18:42:57,065 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 18:57:59,777 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 18:58:05,280 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:01:16,964 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:01:19,636 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:01:42,237 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:01:43,508 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:01:46,251 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:02:06,037 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:02:11,866 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:02:13,903 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:03:29,753 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:03:40,608 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:04:10,564 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:04:15,266 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:04:17,667 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:04:42,374 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:04:44,986 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:05:01,781 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:06:43,617 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:06:45,912 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:09:31,121 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:09:34,539 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:10:22,083 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:10:25,416 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:13:52,564 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:13:54,863 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:29:39,995 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:31:15,228 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:31:17,913 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:33:46,317 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:33:51,416 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:36:04,989 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:36:19,504 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:37:13,361 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:37:18,364 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 19:37:40,145 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 19:37:45,253 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:09:13,314 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:09:18,783 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:17:29,345 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:17:34,381 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:17:34,625 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:19:01,685 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:19:04,699 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:19:04,947 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:19:24,505 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:19:27,513 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:19:27,753 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:21:08,943 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-09 20:21:15,796 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:21:16,042 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
+2025-09-09 20:23:03,760 INFO: Blinking Aristocrats [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-09 20:23:03,992 WARNING: Could not load achievements for deck 891: module 'app.models' has no attribute 'Achievement' [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:216]
