@@ -16,3 +16,7 @@ Traceback (most recent call last):
     show_private_comments=show_private_comments,
                           ^^^^^^^^^^^^^^^^^^^^^
 UnboundLocalError: cannot access local variable 'show_private_comments' where it is not associated with a value
+2025-09-18 12:41:47,159 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-09-18 12:41:52,622 INFO: Aktroma, Angel of Wrath [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-18 12:41:58,792 INFO: Kykar, Wind's Fury [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2025-09-18 12:42:47,528 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]

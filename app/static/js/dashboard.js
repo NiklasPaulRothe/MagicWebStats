@@ -261,13 +261,13 @@ new Chart(document.getElementById('firstKoChart'), {
                 '#f4c430',  // golden yellow
                 '#e6194b',  // strong red
                 '#3cb44b',  // green
-                '#4363d8',  // royal blue
                 '#f58231',  // orange
                 '#911eb4',  // purple
                 '#a9a9a9',  // gray
                 '#46f0f0',  // cyan
                 '#ffe119',  // bright yellow
-                '#000075'   // deep navy
+                '#000075',   // deep navy
+                '#4363d8'  // royal blue
             ],
             borderColor: '#222',
             borderWidth: 2,
