@@ -1,113 +1,87 @@
-2025-09-12 10:41:04,868 ERROR: Exception on /decks/show/Big Chunky Boy [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2025-11-03 19:59:09,195 ERROR: Exception on /LoadAllDecks [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2118, in _exec_insertmany_context
+    dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
     )
     ^
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
     cursor.execute(statement, parameters)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-psycopg2.OperationalError: server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
+psycopg2.errors.ForeignKeyViolation: insert or update on table "deck_component" violates foreign key constraint "fk_deck_component_card"
+DETAIL:  Key (card_id)=(66b0c460-9c8b-4e1a-8b61-a1fa8f1a896e) is not present in table "card_data".
 
 
 The above exception was the direct cause of the following exception:
 
 Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 284, in decorated_view
-    elif not current_user.is_authenticated:
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 318, in __get__
-    obj = instance._get_current_object()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 526, in _get_current_object
-    return get_name(local())
-                    ~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 25, in <lambda>
-    current_user = LocalProxy(lambda: _get_user())
-                                      ~~~~~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 370, in _get_user
-    current_app.login_manager._load_user()
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\login_manager.py", line 364, in _load_user
-    user = self._user_callback(user_id)
-  File "D:\PycharmProjects\MagicWebStats\app\models.py", line 13, in load_user
-    return db.session.get(User, int(id))
-           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1058, in get
-    return self._proxied.get(
-           ~~~~~~~~~~~~~~~~~^
-        entity,
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 85, in load_all_decks
+    load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 67, in load_cards_from_archidekt
+    db.session.commit()
+    ~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 599, in commit
+    return self._proxied.commit()
+           ~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2032, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1313, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1288, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4345, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4480, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4441, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        insert,
         ^^^^^^^
-    ...<6 lines>...
-        bind_arguments=bind_arguments,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3694, in get
-    return self._get_impl(
-           ~~~~~~~~~~~~~~^
-        entity,
-        ^^^^^^^
-    ...<7 lines>...
-        bind_arguments=bind_arguments,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3873, in _get_impl
-    return db_load_fn(
-        self,
-    ...<5 lines>...
-        bind_arguments=bind_arguments,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 695, in load_on_pk_identity
-    session.execute(
-    ~~~~~~~~~~~~~~~^
-        q,
-        ^^
-    ...<2 lines>...
-        bind_arguments=bind_arguments,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
-    return self._execute_internal(
-           ~~~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-    ...<4 lines>...
-        _add_event=_add_event,
-        ^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
-    result: Result[Any] = compile_state_cls.orm_execute_statement(
-                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self,
-        ^^^^^
-    ...<4 lines>...
-        conn,
-        ^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
-    result = conn.execute(
-        statement, params or {}, execution_options=execution_options
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1143, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
     )
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
     return meth(
@@ -128,58 +102,78 @@ Traceback (most recent call last):
     ...<8 lines>...
         cache_hit=cache_hit,
     )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
-    return self._exec_single_context(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^
-        dialect, context, statement, parameters
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1844, in _execute_context
+    return self._exec_insertmany_context(dialect, context)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2126, in _exec_insertmany_context
     self._handle_dbapi_exception(
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        e, str_statement, effective_parameters, cursor, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        e,
+        ^^
+    ...<4 lines>...
+        is_sub_exec=True,
+        ^^^^^^^^^^^^^^^^^
     )
     ^
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2118, in _exec_insertmany_context
+    dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~^
+        cursor,
+        ^^^^^^^
+    ...<2 lines>...
+        context,
+        ^^^^^^^^
     )
     ^
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
     cursor.execute(statement, parameters)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation) insert or update on table "deck_component" violates foreign key constraint "fk_deck_component_card"
+DETAIL:  Key (card_id)=(66b0c460-9c8b-4e1a-8b61-a1fa8f1a896e) is not present in table "card_data".
 
-[SQL: SELECT data_owner."user".id AS data_owner_user_id, data_owner."user".username AS data_owner_user_username, data_owner."user".email AS data_owner_user_email, data_owner."user".password_hash AS data_owner_user_password_hash, data_owner."user".spieler AS data_owner_user_spieler, data_owner."user".active AS data_owner_user_active, data_owner."user".role AS data_owner_user_role 
-FROM data_owner."user" 
-WHERE data_owner."user".id = %(pk_1)s]
-[parameters: {'pk_1': 1}]
-(Background on this error at: https://sqlalche.me/e/20/e3q8)
-2025-09-16 12:29:51,278 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:29:59,312 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:31:33,711 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:31:37,912 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:31:49,603 INFO: Cid through the Ages [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:32:34,410 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:36:20,496 INFO: Cid through the Ages [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:36:45,496 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:36:48,983 INFO: Cid through the Ages [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:38:14,997 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:38:23,649 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:38:51,880 INFO: Bunnies and Tokens [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:38:55,586 INFO: Here comes the Flood [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:42:13,263 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:42:23,150 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-16 12:46:21,037 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-16 12:46:26,891 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+[SQL: INSERT INTO data_owner.deck_component (deck_id, card_id, count, name) SELECT p0::INTEGER, p1::VARCHAR, p2::INTEGER, p3::VARCHAR FROM (VALUES (%(deck_id__0)s, %(card_id__0)s, %(count__0)s, %(name__0)s, 0), (%(deck_id__1)s, %(card_id__1)s, %(count__1)s ... 6089 characters truncated ... ) ORDER BY sen_counter RETURNING data_owner.deck_component.id, data_owner.deck_component.id AS id__1]
+[parameters: {'name__0': 'Find // Finality', 'deck_id__0': 137, 'count__0': 1, 'card_id__0': '1e4e9e35-6cbc-4997-beff-d1a22d87545e', 'name__1': 'Artisan of Kozilek', 'deck_id__1': 137, 'count__1': 1, 'card_id__1': 'c79dedcf-ecba-49a1-81dc-7e3bdb7abefd', 'name__2': 'Moldervine Reclamation', 'deck_id__2': 137, 'count__2': 1, 'card_id__2': '618d21fe-8e3d-4887-b2e4-b92194ba1902', 'name__3': 'Greed', 'deck_id__3': 137, 'count__3': 1, 'card_id__3': '851f8d1f-163c-4c4f-beee-431b64ec8a99', 'name__4': 'Falkenrath Noble', 'deck_id__4': 137, 'count__4': 1, 'card_id__4': '28f6e33d-9258-4bad-8f39-31afff272415', 'name__5': 'Forest', 'deck_id__5': 137, 'count__5': 6, 'card_id__5': 'd4558304-7c17-4aa0-bd50-cdd95547f1a7', 'name__6': "Witch's Cottage", 'deck_id__6': 137, 'count__6': 1, 'card_id__6': 'b87891cd-b457-4dff-8d18-a7eaf6748fc6', 'name__7': 'Winding Way', 'deck_id__7': 137, 'count__7': 1, 'card_id__7': '4e5d9776-b6ce-4ad6-8acc-69115ba5de76', 'name__8': 'Ghost Quarter', 'deck_id__8': 137, 'count__8': 1, 'card_id__8': 'ccc1c460-64c5-47be-a633-439863baa6a1', 'name__9': 'Swamp', 'deck_id__9': 137, 'count__9': 2, 'card_id__9': '30b3d647-3546-4ade-b395-f2370750a7a6', 'name__10': 'Harvester of Souls', 'deck_id__10': 137, 'count__10': 1, 'card_id__10': '3e02dd03-cced-43b7-ba8f-cdcf9083252a', 'name__11': 'Woe Strider', 'deck_id__11': 137, 'count__11': 1, 'card_id__11': '05b2af75-2e29-446b-b3d0-00b5e5d50b3c', 'name__12': 'Wood Elves', 'deck_id__12': 137 ... 260 parameters truncated ... 'count__77': 1, 'card_id__77': 'a5adfe26-8549-4bbd-b881-527add402675', 'name__78': 'Casualties of War', 'deck_id__78': 137, 'count__78': 1, 'card_id__78': 'cde12c36-f49b-4065-987f-981ca32d536d', 'name__79': 'Warping Wail', 'deck_id__79': 137, 'count__79': 1, 'card_id__79': 'afcc9c88-836b-48b6-9d81-5a6844a6b70f', 'name__80': 'Ophiomancer', 'deck_id__80': 137, 'count__80': 1, 'card_id__80': 'a402cff8-be7f-4473-b880-a6a2eedfda86', 'name__81': 'Acidic Slime', 'deck_id__81': 137, 'count__81': 1, 'card_id__81': '932d48fb-42b5-4aaa-a91c-d35cdb5e41a3', 'name__82': 'Deathsprout', 'deck_id__82': 137, 'count__82': 1, 'card_id__82': 'a485c97f-2d15-4012-a64c-4199ac2c8d01', 'name__83': 'Hydra Omnivore', 'deck_id__83': 137, 'count__83': 1, 'card_id__83': 'a6abde7a-da2a-4631-9db6-9d0ffe1e1105', 'name__84': 'Pathrazer of Ulamog', 'deck_id__84': 137, 'count__84': 1, 'card_id__84': 'c9b1d4d8-7df9-41e0-b2d9-dbca9c9f6994', 'name__85': "Ulamog's Crusher", 'deck_id__85': 137, 'count__85': 1, 'card_id__85': '699c0f6f-b26b-4741-8140-8a6030cad127', 'name__86': 'Back for More', 'deck_id__86': 137, 'count__86': 1, 'card_id__86': '3fc7210c-da23-4cec-9195-4de75587f40f', 'name__87': 'Swamp', 'deck_id__87': 137, 'count__87': 6, 'card_id__87': '30b3d647-3546-4ade-b395-f2370750a7a6', 'name__88': 'Viridian Emissary', 'deck_id__88': 137, 'count__88': 1, 'card_id__88': 'e488ed05-d63a-4852-b5e9-d7357c60c3e6', 'name__89': 'Meren of Clan Nel Toth', 'deck_id__89': 137, 'count__89': 1, 'card_id__89': '66b0c460-9c8b-4e1a-8b61-a1fa8f1a896e'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\auth\__init__.py", line 16, in decorated_view
+    return func(*args, **kwargs)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 90, in load_all_decks
+    db.session.commit()
+    ~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 599, in commit
+    return self._proxied.commit()
+           ~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2032, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 101, in _go
+    self._raise_for_prerequisite_state(fn.__name__, current_state)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 973, in _raise_for_prerequisite_state
+    raise sa_exc.PendingRollbackError(
+    ...<6 lines>...
+    )
+sqlalchemy.exc.PendingRollbackError: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (psycopg2.errors.ForeignKeyViolation) insert or update on table "deck_component" violates foreign key constraint "fk_deck_component_card"
+DETAIL:  Key (card_id)=(66b0c460-9c8b-4e1a-8b61-a1fa8f1a896e) is not present in table "card_data".
+
+[SQL: INSERT INTO data_owner.deck_component (deck_id, card_id, count, name) SELECT p0::INTEGER, p1::VARCHAR, p2::INTEGER, p3::VARCHAR FROM (VALUES (%(deck_id__0)s, %(card_id__0)s, %(count__0)s, %(name__0)s, 0), (%(deck_id__1)s, %(card_id__1)s, %(count__1)s ... 6089 characters truncated ... ) ORDER BY sen_counter RETURNING data_owner.deck_component.id, data_owner.deck_component.id AS id__1]
+[parameters: {'name__0': 'Find // Finality', 'deck_id__0': 137, 'count__0': 1, 'card_id__0': '1e4e9e35-6cbc-4997-beff-d1a22d87545e', 'name__1': 'Artisan of Kozilek', 'deck_id__1': 137, 'count__1': 1, 'card_id__1': 'c79dedcf-ecba-49a1-81dc-7e3bdb7abefd', 'name__2': 'Moldervine Reclamation', 'deck_id__2': 137, 'count__2': 1, 'card_id__2': '618d21fe-8e3d-4887-b2e4-b92194ba1902', 'name__3': 'Greed', 'deck_id__3': 137, 'count__3': 1, 'card_id__3': '851f8d1f-163c-4c4f-beee-431b64ec8a99', 'name__4': 'Falkenrath Noble', 'deck_id__4': 137, 'count__4': 1, 'card_id__4': '28f6e33d-9258-4bad-8f39-31afff272415', 'name__5': 'Forest', 'deck_id__5': 137, 'count__5': 6, 'card_id__5': 'd4558304-7c17-4aa0-bd50-cdd95547f1a7', 'name__6': "Witch's Cottage", 'deck_id__6': 137, 'count__6': 1, 'card_id__6': 'b87891cd-b457-4dff-8d18-a7eaf6748fc6', 'name__7': 'Winding Way', 'deck_id__7': 137, 'count__7': 1, 'card_id__7': '4e5d9776-b6ce-4ad6-8acc-69115ba5de76', 'name__8': 'Ghost Quarter', 'deck_id__8': 137, 'count__8': 1, 'card_id__8': 'ccc1c460-64c5-47be-a633-439863baa6a1', 'name__9': 'Swamp', 'deck_id__9': 137, 'count__9': 2, 'card_id__9': '30b3d647-3546-4ade-b395-f2370750a7a6', 'name__10': 'Harvester of Souls', 'deck_id__10': 137, 'count__10': 1, 'card_id__10': '3e02dd03-cced-43b7-ba8f-cdcf9083252a', 'name__11': 'Woe Strider', 'deck_id__11': 137, 'count__11': 1, 'card_id__11': '05b2af75-2e29-446b-b3d0-00b5e5d50b3c', 'name__12': 'Wood Elves', 'deck_id__12': 137 ... 260 parameters truncated ... 'count__77': 1, 'card_id__77': 'a5adfe26-8549-4bbd-b881-527add402675', 'name__78': 'Casualties of War', 'deck_id__78': 137, 'count__78': 1, 'card_id__78': 'cde12c36-f49b-4065-987f-981ca32d536d', 'name__79': 'Warping Wail', 'deck_id__79': 137, 'count__79': 1, 'card_id__79': 'afcc9c88-836b-48b6-9d81-5a6844a6b70f', 'name__80': 'Ophiomancer', 'deck_id__80': 137, 'count__80': 1, 'card_id__80': 'a402cff8-be7f-4473-b880-a6a2eedfda86', 'name__81': 'Acidic Slime', 'deck_id__81': 137, 'count__81': 1, 'card_id__81': '932d48fb-42b5-4aaa-a91c-d35cdb5e41a3', 'name__82': 'Deathsprout', 'deck_id__82': 137, 'count__82': 1, 'card_id__82': 'a485c97f-2d15-4012-a64c-4199ac2c8d01', 'name__83': 'Hydra Omnivore', 'deck_id__83': 137, 'count__83': 1, 'card_id__83': 'a6abde7a-da2a-4631-9db6-9d0ffe1e1105', 'name__84': 'Pathrazer of Ulamog', 'deck_id__84': 137, 'count__84': 1, 'card_id__84': 'c9b1d4d8-7df9-41e0-b2d9-dbca9c9f6994', 'name__85': "Ulamog's Crusher", 'deck_id__85': 137, 'count__85': 1, 'card_id__85': '699c0f6f-b26b-4741-8140-8a6030cad127', 'name__86': 'Back for More', 'deck_id__86': 137, 'count__86': 1, 'card_id__86': '3fc7210c-da23-4cec-9195-4de75587f40f', 'name__87': 'Swamp', 'deck_id__87': 137, 'count__87': 6, 'card_id__87': '30b3d647-3546-4ade-b395-f2370750a7a6', 'name__88': 'Viridian Emissary', 'deck_id__88': 137, 'count__88': 1, 'card_id__88': 'e488ed05-d63a-4852-b5e9-d7357c60c3e6', 'name__89': 'Meren of Clan Nel Toth', 'deck_id__89': 137, 'count__89': 1, 'card_id__89': '66b0c460-9c8b-4e1a-8b61-a1fa8f1a896e'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj) (Background on this error at: https://sqlalche.me/e/20/7s2a)

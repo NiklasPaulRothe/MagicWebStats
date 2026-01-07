@@ -1,46 +1,4 @@
-2025-09-18 12:41:03,430 ERROR: Exception on /decks/show/Hapatra, Vizier of Poisons [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 293, in deck_show
-    show_private_comments=show_private_comments,
-                          ^^^^^^^^^^^^^^^^^^^^^
-UnboundLocalError: cannot access local variable 'show_private_comments' where it is not associated with a value
-2025-09-18 12:41:47,159 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-18 12:41:52,622 INFO: Aktroma, Angel of Wrath [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-18 12:41:58,792 INFO: Kykar, Wind's Fury [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-18 12:42:47,528 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
-2025-09-25 22:31:32,168 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-09-25 22:31:47,503 ERROR: Exception on /DeckAdd [POST] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-psycopg2.errors.UndefinedColumn: column Decks.last_rework does not exist
-LINE 1: ...ecks".archidekt_id, data_owner."Decks".image_uri, data_owner...
-                                                             ^
-HINT:  Perhaps you meant to reference the column "Decks.Last_Rework".
-
-
-The above exception was the direct cause of the following exception:
-
+2025-11-03 21:24:04,568 ERROR: Exception on /LoadAllDecks [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -56,112 +14,42 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
     return current_app.ensure_sync(func)(*args, **kwargs)
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\stats\routes.py", line 64, in deck_add
-    if form.validate_on_submit():
-       ~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_wtf\form.py", line 86, in validate_on_submit
-    return self.is_submitted() and self.validate(extra_validators=extra_validators)
-                                   ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\wtforms\form.py", line 330, in validate
-    return super().validate(extra)
-           ~~~~~~~~~~~~~~~~^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\wtforms\form.py", line 147, in validate
-    if not field.validate(self, extra):
-           ~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\wtforms\fields\core.py", line 234, in validate
-    stop_validation = self._run_validation_chain(form, chain)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\wtforms\fields\core.py", line 254, in _run_validation_chain
-    validator(form, self)
-    ~~~~~~~~~^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\stats\forms.py", line 30, in validate_name
-    name = db.session.scalar(sa.select(Deck).where(
-        Deck.Name == name.data))
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1840, in scalar
-    return self._proxied.scalar(
-           ~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-    ...<3 lines>...
-        **kw,
-        ^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2413, in scalar
-    return self._execute_internal(
-           ~~~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-    ...<4 lines>...
-        **kw,
-        ^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
-    result: Result[Any] = compile_state_cls.orm_execute_statement(
-                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self,
-        ^^^^^
-    ...<4 lines>...
-        conn,
-        ^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
-    result = conn.execute(
-        statement, params or {}, execution_options=execution_options
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
-    return meth(
-        self,
-        distilled_parameters,
-        execution_options or NO_OPTIONS,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
-    return connection._execute_clauseelement(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self, distilled_params, execution_options
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
-    ret = self._execute_context(
-        dialect,
-    ...<8 lines>...
-        cache_hit=cache_hit,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
-    return self._exec_single_context(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^
-        dialect, context, statement, parameters
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
-    self._handle_dbapi_exception(
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        e, str_statement, effective_parameters, cursor, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
-    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column Decks.last_rework does not exist
-LINE 1: ...ecks".archidekt_id, data_owner."Decks".image_uri, data_owner...
-                                                             ^
-HINT:  Perhaps you meant to reference the column "Decks.Last_Rework".
-
-[SQL: SELECT data_owner."Decks".id, data_owner."Decks"."Name", data_owner."Decks"."Active", data_owner."Decks"."Commander", data_owner."Decks"."Player", data_owner."Decks"."Color_Identity", data_owner."Decks"."Partner", data_owner."Decks".elo_rating, data_owner."Decks".decklist, data_owner."Decks".decksite, data_owner."Decks".archidekt_id, data_owner."Decks".image_uri, data_owner."Decks".last_rework, data_owner."Decks".last_change, data_owner."Decks".last_patch 
-FROM data_owner."Decks" 
-WHERE data_owner."Decks"."Name" = %(Name_1)s]
-[parameters: {'Name_1': 'test'}]
-(Background on this error at: https://sqlalche.me/e/20/f405)
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 96, in load_all_decks
+    return render_template('index.html')
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\PycharmProjects\MagicWebStats\app\templates\index.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "D:\PycharmProjects\MagicWebStats\app\templates\base.html", line 50, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\templates\index.html", line 40, in block 'content'
+    {{ color_usage | tojson }}
+    ^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\filters.py", line 1721, in do_tojson
+    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\utils.py", line 669, in htmlsafe_json_dumps
+    dumps(obj, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\json\provider.py", line 179, in dumps
+    return json.dumps(obj, **kwargs)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\paul-\AppData\Local\Programs\Python\Python313\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "C:\Users\paul-\AppData\Local\Programs\Python\Python313\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "C:\Users\paul-\AppData\Local\Programs\Python\Python313\Lib\json\encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\json\provider.py", line 121, in _default
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+TypeError: Object of type Undefined is not JSON serializable
+2025-11-03 21:26:08,741 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-01-07 16:47:11,342 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

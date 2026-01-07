@@ -49,6 +49,10 @@ def index():
     avg_turns = round(statistics.mean(turns_list), 2) if turns_list else 0
     median_turns = round(statistics.median(turns_list), 2) if turns_list else 0
 
+    # Compute average and median for ko turns
+    avg_ko_turns = round(statistics.mean(ko_turns_list), 2) if turns_list else 0
+    median_ko_turns = round(statistics.median(ko_turns_list), 2) if turns_list else 0
+
     # Final blow pie chart data
     final_blow_counts = (
         db.session.query(Game.final_blow)
@@ -76,7 +80,9 @@ def index():
         first_ko_data=first_ko_counter,
         ko_turn_data=ko_turn_data,
         avg_turns=avg_turns,
-        median_turns=median_turns
+        median_turns=median_turns,
+        avg_ko_turns=avg_ko_turns,
+        median_ko_turns=median_ko_turns
     )
 
 

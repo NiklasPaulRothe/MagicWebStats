@@ -1,7 +1,8 @@
 import time
 import traceback
 
-from flask import current_app, render_template
+import pyrchidekt
+from flask import current_app, render_template, redirect, url_for
 from flask_login import login_required
 from pyrchidekt.api import getDeckById
 
@@ -32,9 +33,12 @@ def get_id_from_url(url):
     return None
 
 def load_cards_from_archidekt(archidekt_id, deck_id):
-    print('Hello')
-    deck = getDeckById(archidekt_id)
-    print('TESt')
+    print('load cards...')
+    print(archidekt_id)
+    try:
+        deck = pyrchidekt.api.getDeckById(archidekt_id.strip())
+    except Exception as e:
+        print(e)
     deck_categories = deck.categories
 
     Cards = DeckComponent.query.filter(DeckComponent.deck_id == deck_id).all()
@@ -60,7 +64,13 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
             name = card.card.oracle_card.name
             current_app.logger.info(f'{name} couldn''t be found' + traceback.format_exc())
             continue
-    db.session.commit()
+    try:
+        db.session.commit()
+    except:
+        print("Something went wrong while committing to the database for " + deck.name)
+        db.session.rollback()
+    print('end load cards....')
+    return redirect(url_for('main.index'), code=302)
 
 @bp.route('/LoadAllDecks', methods=['GET'])
 @role_required('admin')
@@ -83,4 +93,4 @@ def load_all_decks():
                     deck.archidekt_id = None
                     db.session.commit()
 
-    return render_template('index.html')
+    return redirect(url_for('main.index'), code=302)

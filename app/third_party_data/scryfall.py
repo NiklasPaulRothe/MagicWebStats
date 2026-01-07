@@ -6,7 +6,7 @@ import requests
 from app import models, db, create_app
 from app.models import Card
 
-from flask import current_app, render_template
+from flask import current_app, render_template, redirect, url_for
 from flask_login import login_required
 
 from app.auth import role_required
@@ -47,60 +47,64 @@ def get_card_data():
                     f.write(data)
 
         with open('files/card_data.json', 'rb') as f:
-            for card in ijson.items(f, "item"):
-                print(card['name'])
-                exists = models.Card.query.filter_by(id=card['id']).first()
-                typeline_filter = True
+            with open('files/logs', 'w', encoding='utf-8') as log:
+                log.write(
+                    'Start loading card data from Scryfall.com\n'
+                )
+                for card in ijson.items(f, "item"):
+                    log.write(card['name'] + '\n')
+                    print(card['name'])
+                    exists = models.Card.query.filter_by(id=card['id']).first()
 
-                if 'type_line' in card:
-                    if 'Card' in card['type_line']:
-                        typeline_filter = False
+                    if 'paper' in card['games'] and card["layout"] != 'art_series':
+                        card_entry = Card()
+                        if exists:
+                            card_entry = models.Card.query.filter_by(id=card['id']).first()
 
-                if 'paper' in card['games'] and typeline_filter:
-                    card_entry = Card()
-                    if exists:
-                        card_entry = models.Card.query.filter_by(id=card['id']).first()
+                        if not ' // ' in card['name']:
+                            card_entry.Name = card['name']
+                            card_entry.id = card['id']
+                            card_entry.image_uri = card['image_uris']['large']
+                            card_entry.commander_legal = True
+                            card_entry.cmc = card['cmc']
+                            card_entry.card_text = card['oracle_text']
+                            log.write('1. Bedingung \n')
 
-                    if not ' // ' in card['name']:
-                        card_entry.Name = card['name']
-                        card_entry.id = card['id']
-                        card_entry.image_uri = card['image_uris']['large']
-                        card_entry.commander_legal = True
-                        card_entry.cmc = card['cmc']
-                        card_entry.card_text = card['oracle_text']
+                        elif ('image_uris' in card):
+                            card_entry.Name = card['name'].split(' // ')[0]
+                            card_entry.id = card['id']
+                            card_entry.image_uri = card['image_uris']['large']
+                            card_entry.commander_legal = True
+                            card_entry.cmc = card['cmc']
+                            card_entry.card_text = card['card_faces'][0]['oracle_text']
+                            card_entry.back_card_text = card['card_faces'][1]['oracle_text']
+                            log.write('2. Bedingung \n')
 
-                    elif ('image_uris' in card):
-                        card_entry.Name = card['name'].split(' // ')[0]
-                        card_entry.id = card['id']
-                        card_entry.image_uri = card['image_uris']['large']
-                        card_entry.commander_legal = True
-                        card_entry.cmc = card['cmc']
-                        card_entry.card_text = card['card_faces'][0]['oracle_text']
-                        card_entry.back_card_text = card['card_faces'][1]['oracle_text']
+                        elif ('cmc' in card):
+                            card_entry.Name = card['name'].split(' // ')[0]
+                            card_entry.id = card['id']
+                            card_entry.image_uri = card['card_faces'][0]['image_uris']['large']
+                            card_entry.back_image_uri = card['card_faces'][1]['image_uris']['large']
+                            card_entry.commander_legal = True
+                            card_entry.cmc = card['cmc']
+                            card_entry.card_text = card['card_faces'][0]['oracle_text']
+                            card_entry.back_card_text = card['card_faces'][1]['oracle_text']
+                            log.write('3. Bedingung \n')
 
-                    elif ('cmc' in card):
-                        card_entry.Name = card['name'].split(' // ')[0]
-                        card_entry.id = card['id']
-                        card_entry.image_uri = card['card_faces'][0]['image_uris']['large']
-                        card_entry.back_image_uri = card['card_faces'][1]['image_uris']['large']
-                        card_entry.commander_legal = True
-                        card_entry.cmc = card['cmc']
-                        card_entry.card_text = card['card_faces'][0]['oracle_text']
-                        card_entry.back_card_text = card['card_faces'][1]['oracle_text']
+                        else:
+                            card_entry.Name = card['name'].split(' // ')[0]
+                            card_entry.id = card['id']
+                            card_entry.image_uri = card['card_faces'][0]['image_uris']['large']
+                            card_entry.back_image_uri = card['card_faces'][1]['image_uris']['large']
+                            card_entry.commander_legal = True
+                            card_entry.cmc = card['card_faces'][0]['cmc']
+                            card_entry.card_text = card['card_faces'][0]['oracle_text']
+                            card_entry.back_card_text = card['card_faces'][1]['oracle_text']
+                            log.write('4. Bedingung \n')
 
-                    else:
-                        card_entry.Name = card['name'].split(' // ')[0]
-                        card_entry.id = card['id']
-                        card_entry.image_uri = card['card_faces'][0]['image_uris']['large']
-                        card_entry.back_image_uri = card['card_faces'][1]['image_uris']['large']
-                        card_entry.commander_legal = True
-                        card_entry.cmc = card['card_faces'][0]['cmc']
-                        card_entry.card_text = card['card_faces'][0]['oracle_text']
-                        card_entry.back_card_text = card['card_faces'][1]['oracle_text']
-
-                    db.session.add(card_entry)
-            db.session.commit()
-        return render_template('index.html')
+                        db.session.add(card_entry)
+                db.session.commit()
+        return redirect(url_for('main.index'), code=302)
     except Exception:
         pass
 
