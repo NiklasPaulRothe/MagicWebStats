@@ -403,7 +403,7 @@ def add_achievement():
 @login_required
 def calculate_elo():
     decks = Deck.query.all()
-    elo_ratings = {deck.id: {'elo_rating': 1000, 'games_played': 0} for deck in decks}
+    elo_ratings = {deck.id: {'elo_rating': 1500, 'games_played': 0} for deck in decks}
 
     games = Game.query.all()
     for game in games:
@@ -447,7 +447,7 @@ def calculate_elo():
     return redirect(url_for('main.index'), code=302)
 
 def expected_score(rating, opponent_rating):
-    return 1 / (1 + 10 ** ((opponent_rating - rating) / 150))
+    return 1 / (1 + 10 ** ((opponent_rating - rating) / 500))
 
 def update_elo_rating(current_rating, actual_score, expected_score, games_played, player):
     match games_played:
