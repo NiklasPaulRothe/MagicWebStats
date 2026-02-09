@@ -1,18 +1,21 @@
-2025-11-02 14:54:42,874 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2025-11-03 08:58:39,304 ERROR: Exception on /LoadAllDeck [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 920, in full_dispatch_request
-    return self.finalize_request(rv)
-           ~~~~~~~~~~~~~~~~~~~~~^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 939, in finalize_request
-    response = self.make_response(rv)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1212, in make_response
-    raise TypeError(
-    ...<3 lines>...
-    )
-TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-02 15:25:49,120 ERROR: Exception on /LoadAllDecks [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 891, in dispatch_request
+    self.raise_routing_exception(req)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 500, in raise_routing_exception
+    raise request.routing_exception  # type: ignore[misc]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\ctx.py", line 362, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+
+During handling of the above exception, another exception occurred:
+
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
     self.dialect.do_execute(
@@ -39,41 +42,59 @@ Traceback (most recent call last):
     response = self.full_dispatch_request()
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
     rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\auth\__init__.py", line 16, in decorated_view
-    return func(*args, **kwargs)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 76, in load_all_decks
-    for deck in decks:
-               ^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\attributes.py", line 569, in __get__
-    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
-    value = self._fire_loader_callables(state, key, passive)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1126, in _fire_loader_callables
-    return state._load_expired(state, passive)
-           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\state.py", line 803, in _load_expired
-    self.manager.expired_attribute_loader(self, toload, passive)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 1674, in load_scalar_attributes
-    result = load_on_ident(
-        session,
-    ...<4 lines>...
-        no_autoflush=no_autoflush,
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 802, in handle_user_exception
+    return self.handle_http_exception(e)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 777, in handle_http_exception
+    return self.ensure_sync(handler)(e)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "D:\PycharmProjects\MagicWebStats\app\errors\handlers.py", line 7, in not_found_error
+    return render_template('errors/404.html'), 404
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 127, in _render
+    app.update_template_context(context)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 530, in update_template_context
+    context.update(self.ensure_sync(func)())
+                   ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 405, in _user_context_processor
+    return dict(current_user=_get_user())
+                             ~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 370, in _get_user
+    current_app.login_manager._load_user()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\login_manager.py", line 364, in _load_user
+    user = self._user_callback(user_id)
+  File "D:\PycharmProjects\MagicWebStats\app\models.py", line 13, in load_user
+    return db.session.get(User, int(id))
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1058, in get
+    return self._proxied.get(
+           ~~~~~~~~~~~~~~~~~^
+        entity,
+        ^^^^^^^
+    ...<6 lines>...
+        bind_arguments=bind_arguments,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 510, in load_on_ident
-    return load_on_pk_identity(
-        session,
-    ...<11 lines>...
-        is_user_refresh=is_user_refresh,
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3694, in get
+    return self._get_impl(
+           ~~~~~~~~~~~~~~^
+        entity,
+        ^^^^^^^
+    ...<7 lines>...
+        bind_arguments=bind_arguments,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3873, in _get_impl
+    return db_load_fn(
+        self,
+    ...<5 lines>...
+        bind_arguments=bind_arguments,
     )
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 695, in load_on_pk_identity
     session.execute(
@@ -161,9 +182,8 @@ server closed the connection unexpectedly
 	This probably means the server terminated abnormally
 	before or while processing the request.
 
-[SQL: SELECT data_owner."Decks".id AS "data_owner_Decks_id", data_owner."Decks"."Name" AS "data_owner_Decks_Name", data_owner."Decks"."Active" AS "data_owner_Decks_Active", data_owner."Decks"."Commander" AS "data_owner_Decks_Commander", data_owner."Decks"."Player" AS "data_owner_Decks_Player", data_owner."Decks"."Color_Identity" AS "data_owner_Decks_Color_Identity", data_owner."Decks"."Partner" AS "data_owner_Decks_Partner", data_owner."Decks".elo_rating AS "data_owner_Decks_elo_rating", data_owner."Decks".decklist AS "data_owner_Decks_decklist", data_owner."Decks".decksite AS "data_owner_Decks_decksite", data_owner."Decks".archidekt_id AS "data_owner_Decks_archidekt_id", data_owner."Decks".image_uri AS "data_owner_Decks_image_uri", data_owner."Decks"."Last_Rework" AS "data_owner_Decks_Last_Rework", data_owner."Decks"."Last_Change" AS "data_owner_Decks_Last_Change", data_owner."Decks".last_patch AS "data_owner_Decks_last_patch" 
-FROM data_owner."Decks" 
-WHERE data_owner."Decks".id = %(pk_1)s]
-[parameters: {'pk_1': 3}]
+[SQL: SELECT data_owner."user".id AS data_owner_user_id, data_owner."user".username AS data_owner_user_username, data_owner."user".email AS data_owner_user_email, data_owner."user".password_hash AS data_owner_user_password_hash, data_owner."user".spieler AS data_owner_user_spieler, data_owner."user".active AS data_owner_user_active, data_owner."user".role AS data_owner_user_role 
+FROM data_owner."user" 
+WHERE data_owner."user".id = %(pk_1)s]
+[parameters: {'pk_1': 1}]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2025-11-02 15:27:30,915 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

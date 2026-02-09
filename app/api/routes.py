@@ -123,7 +123,8 @@ def deck_data():
            FROM data_owner."Games"
              LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
           WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id),
-    "Decks".decklist AS decklist
+    "Decks".decklist AS decklist,
+    "Decks".elo_rating AS elo
    FROM data_owner."Decks",
     data_owner."Player"
   WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
@@ -132,7 +133,7 @@ def deck_data():
     list = []
     for entry in results:
         dict = {"Deckname": [], "Spieler": [], "Commander": [], "Farbe": [], "Spiele": [], "Siege": [],
-                "Winrate (in %)": [], "WTurns":[], "Decklist": []}
+                "Winrate (in %)": [], "WTurns":[], "Decklist": [], "elo": []}
         dict["Deckname"].append(entry[0])
         dict["Spieler"].append(entry[1])
         dict["Commander"].append(entry[2])
@@ -145,6 +146,7 @@ def deck_data():
             dict["Winrate (in %)"].append("-")
         dict["WTurns"].append(entry[7])
         dict["Decklist"].append(entry[8])
+        dict["elo"].append(entry[9])
         list.append(dict)
 
     return jsonify(list)

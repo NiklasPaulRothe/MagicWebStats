@@ -1,4 +1,22 @@
-2025-11-03 21:24:04,568 ERROR: Exception on /LoadAllDecks [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2026-02-06 14:23:02,859 ERROR: Exception on /api/deck-data [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column Decks.elo does not exist
+LINE 23:     "Decks".elo AS elo
+             ^
+
+
+The above exception was the direct cause of the following exception:
+
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -9,51 +27,143 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\auth\__init__.py", line 16, in decorated_view
-    return func(*args, **kwargs)
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
     return current_app.ensure_sync(func)(*args, **kwargs)
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 96, in load_all_decks
-    return render_template('index.html')
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 150, in render_template
-    return _render(app, template, context)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 131, in _render
-    rv = template.render(context)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
-    self.environment.handle_exception()
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
-    raise rewrite_traceback_stack(source=source)
-  File "D:\PycharmProjects\MagicWebStats\app\templates\index.html", line 1, in top-level template code
-    {% extends "base.html" %}
-  File "D:\PycharmProjects\MagicWebStats\app\templates\base.html", line 50, in top-level template code
-    {% block content %}{% endblock %}
-    ^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\templates\index.html", line 40, in block 'content'
-    {{ color_usage | tojson }}
-    ^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\filters.py", line 1721, in do_tojson
-    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\utils.py", line 669, in htmlsafe_json_dumps
-    dumps(obj, **kwargs)
-    ~~~~~^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\json\provider.py", line 179, in dumps
-    return json.dumps(obj, **kwargs)
-           ~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "C:\Users\paul-\AppData\Local\Programs\Python\Python313\Lib\json\__init__.py", line 238, in dumps
-    **kw).encode(obj)
-          ~~~~~~^^^^^
-  File "C:\Users\paul-\AppData\Local\Programs\Python\Python313\Lib\json\encoder.py", line 200, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-  File "C:\Users\paul-\AppData\Local\Programs\Python\Python313\Lib\json\encoder.py", line 261, in iterencode
-    return _iterencode(o, 0)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\json\provider.py", line 121, in _default
-    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
-TypeError: Object of type Undefined is not JSON serializable
-2025-11-03 21:26:08,741 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-01-07 16:47:11,342 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-01-07 16:47:53,684 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-02-06 13:18:14,866 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-02-06 13:25:10,478 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-02-06 13:27:11,534 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+  File "D:\PycharmProjects\MagicWebStats\app\api\routes.py", line 105, in deck_data
+      results = db.session.execute(text('''SELECT "Decks"."Name" AS deckname,
+                ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      "Player"."Name" AS spieler,
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<23 lines>...
+    WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ORDER BY "Decks"."Commander";'''))
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 779, in execute
+    return self._proxied.execute(
+           ~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2260, in _execute_internal
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column Decks.elo does not exist
+LINE 23:     "Decks".elo AS elo
+             ^
+
+[SQL: SELECT "Decks"."Name" AS deckname,
+    "Player"."Name" AS spieler,
+    "Decks"."Commander" || COALESCE(' + '::text || "Decks"."Partner", ''::text) AS commander,
+    "Decks"."Color_Identity" AS farbe,
+    ( SELECT count(*) AS count
+           FROM data_owner."Participants"
+          WHERE "Participants".deck_id = "Decks".id) AS spiele,
+    ( SELECT count(*) AS count
+           FROM data_owner."Games"
+             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
+          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id) AS siege,
+    ((( SELECT count(*) AS count
+           FROM data_owner."Games"
+             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
+          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
+           FROM data_owner."Participants"
+          WHERE "Participants".deck_id = "Decks".id), 0)::double precision)::numeric(10,2) AS "winrate (in%%)",
+    (SELECT round(avg(turns), 2) AS count
+           FROM data_owner."Games"
+             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
+          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id),
+    "Decks".decklist AS decklist,
+    "Decks".elo AS elo
+   FROM data_owner."Decks",
+    data_owner."Player"
+  WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
+  ORDER BY "Decks"."Commander";]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-02-06 14:23:40,867 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-02-06 14:23:50,513 ERROR: Exception on /api/deck-data [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\api\routes.py", line 149, in deck_data
+    dict["elo"].append(entry[9])
+    ~~~~^^^^^^^
+KeyError: 'elo'
+2026-02-06 14:24:09,028 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-02-06 14:34:56,027 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-02-06 15:09:54,961 INFO: Ready - Steady - Draw [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 18:53:44,757 INFO: Kumena [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 18:54:11,984 INFO: Kumena [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 20:07:56,544 INFO: The Goodest Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 20:23:21,760 INFO: Here comes the Flood [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]

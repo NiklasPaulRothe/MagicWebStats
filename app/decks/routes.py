@@ -397,6 +397,37 @@ def add_achievement():
     }), 201
 
 
+def expected_score(rating, opponent_rating):
+    return 1 / (1 + 10 ** ((opponent_rating - rating) / 400))
+
+
+def expected_multiplayer_score(deck_id, deck_ratings):
+    """
+    Calculate the expected score for a deck in a multiplayer game.
+    This is the average of pairwise expected scores against all opponents,
+    normalized so that expected scores of all participants sum to 1.
+    """
+    opponents = {did: r for did, r in deck_ratings.items() if did != deck_id}
+    my_rating = deck_ratings[deck_id]
+
+    pairwise_sum = sum(expected_score(my_rating, opp_r) for opp_r in opponents.values())
+    return pairwise_sum / len(opponents)
+
+
+def get_game_k_factor(participants_games_played):
+    """
+    Determine a single K-factor for the entire game based on the
+    median games played across all participants.
+    This ensures the update is truly zero-sum: total Elo gained = total Elo lost.
+    """
+    median_games = statistics.median(participants_games_played)
+    if median_games <= 10:
+        return 60
+    elif median_games <= 30:
+        return 40
+    else:
+        return 24
+
 
 @bp.route('/elo', methods=['GET'])
 @role_required('admin')
@@ -411,58 +442,56 @@ def calculate_elo():
         if len(participants) < 3 or len(participants) > 5:
             continue
 
-        #if game.id > 158:
-         #   continue
-
-        player = len(participants)
-        deck_ratings = {p.deck_id: elo_ratings[p.deck_id]['elo_rating'] for p in participants if p.deck_id in elo_ratings}
-
-        for participant in participants:
-            deck = Deck.query.get(participant.deck_id)
-            if deck.Player != participant.player_id and deck.Player != 24:
+        # Build current ratings for this game's valid participants
+        deck_ratings = {}
+        valid_participants = []
+        for p in participants:
+            deck = Deck.query.get(p.deck_id)
+            if deck.Player != p.player_id and deck.Player != 24:
                 continue
+            if p.deck_id in elo_ratings:
+                deck_ratings[p.deck_id] = elo_ratings[p.deck_id]['elo_rating']
+                valid_participants.append(p)
 
-            rating = elo_ratings[participant.deck_id]['elo_rating']
+        if len(deck_ratings) < 2:
+            continue
 
-            expected_scores = {deck_id: expected_score(rating, opponent_rating) for deck_id, opponent_rating in deck_ratings.items() if deck_id != participant.deck_id}
-            lowest_expected_score = min(expected_scores.values())
-            threshold = (1 - lowest_expected_score) * 0.6 + lowest_expected_score
-            filtered_expected_scores = [score for score in expected_scores.values() if score <= threshold]
+        # Normalize expected scores so they sum to 1
+        raw_expected = {
+            did: expected_multiplayer_score(did, deck_ratings)
+            for did in deck_ratings
+        }
+        total_expected = sum(raw_expected.values())
+        normalized_expected = {
+            did: raw / total_expected
+            for did, raw in raw_expected.items()
+        }
 
-            actual_score = 1 if game.Winner == participant.player_id else 0
-            games_played = elo_ratings[participant.deck_id]['games_played']
-            expected_score_avg = sum(filtered_expected_scores) / len(filtered_expected_scores)
-            adjusted_rating = update_elo_rating(rating, actual_score, expected_score_avg, games_played, player)
+        # Single K-factor for the whole game → guarantees zero-sum
+        games_played_list = [
+            elo_ratings[p.deck_id]['games_played'] for p in valid_participants
+        ]
+        k = get_game_k_factor(games_played_list)
 
-            elo_ratings[participant.deck_id]['elo_rating'] = adjusted_rating
-            elo_ratings[participant.deck_id]['games_played'] += 1
+        # Apply updates
+        for participant in valid_participants:
+            did = participant.deck_id
+            actual_score = 1.0 if game.Winner == participant.player_id else 0.0
 
-    # Update Elo ratings in the database
+            rating = elo_ratings[did]['elo_rating']
+            new_rating = rating + k * (actual_score - normalized_expected[did])
+
+            elo_ratings[did]['elo_rating'] = new_rating
+            elo_ratings[did]['games_played'] += 1
+
     for deck_id, values in elo_ratings.items():
         deck = Deck.query.get(deck_id)
-        deck.elo_rating = values['elo_rating']
+        if values['games_played'] >= 5:
+            deck.elo_rating = values['elo_rating']
+        else:
+            deck.elo_rating = 0
         db.session.add(deck)
 
     db.session.commit()
     return redirect(url_for('main.index'), code=302)
 
-def expected_score(rating, opponent_rating):
-    return 1 / (1 + 10 ** ((opponent_rating - rating) / 500))
-
-def update_elo_rating(current_rating, actual_score, expected_score, games_played, player):
-    match games_played:
-        case games_played if games_played > 50:
-            adjustment_factor = 15
-        case games_played if games_played <= 50 & games_played > 30:
-            adjustment_factor = 40
-        case games_played if games_played <= 30 & games_played > 10:
-            adjustment_factor = 75
-        case games_played if games_played <= 10 & games_played > 3:
-            adjustment_factor = 150
-        case _:
-            adjustment_factor = 55
-    value =  adjustment_factor * (actual_score - expected_score)
-    if value > 0:
-        return current_rating + value
-    else:
-        return current_rating + value/(player-1)
