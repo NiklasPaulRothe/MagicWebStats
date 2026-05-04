@@ -75,6 +75,7 @@ class Deck(db.Model):
     Last_Rework = db.Column(db.Date, default=sa.func.current_date())
     Last_Change = db.Column(db.Date, default=sa.func.current_date())
     last_patch = db.Column(db.Date, default=sa.func.current_date())
+    cedh = db.Column(db.Boolean, default=False)
 
 class Game(db.Model):
     __tablename__ = 'Games'
@@ -88,6 +89,7 @@ class Game(db.Model):
     final_blow = db.Column(db.String)
     first_ko_turn = db.Column(db.Integer)
     first_ko_by = db.Column(db.String)
+    cedh = db.Column(db.Boolean, default=False)
 
 class Participant(db.Model):
     __tablename__ = 'Participants'

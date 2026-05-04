@@ -78,7 +78,8 @@ def deck_add():
             Player = player,
             Color_Identity = form.color_identity.data,
             Partner = partner,
-            image_uri = img
+            image_uri = img,
+            cedh = form.cedh.data
         )
         db.session.add(deck)
         db.session.commit()
@@ -127,7 +128,8 @@ def game_add():
                      turns = form.turns.data,
                      final_blow = form.final_blow.data if form.final_blow.data else None,
                      first_ko_turn = form.first_ko_turn.data,
-                     first_ko_by = form.first_ko_by.data if form.first_ko_by.data else None
+                     first_ko_by = form.first_ko_by.data if form.first_ko_by.data else None,
+                     cedh = form.cedh.data
         )
         db.session.add(game)
         db.session.commit()
