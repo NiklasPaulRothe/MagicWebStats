@@ -86,17 +86,25 @@
     border-radius: 6px;
 }
 
-/* ── Borrowed checkbox + lender dropdown on the same row ─────────────────── */
+/* ── Borrowed checkbox + lender dropdown — checkbox below label ──────────── */
 .borrowed-row {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     flex-wrap: wrap;
 }
 
 .borrowed-row .form-field {
     flex: 1 1 auto;
+}
+
+/* Borrowed checkbox sits below its label, left-aligned */
+.borrowed-row .form-field:first-child {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
 }
 
 /* ── Early Fast Mana — its own row, inline label ─────────────────────────── */

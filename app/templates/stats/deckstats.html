@@ -1,39 +1,43 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/deckstats.css') }}">
+{% endblock %}
+
 {% block content %}
 <section id="deck-stats">
     <h2>Deck Stats</h2>
 
-    <div>
-        <label for="min-spiele-filter">Minimum Spiele:</label>
-        <input type="number" id="min-spiele-filter" placeholder="Enter minimum value">
-        <button id="apply-min-spiele-filter">Apply Filter</button>
-        <button id="reset-filters">Reset Filters</button>
+    <div class="deck-stats-controls">
+        <label for="min-spiele-filter">Min. Spiele:</label>
+        <input type="number" id="min-spiele-filter" placeholder="0">
+        <button id="apply-min-spiele-filter">Apply</button>
+        <button id="reset-filters">Reset</button>
     </div>
 
-    <table id="deck-stats-table">
-        <thead>
-        <tr>
-            <th data-type="string" data-key="Deckname"><span>Deckname</span></th>
-            <th data-type="string" data-key="Spieler">
-                <span>Spieler</span>
-                <button class="filter-btn" id="spieler-filter-btn">Filter</button>
-                <div class="filter-dropdown" id="spieler-filter-dropdown" style="display: none;"></div>
-            </th>
-            <th data-type="string" data-key="Commander"><span>Commander</span></th>
-            <th data-type="string" data-key="Farbe"><span>Color Identity</span></th>
-            <th data-type="number" data-key="Spiele"><span>Spiele</span></th>
-            <th data-type="number" data-key="Siege"><span>Siege</span></th>
-            <th data-type="number" data-key="WTurns"><span>Avg.<br> Win Turn</span></th>
-            <th data-type="number" data-key="Winrate (in %)"><span>Winrate (in %)</span></th>
-            <th data-type="number" data-key="elo"><span>Elo Rating</span></th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <div class="deck-stats-table-wrap">
+        <table id="deck-stats-table">
+            <thead>
+            <tr>
+                <th data-type="string" data-key="Deckname"><span>Deckname</span></th>
+                <th data-type="string" data-key="Spieler">
+                    <span>Spieler</span>
+                    <button class="filter-btn" id="spieler-filter-btn">▾</button>
+                    <div class="filter-dropdown" id="spieler-filter-dropdown" style="display: none;"></div>
+                </th>
+                <th data-type="string" data-key="Commander"><span>Commander</span></th>
+                <th data-type="string" data-key="Farbe"><span>Color Identity</span></th>
+                <th data-type="number" data-key="Spiele"><span>Spiele</span></th>
+                <th data-type="number" data-key="Siege"><span>Siege</span></th>
+                <th data-type="number" data-key="WTurns"><span>Avg. Win Turn</span></th>
+                <th data-type="number" data-key="Winrate (in %)"><span>Winrate %</span></th>
+                <th data-type="number" data-key="elo"><span>Elo</span></th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </section>
 
-<!-- Link to external files -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/deckstats.css') }}">
 <script src="{{ url_for('static', filename='js/deckstats.js') }}"></script>
 {% endblock %}

@@ -1,4 +1,8 @@
-/* Basic styling */
+/* ── Reset & base ────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Segoe UI', sans-serif;
     margin: 0;
@@ -7,21 +11,7 @@ body {
     color: antiquewhite;
 }
 
-.deckpage {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 24px; /* spacing between the two tables */
-    flex-wrap: wrap; /* allow wrapping on smaller screens */
-    margin-top: 20px;
-}
-
-.deckpage #index {
-    flex: 1 1 45%;
-    min-width: 300px;
-}
-
+/* ── Navigation ──────────────────────────────────────────────────────────── */
 nav ul {
     list-style-type: none;
     margin: 0;
@@ -29,11 +19,10 @@ nav ul {
     display: flex;
     background-color: #0d0800;
     justify-content: center;
-    /* Remove overflow: hidden to ensure dropdown visibility */
 }
 
 nav li {
-    position: relative; /* Set position to relative for correct dropdown positioning */
+    position: relative;
 }
 
 nav li a {
@@ -44,10 +33,7 @@ nav li a {
     text-decoration: none;
 }
 
-nav li a:link {
-    color: #f4c430;
-}
-
+nav li a:link,
 nav li a:visited {
     color: #f4c430;
 }
@@ -61,9 +47,9 @@ nav li .dropdown-content {
     position: absolute;
     background-color: #333;
     min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
     z-index: 1000;
-    top: 100%; /* Position the dropdown below the nav link */
+    top: 100%;
     left: 0;
 }
 
@@ -83,6 +69,7 @@ nav li:hover .dropdown-content {
     display: block;
 }
 
+/* ── Main content area ───────────────────────────────────────────────────── */
 main {
     display: flex;
     flex-direction: column;
@@ -90,13 +77,10 @@ main {
     padding: 20px;
 }
 
-main a:link {
-    color: antiquewhite;
-    text-decoration: underline;
-}
-
+main a:link,
 main a:visited {
     color: antiquewhite;
+    text-decoration: underline;
 }
 
 main a:link:hover {
@@ -107,7 +91,7 @@ main a:link:hover {
 section {
     margin: 10px 0;
     padding: 20px;
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 footer {
@@ -117,46 +101,42 @@ footer {
     padding: 10px 0;
 }
 
+/* ── Generic table — used by player stats, color stats, user page ────────── */
 table {
     border-collapse: collapse;
     margin-left: auto;
     margin-right: auto;
-    border:1px solid;
+    border: 1px solid;
 }
 
 th, td {
     border: none;
     padding: 6px 8px;
-    text-align: center;
+    text-align: left;
     font-size: 15px;
+    vertical-align: middle;
 }
 
 th {
     background-color: black;
     color: #f4c430;
     cursor: pointer;
-    text-align: left;
-}
-
-td {
-    text-align: left;
-    margin-left: 2px;
-    height: 30px;
 }
 
 tr:nth-child(even) {
     background-color: #282c34;
 }
 
-.ascii-table pre {
-    font-family: monospace;
-    background-color: #282c34;
-    padding: 10px;
-    overflow-x: auto;
-    text-align: center;
+/* ── Sort indicators ─────────────────────────────────────────────────────── */
+th.sorted-asc > span::after {
+    content: " ↑";
 }
-/* --- Deckstats filter buttons --- */
 
+th.sorted-desc > span::after {
+    content: " ↓";
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
 button {
     background-color: black;
     color: #f4c430;
@@ -173,7 +153,7 @@ button:hover {
     color: black;
 }
 
-/* Optional: Style input number box to match dark theme */
+/* ── Number input ────────────────────────────────────────────────────────── */
 input[type="number"] {
     background-color: #1e1e1e;
     color: antiquewhite;
@@ -183,16 +163,7 @@ input[type="number"] {
     font-size: 14px;
 }
 
-/* Tighten spacing in the deckstats filter row */
-#deck-stats div {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-/* --- Filter Dropdown Styling for Deck Stats --- */
-
+/* ── Filter dropdown (player/color/deck stats) ───────────────────────────── */
 .filter-dropdown {
     position: absolute;
     display: none;
@@ -206,30 +177,28 @@ input[type="number"] {
     max-height: 300px;
     overflow-y: auto;
     font-size: 14px;
+    z-index: 100;
 }
 
-/* Checkbox label styling */
 .filter-dropdown label {
     align-items: center;
     margin: 4px 0;
     cursor: pointer;
 }
 
-/* Checkbox input styling */
 .filter-dropdown input[type="checkbox"] {
     accent-color: #f4c430;
     transform: scale(1.1);
     cursor: pointer;
 }
 
-/* Hover effect on label */
 .filter-dropdown label:hover {
     background-color: #2a2a2a;
     padding: 2px 4px;
     border-radius: 3px;
 }
 
-/* --- Add Game Form Styling --- */
+/* ── Forms ───────────────────────────────────────────────────────────────── */
 form {
     max-width: 1000px;
     margin: 0 auto;
@@ -239,22 +208,6 @@ form {
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.1);
 }
 
-/* Form field grouping */
-.field-list-item {
-    border: 1px solid #f4c430;
-    border-radius: 6px;
-    padding: 12px;
-    margin-bottom: 20px;
-    background-color: #282c34;
-}
-
-/* Grid layout for per-player fields */
-.player-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
-/* All form elements themed */
 form label {
     font-weight: bold;
     color: #f4c430;
@@ -281,13 +234,11 @@ form input[type="checkbox"] {
     accent-color: #f4c430;
 }
 
-/* Headings */
 form h3 {
     color: #f4c430;
     margin-top: 30px;
 }
 
-/* Submit and Add buttons */
 form button,
 form input[type="submit"] {
     background-color: black;
@@ -307,57 +258,30 @@ form input[type="submit"]:hover {
     color: black;
 }
 
-.players-wrapper {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-}
-
+/* ── Players container — wraps multiple player blocks side by side ───────── */
 #players-fields {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 16px;
     justify-content: flex-start;
 }
 
-.player-fields {
-    flex: 1 1 300px;
-    box-sizing: border-box;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-}
-
 .field-list-item {
-    flex: 1 1 320px;
-    max-width: 400px;
+    flex: 0 0 calc(50% - 8px);
     box-sizing: border-box;
-}
-
-/* Sorting indicators for all <th> span elements */
-th.sorted-asc > span::after {
-    content: " ↑";
-}
-
-th.sorted-desc > span::after {
-    content: " ↓";
-}
-
-.deckpage {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-}
-
-#likelihoodChart,
-#averageChart {
-    width: 100%;
-    height: 200px;
-    background-color: #1e1e1e;
-    border-radius: 8px;
+    border: 1px solid #f4c430;
+    border-radius: 6px;
     padding: 12px;
+    background-color: #282c34;
 }
+
+@media (max-width: 768px) {
+    .field-list-item {
+        flex: 0 0 100%;
+    }
+}
+
+/* ── Dashboard / index page layout ──────────────────────────────────────── */
 .deckpage {
     display: flex;
     flex-direction: row;
@@ -365,6 +289,7 @@ th.sorted-desc > span::after {
     gap: 30px;
     flex-wrap: wrap;
     padding: 20px;
+    align-items: flex-start;
 }
 
 #charts {
@@ -380,21 +305,13 @@ th.sorted-desc > span::after {
     padding: 10px;
 }
 
-#player-table {
-    max-width: 600px;
-    overflow-x: auto;
-}
-
-#player-section {
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
-    align-items: flex-start;
-}
-
-#player-table {
-    max-width: 600px;
-    overflow-x: auto;
+#likelihoodChart,
+#averageChart {
+    width: 100%;
+    height: 200px;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 12px;
 }
 
 .chart-box {
@@ -414,13 +331,11 @@ th.sorted-desc > span::after {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
-    align-items: center;
-    justify-content: center;
     width: 260px;
 }
 
 .metainfo {
-    color: #f4c430
+    color: #f4c430;
 }
 
 #finalBlowChart {
@@ -432,4 +347,34 @@ th.sorted-desc > span::after {
     flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
+}
+
+/* ── Player stats page ───────────────────────────────────────────────────── */
+#player-section {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+#player-table {
+    max-width: 600px;
+    overflow-x: auto;
+}
+
+/* ── ASCII table ─────────────────────────────────────────────────────────── */
+.ascii-table pre {
+    font-family: monospace;
+    background-color: #282c34;
+    padding: 10px;
+    overflow-x: auto;
+    text-align: center;
+}
+
+/* ── Tighten filter row spacing ──────────────────────────────────────────── */
+#deck-stats div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
 }

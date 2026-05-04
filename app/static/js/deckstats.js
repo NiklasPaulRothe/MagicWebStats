@@ -76,6 +76,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const headers = document.querySelectorAll('th');
             const key = headers[currentSort.idx].getAttribute('data-key');
             filtered.sort((a, b) => {
+                // Special sort for Color Identity: by count then by image URLs
+                if (key === 'Farbe') {
+                    const imgsA = Array.isArray(a['ColorImgs']) ? a['ColorImgs'] : [];
+                    const imgsB = Array.isArray(b['ColorImgs']) ? b['ColorImgs'] : [];
+                    const countDiff = imgsA.length - imgsB.length;
+                    if (countDiff !== 0) return currentSort.asc ? countDiff : -countDiff;
+                    const strA = imgsA.join('|');
+                    const strB = imgsB.join('|');
+                    return currentSort.asc ? strA.localeCompare(strB) : strB.localeCompare(strA);
+                }
                 const valA = a[key] || '';
                 const valB = b[key] || '';
                 if (currentSort.type === 'number') {
@@ -123,10 +133,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     return `<td><a id="${item[key]}-link" href="/player/${item[key]}">${item[key] || ''}</a></td>`
                 }
                 if (key === 'Farbe') {
-                    const name = item['Farbe'] || '';
                     const imgs = Array.isArray(item['ColorImgs']) ? item['ColorImgs'] : [];
                     const icons = imgs.map(src => `<img src="${src}" class="color-icon">`).join('');
-                    return `<td><div class="color-identity-cell">${icons ? `<span class="color-icons">${icons}</span>` : ''}<span class="color-identity-name">${name}</span></div></td>`;
+                    return `<td>${icons || ''}</td>`;
                 }
                 if (key === 'WTurns') {
                     const avg = item['WTurns'];

@@ -1,55 +1,95 @@
-/* ── Deck stats table — full override of basic.css table styles ──────────── */
+/* deckstats.css — fully scoped to #deck-stats */
+
+/* ── Controls row ────────────────────────────────────────────────────────── */
+.deck-stats-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+/* ── Scrollable wrapper ──────────────────────────────────────────────────── */
+.deck-stats-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* ── Table base ──────────────────────────────────────────────────────────── */
 #deck-stats-table {
     border-collapse: collapse;
     width: 100%;
-}
-
-#deck-stats-table th,
-#deck-stats-table td {
-    padding: 6px 10px;
-    text-align: left;
-    font-size: 14px;
-    height: auto;
-    vertical-align: top;
+    min-width: 700px;
+    table-layout: auto;
     border: none;
 }
 
-#deck-stats-table th {
-    background-color: black;
+/* ── All cells: reset padding/height, center vertically ─────────────────── */
+#deck-stats-table th,
+#deck-stats-table td {
+    padding: 8px 12px !important;
+    height: auto !important;
+    border: none !important;
+    font-size: 14px !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+    white-space: nowrap;
+    line-height: 1.4 !important;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+#deck-stats-table thead th {
+    background-color: #0d0800;
     color: #f4c430;
     cursor: pointer;
+    user-select: none;
+    border-bottom: 2px solid #f4c430 !important;
 }
 
-#deck-stats-table tr:nth-child(even) {
-    background-color: #282c34;
+#deck-stats-table thead th:hover {
+    background-color: #1a1200;
 }
 
-/* ── Color identity cell — icons above, name below ───────────────────────── */
-.color-identity-cell {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    line-height: 1;
+/* Keep header contents (span + filter button) on one line */
+#deck-stats-table thead th span,
+#deck-stats-table thead th .filter-btn {
+    display: inline;
+    vertical-align: middle;
 }
 
-.color-icons {
-    display: flex;
-    flex-direction: row;
-    gap: 2px;
-    align-items: center;
-}
+/* ── Body rows ───────────────────────────────────────────────────────────── */
+#deck-stats-table tbody tr:nth-child(odd)  { background-color: #1a1a1a; }
+#deck-stats-table tbody tr:nth-child(even) { background-color: #222; }
+#deck-stats-table tbody tr:hover           { background-color: #2a2200; }
 
-.color-icon {
+/* ── Color identity cell — icons only, inline ────────────────────────────── */
+#deck-stats-table .color-icon {
     width: 16px;
     height: 16px;
     object-fit: contain;
-    display: block;
+    vertical-align: middle;
+    margin-right: 1px;
 }
 
-.color-identity-name {
-    font-size: 0.75em;
+/* ── WTurns count badge ──────────────────────────────────────────────────── */
+#deck-stats-table small {
+    font-size: 0.72em;
     color: #aaa;
-    line-height: 1;
-    white-space: nowrap;
+}
+
+/* ── Sort indicators ─────────────────────────────────────────────────────── */
+#deck-stats-table th.sorted-asc > span::after  { content: " ↑"; }
+#deck-stats-table th.sorted-desc > span::after { content: " ↓"; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    #deck-stats-table th:nth-child(4),
+    #deck-stats-table td:nth-child(4) { display: none; }
+}
+
+@media (max-width: 700px) {
+    #deck-stats-table th:nth-child(7),
+    #deck-stats-table td:nth-child(7),
+    #deck-stats-table th:nth-child(9),
+    #deck-stats-table td:nth-child(9) { display: none; }
 }
