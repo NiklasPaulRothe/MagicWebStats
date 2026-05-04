@@ -1,9 +1,4 @@
-2025-11-03 09:16:43,736 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 09:19:15,522 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 09:20:42,546 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 09:21:41,100 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 09:30:23,672 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 09:31:59,707 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2025-11-03 16:00:06,896 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -17,8 +12,8 @@ Traceback (most recent call last):
     ...<3 lines>...
     )
 TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 12:25:28,085 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 13:02:16,775 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2025-11-03 16:01:30,184 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-11-03 16:02:01,937 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -32,7 +27,8 @@ Traceback (most recent call last):
     ...<3 lines>...
     )
 TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 14:29:41,011 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2025-11-03 16:02:59,731 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-11-03 16:03:33,960 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -46,81 +42,5 @@ Traceback (most recent call last):
     ...<3 lines>...
     )
 TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 14:59:44,866 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 15:04:10,575 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 15:04:59,016 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 15:05:37,518 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 920, in full_dispatch_request
-    return self.finalize_request(rv)
-           ~~~~~~~~~~~~~~~~~~~~~^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 939, in finalize_request
-    response = self.make_response(rv)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1212, in make_response
-    raise TypeError(
-    ...<3 lines>...
-    )
-TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 15:52:04,783 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 15:53:17,039 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 15:53:48,717 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 920, in full_dispatch_request
-    return self.finalize_request(rv)
-           ~~~~~~~~~~~~~~~~~~~~~^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 939, in finalize_request
-    response = self.make_response(rv)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1212, in make_response
-    raise TypeError(
-    ...<3 lines>...
-    )
-TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 15:55:07,518 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 15:55:43,009 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 920, in full_dispatch_request
-    return self.finalize_request(rv)
-           ~~~~~~~~~~~~~~~~~~~~~^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 939, in finalize_request
-    response = self.make_response(rv)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1212, in make_response
-    raise TypeError(
-    ...<3 lines>...
-    )
-TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 15:55:50,646 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 920, in full_dispatch_request
-    return self.finalize_request(rv)
-           ~~~~~~~~~~~~~~~~~~~~~^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 939, in finalize_request
-    response = self.make_response(rv)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1212, in make_response
-    raise TypeError(
-    ...<3 lines>...
-    )
-TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 15:57:27,248 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2025-11-03 15:57:58,350 ERROR: Exception on /LoadCardData [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 920, in full_dispatch_request
-    return self.finalize_request(rv)
-           ~~~~~~~~~~~~~~~~~~~~~^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 939, in finalize_request
-    response = self.make_response(rv)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1212, in make_response
-    raise TypeError(
-    ...<3 lines>...
-    )
-TypeError: The view function for 'third_party.get_card_data' did not return a valid response. The function either returned None or ended without a return statement.
-2025-11-03 15:59:37,811 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-11-03 16:04:19,837 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2025-11-03 16:05:49,702 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

@@ -3,7 +3,7 @@ from sqlalchemy import literal, and_
 from app import db
 from app.stats import bp
 from flask import render_template, flash, redirect, url_for
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app.auth import role_required
 import sqlalchemy as sa
 from sqlalchemy import desc
@@ -22,7 +22,7 @@ def get_player():
 
 def get_decks():
     deck_list = []
-    decks = Deck.query.order_by(desc(Deck.Name)).all()
+    decks = Deck.query.order_by(Deck.Commander).all()
     for deck in decks:
         player = Player.query.filter_by(id = deck.Player).first()
         if deck.Active:
@@ -99,15 +99,23 @@ def game_add():
     form.winner.choices = player
     form.first.choices = player
 
+    # Build autocomplete suggestions from union of distinct final_blow + first_ko_by values
+    final_blow_vals = db.session.query(Game.final_blow).filter(Game.final_blow.isnot(None))
+    first_ko_by_vals = db.session.query(Game.first_ko_by).filter(Game.first_ko_by.isnot(None))
+    combined = final_blow_vals.union(first_ko_by_vals).all()
+    game_condition_suggestions = sorted(set(r[0] for r in combined))
+
     # Handle add player action
     if form.add_player.data:
         form.players.append_entry()
-        return render_template('stats/GameAdd.html', form=form)
+        return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
+                               game_condition_suggestions=game_condition_suggestions)
 
     # Handle remove player action
     if form.remove_player.data and len(form.players) > form.players.min_entries:
         form.players.pop_entry()
-        return render_template('stats/GameAdd.html', form=form)
+        return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
+                               game_condition_suggestions=game_condition_suggestions)
 
     if not form.validate_on_submit():
         print(form.errors)
@@ -124,12 +132,13 @@ def game_add():
         game = Game( Date = form.date.data,
                      First_Player = first,
                      Winner = winner,
-                     Planechase = form.planechase.data,
+                     Planechase = False,
                      turns = form.turns.data,
                      final_blow = form.final_blow.data if form.final_blow.data else None,
                      first_ko_turn = form.first_ko_turn.data,
                      first_ko_by = form.first_ko_by.data if form.first_ko_by.data else None,
-                     cedh = form.cedh.data
+                     cedh = form.cedh.data,
+                     added_by = current_user.id
         )
         db.session.add(game)
         db.session.commit()
@@ -180,7 +189,8 @@ def game_add():
         return redirect(url_for('main.index'))
 
     # Render the form normally
-    return render_template('stats/GameAdd.html', form=form, player=player, decks=decks)
+    return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
+                           game_condition_suggestions=game_condition_suggestions)
 
 @bp.route('/PlayerStats')
 @login_required
