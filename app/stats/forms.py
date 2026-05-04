@@ -23,6 +23,7 @@ class DeckAddForm(FlaskForm):
     commander = StringField('Commander', validators=[DataRequired()])
     player = SelectField('Player', choices=[])
     color_identity = SelectField('Color Identity', choices=[])
+    cedh = BooleanField('Cedh', default=False)
     partner = StringField('Partner')
     submit = SubmitField('Add Deck')
 
@@ -68,6 +69,7 @@ class GameAddForm(FlaskForm):
     selfmade_win = BooleanField('Selbst erspielter sieg', default=False)
     fun_moments = BooleanField('Fun Moments', default=False)
     planechase = BooleanField('Planechase', default=False)
+    cedh = BooleanField('Cedh', default=False)
 
     # Repeating fields for players, decks, and early fast mana
     players = FieldList(FormField(PlayerForm), min_entries=3, max_entries=5)

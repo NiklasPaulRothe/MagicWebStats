@@ -29,7 +29,10 @@ def index():
 
     # === Turn Chart Data ===
     from app.models import Game
-    games = Game.query.with_entities(Game.turns).filter(Game.turns.isnot(None)).all()
+    games = Game.query.with_entities(Game.turns).filter(
+        Game.turns.isnot(None),
+        Game.cedh != True
+    ).all()
     turns_list = [g.turns for g in games]
 
     # Count per turn
@@ -37,7 +40,10 @@ def index():
     sorted_turns = sorted(turn_counts.items())
     turn_data = [{"turn": t, "count": count} for t, count in sorted_turns]
 
-    games = Game.query.with_entities(Game.first_ko_turn).filter(Game.first_ko_turn.isnot(None)).all()
+    games = Game.query.with_entities(Game.first_ko_turn).filter(
+        Game.first_ko_turn.isnot(None),
+        Game.cedh != True
+    ).all()
     ko_turns_list = [g.first_ko_turn for g in games]
 
     # Count per ko_turn
@@ -56,7 +62,7 @@ def index():
     # Final blow pie chart data
     final_blow_counts = (
         db.session.query(Game.final_blow)
-        .filter(Game.final_blow.isnot(None))
+        .filter(Game.final_blow.isnot(None), Game.cedh != True)
         .all()
     )
     final_blow_flat = [fb[0] for fb in final_blow_counts]
@@ -65,7 +71,7 @@ def index():
     # First KO pie chart data
     first_ko_counts = (
         db.session.query(Game.first_ko_by)
-        .filter(Game.first_ko_by.isnot(None))
+        .filter(Game.first_ko_by.isnot(None), Game.cedh != True)
         .all()
     )
     first_ko_flat = [fb[0] for fb in first_ko_counts]

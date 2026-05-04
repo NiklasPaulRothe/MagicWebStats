@@ -167,3 +167,4 @@ KeyError: 'elo'
 2026-02-06 18:54:11,984 INFO: Kumena [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
 2026-02-06 20:07:56,544 INFO: The Goodest Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
 2026-02-06 20:23:21,760 INFO: Here comes the Flood [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-05-04 19:42:33,297 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
