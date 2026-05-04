@@ -14,5 +14,6 @@ lib64
 __pycache__
 
 .env
-logs/
+app/logs/
 files/
+logs/webstats.log
