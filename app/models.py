@@ -90,6 +90,7 @@ class Game(db.Model):
     first_ko_turn = db.Column(db.Integer)
     first_ko_by = db.Column(db.String)
     cedh = db.Column(db.Boolean, default=False)
+    added_by = db.Column(db.Integer, db.ForeignKey('data_owner.User.id'))
 
 class Participant(db.Model):
     __tablename__ = 'Participants'

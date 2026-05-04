@@ -3,7 +3,7 @@ from sqlalchemy import literal, and_
 from app import db
 from app.stats import bp
 from flask import render_template, flash, redirect, url_for
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app.auth import role_required
 import sqlalchemy as sa
 from sqlalchemy import desc
@@ -137,7 +137,8 @@ def game_add():
                      final_blow = form.final_blow.data if form.final_blow.data else None,
                      first_ko_turn = form.first_ko_turn.data,
                      first_ko_by = form.first_ko_by.data if form.first_ko_by.data else None,
-                     cedh = form.cedh.data
+                     cedh = form.cedh.data,
+                     added_by = current_user.id
         )
         db.session.add(game)
         db.session.commit()
