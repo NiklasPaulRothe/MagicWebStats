@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import text
 import sqlalchemy as sa
 
-from app.models import Player, User
+from app.models import Player, User, Color, ColorComponent
 
 
 @bp.route('/data')
@@ -101,8 +101,19 @@ def color_data():
           AND "Decks".cedh = False), 0)::numeric(10,2) IS NOT NULL;'''))
 
     list = []
+    colorless = Color.query.filter_by(Name='Colorless').first()
+    colorless_img = colorless.img if colorless and colorless.img else None
     for entry in results:
-        dict = {"Name": [], "Games": [], "Wins": [], "Winrate (in %)": []}
+        identity_name = entry[0]
+        components = ColorComponent.query.filter_by(color_identity=identity_name).all()
+        imgs = []
+        for comp in components:
+            color = Color.query.filter_by(Name=comp.color).first()
+            if color and color.img:
+                imgs.append(color.img)
+        if not imgs and colorless_img:
+            imgs = [colorless_img]
+        dict = {"Name": [], "Games": [], "Wins": [], "Winrate (in %)": [], "ColorImgs": imgs}
         dict["Name"].append(entry[0])
         dict["Games"].append(entry[1])
         dict["Wins"].append(entry[2])
@@ -170,6 +181,11 @@ def deck_data():
         dict["Decklist"].append(entry[9])
         dict["elo"].append(entry[10])
         dict["ColorImgs"] = entry[11] or []
+        # Fallback to colorless symbol if no color images
+        if not dict["ColorImgs"]:
+            colorless = Color.query.filter_by(Name='Colorless').first()
+            if colorless and colorless.img:
+                dict["ColorImgs"] = [colorless.img]
         list.append(dict)
 
     return jsonify(list)

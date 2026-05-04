@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy import desc
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm
-from app.models import Player, Deck, Game, Participant, ColorIdentity, Card
+from app.models import Player, Deck, Game, Participant, ColorIdentity, Card, ColorComponent, Color
 from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
@@ -32,9 +32,19 @@ def get_decks():
 
 def get_ci():
     ci_list = []
-    Identities= ColorIdentity.query.all()
-    for identity in Identities:
-        ci_list.append(identity.Name)
+    colorless = Color.query.filter_by(Name='Colorless').first()
+    colorless_img = colorless.img if colorless and colorless.img else None
+    identities = ColorIdentity.query.all()
+    for identity in identities:
+        components = ColorComponent.query.filter_by(color_identity=identity.Name).all()
+        imgs = []
+        for comp in components:
+            color = Color.query.filter_by(Name=comp.color).first()
+            if color and color.img:
+                imgs.append(color.img)
+        if not imgs and colorless_img:
+            imgs = [colorless_img]
+        ci_list.append({'name': identity.Name, 'imgs': imgs})
     return ci_list
 
 
@@ -59,8 +69,8 @@ def deck_add():
     form = DeckAddForm()
     player_choices = get_player()
     form.player.choices = player_choices
-    ci_choices = get_ci()
-    form.color_identity.choices = ci_choices
+    ci_data = get_ci()
+    form.color_identity.choices = [ci['name'] for ci in ci_data]
     if form.validate_on_submit():
         player = db.session.scalar(
             sa.select(Player.id).where(Player.Name == form.player.data)
@@ -87,7 +97,7 @@ def deck_add():
         return redirect(url_for('main.index'))
     else:
         print(form.errors)
-    return render_template('stats/DeckAdd.html', form=form)
+    return render_template('stats/DeckAdd.html', form=form, ci_data=ci_data)
 
 @bp.route('/game-add', methods=['GET', 'POST'])
 @role_required('admin')

@@ -1,21 +1,116 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+/* ── Custom color identity picker ────────────────────────────────────────── */
+.ci-picker {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.ci-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #1e1e1e;
+    border: 1px solid #f4c430;
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    min-height: 34px;
+    user-select: none;
+    font-size: 14px;
+    color: antiquewhite;
+}
+
+.ci-trigger:hover {
+    background-color: #2a2a2a;
+}
+
+.ci-trigger .ci-icons {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.ci-trigger .ci-label {
+    font-size: 0.85em;
+    color: #aaa;
+}
+
+.ci-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #1e1e1e;
+    border: 1px solid #f4c430;
+    border-radius: 4px;
+    z-index: 200;
+    max-height: 260px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.ci-dropdown.open {
+    display: block;
+}
+
+.ci-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: antiquewhite;
+}
+
+.ci-option:hover,
+.ci-option.selected {
+    background-color: #2a2200;
+}
+
+.ci-option .ci-icons {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.ci-option .ci-name {
+    font-size: 0.82em;
+    color: #aaa;
+}
+
+.ci-option img,
+.ci-trigger img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    vertical-align: middle;
+}
+</style>
+{% endblock %}
+
 {% block content %}
     <h1>Add Deck</h1>
     <form action="" method="post">
         {{ form.hidden_tag() }}
+
         <p>
             {{ form.name.label }}<br>
             {{ form.name(size=32) }}<br>
             {% for error in form.name.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+                <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
         </p>
         <p>
             {{ form.commander.label }}<br>
             {{ form.commander(size=32) }}<br>
             {% for error in form.commander.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+                <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
         </p>
         <p>
@@ -26,17 +121,83 @@
             {{ form.player.label }}<br>
             {{ form.player() }}<br>
             {% for error in form.player.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+                <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
         </p>
+
         <p>
             {{ form.color_identity.label }}<br>
-            {{ form.color_identity() }}<br>
+            {# Hidden native select — holds the actual submitted value #}
+            {{ form.color_identity(id="color-identity-select", style="display:none") }}
+
+            {# Custom visual picker #}
+            <div class="ci-picker" id="ci-picker">
+                <div class="ci-trigger" id="ci-trigger">
+                    <span class="ci-icons" id="ci-trigger-icons"></span>
+                    <span class="ci-label" id="ci-trigger-label">— select —</span>
+                </div>
+                <div class="ci-dropdown" id="ci-dropdown"></div>
+            </div>
+
             {% for error in form.color_identity.errors %}
-            <span style="color: red;">[{{ error }}]</span>
+                <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
         </p>
+
         <p>{{ form.cedh.label }} {{ form.cedh() }}</p>
         <p>{{ form.submit() }}</p>
     </form>
+
+    <script id="ci-data" type="application/json">{{ ci_data | tojson }}</script>
+    <script>
+    (function () {
+        const ciData = JSON.parse(document.getElementById('ci-data').textContent);
+        const select  = document.getElementById('color-identity-select');
+        const trigger = document.getElementById('ci-trigger');
+        const triggerIcons = document.getElementById('ci-trigger-icons');
+        const triggerLabel = document.getElementById('ci-trigger-label');
+        const dropdown = document.getElementById('ci-dropdown');
+
+        function iconsHtml(imgs) {
+            return imgs.map(src => `<img src="${src}">`).join('');
+        }
+
+        function setTrigger(ci) {
+            triggerIcons.innerHTML = iconsHtml(ci.imgs);
+            triggerLabel.textContent = `(${ci.name})`;
+            select.value = ci.name;
+        }
+
+        // Populate dropdown options
+        ciData.forEach(ci => {
+            const opt = document.createElement('div');
+            opt.className = 'ci-option';
+            opt.dataset.value = ci.name;
+            opt.innerHTML = `<span class="ci-icons">${iconsHtml(ci.imgs)}</span><span class="ci-name">(${ci.name})</span>`;
+            opt.addEventListener('click', () => {
+                setTrigger(ci);
+                dropdown.querySelectorAll('.ci-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                dropdown.classList.remove('open');
+            });
+            dropdown.appendChild(opt);
+        });
+
+        // Pre-select current value if form was re-rendered with a value
+        const currentVal = select.value;
+        if (currentVal) {
+            const match = ciData.find(ci => ci.name === currentVal);
+            if (match) setTrigger(match);
+        }
+
+        // Toggle dropdown
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+        });
+
+        // Close on outside click
+        document.addEventListener('click', () => dropdown.classList.remove('open'));
+    })();
+    </script>
 {% endblock %}
