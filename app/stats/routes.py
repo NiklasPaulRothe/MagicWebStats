@@ -99,15 +99,23 @@ def game_add():
     form.winner.choices = player
     form.first.choices = player
 
+    # Build autocomplete suggestions from union of distinct final_blow + first_ko_by values
+    final_blow_vals = db.session.query(Game.final_blow).filter(Game.final_blow.isnot(None))
+    first_ko_by_vals = db.session.query(Game.first_ko_by).filter(Game.first_ko_by.isnot(None))
+    combined = final_blow_vals.union(first_ko_by_vals).all()
+    game_condition_suggestions = sorted(set(r[0] for r in combined))
+
     # Handle add player action
     if form.add_player.data:
         form.players.append_entry()
-        return render_template('stats/GameAdd.html', form=form)
+        return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
+                               game_condition_suggestions=game_condition_suggestions)
 
     # Handle remove player action
     if form.remove_player.data and len(form.players) > form.players.min_entries:
         form.players.pop_entry()
-        return render_template('stats/GameAdd.html', form=form)
+        return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
+                               game_condition_suggestions=game_condition_suggestions)
 
     if not form.validate_on_submit():
         print(form.errors)
@@ -180,7 +188,8 @@ def game_add():
         return redirect(url_for('main.index'))
 
     # Render the form normally
-    return render_template('stats/GameAdd.html', form=form, player=player, decks=decks)
+    return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
+                           game_condition_suggestions=game_condition_suggestions)
 
 @bp.route('/PlayerStats')
 @login_required

@@ -1,0 +1,121 @@
+/* gamead.css — scoped styles for the GameAdd form only */
+/* Loaded exclusively via {% block head %} in GameAdd.html */
+
+/* ── Section card container ─────────────────────────────────────────────── */
+.form-section {
+    background-color: #1a1a1a;
+    border: 1px solid #f4c430;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Section header ──────────────────────────────────────────────────────── */
+.section-header {
+    color: #f4c430;
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f4c430;
+}
+
+/* ── Responsive form grid ────────────────────────────────────────────────── */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+/* ── Individual field wrapper ────────────────────────────────────────────── */
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* ── Field hint text ─────────────────────────────────────────────────────── */
+.field-hint {
+    font-size: 0.8em;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+/* ── Validation error text ───────────────────────────────────────────────── */
+.field-error {
+    color: #ff6b6b;
+    font-size: 0.85em;
+    margin-top: 2px;
+}
+
+/* ── Input with validation error ─────────────────────────────────────────── */
+.input-error {
+    border-color: #ff6b6b !important;
+}
+
+/* ── Per-player two-column grid (player | deck) ──────────────────────────── */
+.player-fields {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+/* ── Borrowed checkbox + lender dropdown on the same row ─────────────────── */
+.borrowed-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.borrowed-row .form-field {
+    flex: 1 1 auto;
+}
+
+/* ── Lender disabled visual state ────────────────────────────────────────── */
+.lender-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* ── Boolean checklist two-column grid ───────────────────────────────────── */
+.checklist-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 20px;
+    margin-top: 12px;
+}
+
+.checklist-grid .form-field {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Disabled button state ───────────────────────────────────────────────── */
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── Responsive: 768px — collapse form-grid and player-fields ────────────── */
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .player-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Responsive: 600px — collapse checklist-grid ─────────────────────────── */
+@media (max-width: 600px) {
+    .checklist-grid {
+        grid-template-columns: 1fr;
+    }
+}

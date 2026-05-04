@@ -17,3 +17,4 @@ __pycache__
 app/logs/
 files/
 logs/webstats.log
+.kiro/

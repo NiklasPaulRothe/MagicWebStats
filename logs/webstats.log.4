@@ -1,4 +1,4 @@
-2026-02-06 14:22:27,638 ERROR: Exception on /api/deck-data [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2026-02-06 14:23:02,859 ERROR: Exception on /api/deck-data [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
     self.dialect.do_execute(
@@ -10,7 +10,7 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
     cursor.execute(statement, parameters)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-psycopg2.errors.SyntaxError: syntax error at or near ""Decks""
+psycopg2.errors.UndefinedColumn: column Decks.elo does not exist
 LINE 23:     "Decks".elo AS elo
              ^
 
@@ -109,7 +109,7 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
     cursor.execute(statement, parameters)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.SyntaxError) syntax error at or near ""Decks""
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column Decks.elo does not exist
 LINE 23:     "Decks".elo AS elo
              ^
 
@@ -134,11 +134,38 @@ LINE 23:     "Decks".elo AS elo
            FROM data_owner."Games"
              LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
           WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id),
-    "Decks".decklist AS decklist
+    "Decks".decklist AS decklist,
     "Decks".elo AS elo
    FROM data_owner."Decks",
     data_owner."Player"
   WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
   ORDER BY "Decks"."Commander";]
 (Background on this error at: https://sqlalche.me/e/20/f405)
-2026-02-06 14:22:52,033 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-02-06 14:23:40,867 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-02-06 14:23:50,513 ERROR: Exception on /api/deck-data [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\api\routes.py", line 149, in deck_data
+    dict["elo"].append(entry[9])
+    ~~~~^^^^^^^
+KeyError: 'elo'
+2026-02-06 14:24:09,028 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-02-06 14:34:56,027 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-02-06 15:09:54,961 INFO: Ready - Steady - Draw [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 18:53:44,757 INFO: Kumena [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 18:54:11,984 INFO: Kumena [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 20:07:56,544 INFO: The Goodest Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-02-06 20:23:21,760 INFO: Here comes the Flood [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:95]
+2026-05-04 19:42:33,297 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-04 19:47:08,107 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

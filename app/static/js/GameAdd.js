@@ -28,6 +28,16 @@ function add_deck_list(player_id, decks) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    const dateInput = document.getElementById('date-field');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+
+    const firstError = document.querySelector('.field-error');
+    if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     const playersContainer = document.getElementById('players-fields');
     const addPlayerButton = document.getElementById('add-player');
     const maxPlayers = parseInt(document.getElementById('max-players').value);
@@ -39,6 +49,22 @@ document.addEventListener('DOMContentLoaded', function () {
     function setupPlayerListeners(playerIndex) {
         add_player_list(playerIndex, players);
         add_deck_list(playerIndex, decks);
+
+        const lender = document.getElementById('players-' + playerIndex + '-lender');
+        const borrowed = document.getElementById('players-' + playerIndex + '-borrowed');
+
+        function updateLenderState() {
+            lender.disabled = !borrowed.checked;
+            if (borrowed.checked) {
+                lender.classList.remove('lender-disabled');
+            } else {
+                lender.classList.add('lender-disabled');
+            }
+        }
+
+        updateLenderState();
+
+        borrowed.addEventListener('change', updateLenderState);
 
         document.getElementById(`players-${playerIndex}-player`).addEventListener("change", () => {
             add_deck_list(playerIndex, decks);
@@ -55,9 +81,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function updateButtonStates() {
+        addPlayerButton.disabled = (currentPlayers >= maxPlayers);
+        document.querySelectorAll('.remove-player').forEach(btn => {
+            btn.disabled = (currentPlayers <= minPlayers);
+        });
+    }
+
     for (let i = 0; i < currentPlayers; i++) {
         setupPlayerListeners(i);
     }
+    updateButtonStates();
 
     addPlayerButton.addEventListener('click', function () {
         if (currentPlayers < maxPlayers) {
@@ -67,37 +101,42 @@ document.addEventListener('DOMContentLoaded', function () {
             const playerWrapper = document.createElement('div');
             playerWrapper.classList.add('field-list-item', 'player-fields');
             playerWrapper.innerHTML = `
-                <div>
+                <div class="form-field">
                     <label for="players-${playerIndex}-player">Player</label>
                     <select name="players-${playerIndex}-player" id="players-${playerIndex}-player"></select>
                 </div>
-                <div>
+                <div class="form-field">
                     <label for="players-${playerIndex}-deck">Deck</label>
                     <select name="players-${playerIndex}-deck" id="players-${playerIndex}-deck"></select>
                 </div>
-                <div>
-                    <label for="players-${playerIndex}-borrowed">Borrowed</label>
-                    <input type="checkbox" name="players-${playerIndex}-borrowed" id="players-${playerIndex}-borrowed">
+                <div class="borrowed-row">
+                    <div class="form-field">
+                        <label for="players-${playerIndex}-borrowed">Borrowed</label>
+                        <input type="checkbox" name="players-${playerIndex}-borrowed" id="players-${playerIndex}-borrowed">
+                    </div>
+                    <div class="form-field">
+                        <label for="players-${playerIndex}-lender">Geliehen von</label>
+                        <select name="players-${playerIndex}-lender" id="players-${playerIndex}-lender" class="lender-disabled" disabled></select>
+                    </div>
                 </div>
-                <div>
-                    <label for="players-${playerIndex}-lender">Geliehen von</label>
-                    <select name="players-${playerIndex}-lender" id="players-${playerIndex}-lender"></select>
-                </div>
-                <div>
+                <div class="form-field">
                     <label for="players-${playerIndex}-early_fast_mana">Early Fast Mana</label>
                     <input type="checkbox" name="players-${playerIndex}-early_fast_mana" id="players-${playerIndex}-early_fast_mana">
+                    <span class="field-hint">Sol Ring, Jeweled Lotus, etc. on turn 1–2</span>
                 </div>
-                <div style="grid-column: 1 / -1;">
+                <div class="remove-btn-row">
                     <button type="button" class="remove-player">Remove</button>
                 </div>
             `;
             playersContainer.appendChild(playerWrapper);
             setupPlayerListeners(playerIndex);
+            updateButtonStates();
 
             playerWrapper.querySelector('.remove-player').addEventListener('click', function () {
                 if (currentPlayers > minPlayers) {
                     playerWrapper.remove();
                     currentPlayers--;
+                    updateButtonStates();
                 }
             });
         }
@@ -108,6 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (currentPlayers > minPlayers) {
                 button.parentElement.parentElement.remove();
                 currentPlayers--;
+                updateButtonStates();
             }
         });
     });
