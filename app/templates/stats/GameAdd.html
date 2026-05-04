@@ -16,28 +16,34 @@
             <div id="players-fields">
                 {% for player_form in form.players %}
                     <div class="field-list-item player-fields">
-                        <div class="form-field">
-                            {{ player_form.player.label }}
-                            {{ player_form.player() }}
-                        </div>
-                        <div class="form-field">
-                            {{ player_form.deck.label }}
-                            {{ player_form.deck() }}
-                        </div>
-                        <div class="borrowed-row">
+                        <div class="player-row">
                             <div class="form-field">
-                                {{ player_form.borrowed.label }}
-                                {{ player_form.borrowed() }}
-                            </div>
-                            <div class="form-field">
-                                {{ player_form.lender.label }}
-                                {{ player_form.lender(class="lender-disabled", disabled=True) }}
+                                {{ player_form.player.label }}
+                                {{ player_form.player() }}
                             </div>
                         </div>
-                        <div class="form-field">
-                            {{ player_form.early_fast_mana.label }}
-                            {{ player_form.early_fast_mana() }}
-                            <span class="field-hint">Sol Ring, Jeweled Lotus, etc. on turn 1–2</span>
+                        <div class="deck-unit">
+                            <div class="form-field">
+                                {{ player_form.deck.label }}
+                                {{ player_form.deck() }}
+                            </div>
+                            <div class="borrowed-row">
+                                <div class="form-field">
+                                    {{ player_form.borrowed.label }}
+                                    {{ player_form.borrowed() }}
+                                </div>
+                                <div class="form-field">
+                                    {{ player_form.lender.label }}
+                                    {{ player_form.lender(class="lender-disabled", disabled=True) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="efm-row">
+                            <div class="form-field form-field--inline">
+                                {{ player_form.early_fast_mana() }}
+                                {{ player_form.early_fast_mana.label }}
+                                <span class="field-hint">Sol Ring, Jeweled Lotus, etc. on turn 1–2</span>
+                            </div>
                         </div>
                         <div class="remove-btn-row">
                             <button type="button" class="remove-player">Remove</button>
@@ -56,71 +62,73 @@
 
         <section class="form-section" id="section-game-info">
             <h2 class="section-header">Game Info</h2>
-            <div class="form-grid">
-                <div class="form-field">
-                    {{ form.winner.label }}
-                    {{ form.winner(class="input-error" if form.winner.errors else "") }}
-                    {% for error in form.winner.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.first.label }}
-                    {{ form.first(class="input-error" if form.first.errors else "") }}
-                    {% for error in form.first.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.date.label }}
-                    {{ form.date(id="date-field", class="input-error" if form.date.errors else "") }}
-                    {% for error in form.date.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.turns.label }}
-                    {{ form.turns(size=5, class="input-error" if form.turns.errors else "") }}
-                    {% for error in form.turns.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.final_blow.label }}
-                    {{ form.final_blow(list="game-condition-list", class="input-error" if form.final_blow.errors else "") }}
-                    <span class="field-hint">Win condition or combo used</span>
-                    {% for error in form.final_blow.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.first_ko_turn.label }}
-                    {{ form.first_ko_turn(size=5, class="input-error" if form.first_ko_turn.errors else "") }}
-                    {% for error in form.first_ko_turn.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.first_ko_by.label }}
-                    {{ form.first_ko_by(list="game-condition-list", class="input-error" if form.first_ko_by.errors else "") }}
-                    <span class="field-hint">Means of first KO (combo, attack, etc.)</span>
-                    {% for error in form.first_ko_by.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.planechase.label }}
-                    {{ form.planechase() }}
-                    {% for error in form.planechase.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                <div class="form-field">
-                    {{ form.cedh.label }}
+
+            <div class="game-info-cedh">
+                <div class="form-field form-field--inline">
                     {{ form.cedh() }}
-                    {% for error in form.cedh.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
+                    {{ form.cedh.label }}
+                </div>
+            </div>
+
+            <div class="game-info-groups">
+                <div class="game-info-group">
+                    <div class="form-field">
+                        {{ form.winner.label }}
+                        {{ form.winner(class="input-error" if form.winner.errors else "") }}
+                        {% for error in form.winner.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.first.label }}
+                        {{ form.first(class="input-error" if form.first.errors else "") }}
+                        {% for error in form.first.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.date.label }}
+                        {{ form.date(id="date-field", class="input-error" if form.date.errors else "") }}
+                        {% for error in form.date.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="game-info-group">
+                    <div class="form-field">
+                        {{ form.turns.label }}
+                        {{ form.turns(size=5, class="input-error" if form.turns.errors else "") }}
+                        {% for error in form.turns.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.final_blow.label }}
+                        {{ form.final_blow(list="game-condition-list", class="input-error" if form.final_blow.errors else "") }}
+                        <span class="field-hint">Win condition or combo used</span>
+                        {% for error in form.final_blow.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="game-info-group">
+                    <div class="form-field">
+                        {{ form.first_ko_turn.label }}
+                        {{ form.first_ko_turn(size=5, class="input-error" if form.first_ko_turn.errors else "") }}
+                        {% for error in form.first_ko_turn.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.first_ko_by.label }}
+                        {{ form.first_ko_by(list="game-condition-list", class="input-error" if form.first_ko_by.errors else "") }}
+                        <span class="field-hint">Means of first KO (combo, attack, etc.)</span>
+                        {% for error in form.first_ko_by.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </section>
@@ -128,60 +136,64 @@
         {% if current_user.username == 'Niklas' %}
         <section class="form-section" id="section-my-game">
             <h2 class="section-header">My Game</h2>
-            <div class="form-grid">
-                <div class="form-field">
-                    {{ form.mulligan.label }}
-                    {{ form.mulligan(size=5, class="input-error" if form.mulligan.errors else "") }}
-                    <span class="field-hint">Number of mulligans (0–7)</span>
-                    {% for error in form.mulligan.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
+
+            <div class="my-game-numbers">
+                <div class="my-game-group">
+                    <div class="form-field">
+                        {{ form.mulligan.label }}
+                        {{ form.mulligan(size=5, class="input-error" if form.mulligan.errors else "") }}
+                        <span class="field-hint">Number of mulligans (0–7)</span>
+                        {% for error in form.mulligan.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.landdrops.label }}
+                        {{ form.landdrops(size=5, class="input-error" if form.landdrops.errors else "") }}
+                        <span class="field-hint">Land drops taken this game</span>
+                        {% for error in form.landdrops.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
                 </div>
-                <div class="form-field">
-                    {{ form.landdrops.label }}
-                    {{ form.landdrops(size=5, class="input-error" if form.landdrops.errors else "") }}
-                    <span class="field-hint">Land drops taken this game</span>
-                    {% for error in form.landdrops.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
+            </div>
+
+            <div class="my-game-checks">
+                <div class="my-game-group">
+                    <div class="form-field form-field--inline">
+                        {{ form.enough_mana() }} {{ form.enough_mana.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.enough_gas() }} {{ form.enough_gas.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.deckplan() }} {{ form.deckplan.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.unanswered_threats() }} {{ form.unanswered_threats.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.fun_moments() }} {{ form.fun_moments.label }}
+                    </div>
                 </div>
-                <div class="form-field">
-                    {{ form.lands.label }}
-                    {{ form.lands(size=5, class="input-error" if form.lands.errors else "") }}
-                    <span class="field-hint">Total lands in hand/play</span>
-                    {% for error in form.lands.errors %}
-                        <span class="field-error">{{ error }}</span>
-                    {% endfor %}
+
+                <div class="my-game-group">
+                    <div class="form-field form-field--inline">
+                        {{ form.loss_without_answer() }} {{ form.loss_without_answer.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.selfmade_win() }} {{ form.selfmade_win.label }}
+                    </div>
                 </div>
+            </div>
+
+            <div class="my-game-comment">
                 <div class="form-field">
                     {{ form.comment.label }}
-                    {{ form.comment(rows=4, cols=50) }}
+                    {{ form.comment(rows=5) }}
                     {% for error in form.comment.errors %}
                         <span class="field-error">{{ error }}</span>
                     {% endfor %}
-                </div>
-            </div>
-            <div class="checklist-grid">
-                <div class="form-field">
-                    {{ form.enough_mana() }} {{ form.enough_mana.label }}
-                </div>
-                <div class="form-field">
-                    {{ form.enough_gas() }} {{ form.enough_gas.label }}
-                </div>
-                <div class="form-field">
-                    {{ form.deckplan() }} {{ form.deckplan.label }}
-                </div>
-                <div class="form-field">
-                    {{ form.unanswered_threats() }} {{ form.unanswered_threats.label }}
-                </div>
-                <div class="form-field">
-                    {{ form.loss_without_answer() }} {{ form.loss_without_answer.label }}
-                </div>
-                <div class="form-field">
-                    {{ form.selfmade_win() }} {{ form.selfmade_win.label }}
-                </div>
-                <div class="form-field">
-                    {{ form.fun_moments() }} {{ form.fun_moments.label }}
                 </div>
             </div>
         </section>

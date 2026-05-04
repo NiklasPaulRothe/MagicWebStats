@@ -22,7 +22,7 @@ def get_player():
 
 def get_decks():
     deck_list = []
-    decks = Deck.query.order_by(desc(Deck.Name)).all()
+    decks = Deck.query.order_by(Deck.Commander).all()
     for deck in decks:
         player = Player.query.filter_by(id = deck.Player).first()
         if deck.Active:
@@ -132,7 +132,7 @@ def game_add():
         game = Game( Date = form.date.data,
                      First_Player = first,
                      Winner = winner,
-                     Planechase = form.planechase.data,
+                     Planechase = False,
                      turns = form.turns.data,
                      final_blow = form.final_blow.data if form.final_blow.data else None,
                      first_ko_turn = form.first_ko_turn.data,

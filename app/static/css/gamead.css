@@ -55,12 +55,35 @@
     border-color: #ff6b6b !important;
 }
 
-/* ── Per-player two-column grid (player | deck) ──────────────────────────── */
+/* ── Per-player block layout ─────────────────────────────────────────────── */
 .player-fields {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #333;
+}
+
+.player-fields:last-of-type {
+    border-bottom: none;
+}
+
+/* ── Player row — full width, prominent ──────────────────────────────────── */
+.player-row .form-field select {
+    font-size: 1.05em;
+    font-weight: bold;
+}
+
+/* ── Deck unit: deck dropdown + borrowed row stacked ─────────────────────── */
+.deck-unit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
 }
 
 /* ── Borrowed checkbox + lender dropdown on the same row ─────────────────── */
@@ -76,24 +99,101 @@
     flex: 1 1 auto;
 }
 
+/* ── Early Fast Mana — its own row, inline label ─────────────────────────── */
+.efm-row {
+    padding: 6px 0;
+}
+
+.form-field--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.form-field--inline .field-hint {
+    flex-basis: 100%;
+    margin-top: 0;
+}
+
 /* ── Lender disabled visual state ────────────────────────────────────────── */
 .lender-disabled {
     opacity: 0.4;
     pointer-events: none;
 }
 
-/* ── Boolean checklist two-column grid ───────────────────────────────────── */
-.checklist-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px 20px;
-    margin-top: 12px;
+/* ── Game Info: cEDH at the top ──────────────────────────────────────────── */
+.game-info-cedh {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #333;
 }
 
-.checklist-grid .form-field {
+/* ── Game Info: three logical groups side by side ────────────────────────── */
+.game-info-groups {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.game-info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 12px;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+}
+
+/* ── Responsive: collapse groups to single column ────────────────────────── */
+@media (max-width: 900px) {
+    .game-info-groups {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── My Game: row 1 — mulligan + lands found ─────────────────────────────── */
+.my-game-numbers {
+    display: flex;
+    margin-bottom: 16px;
+}
+
+.my-game-numbers .my-game-group {
+    display: flex;
     flex-direction: row;
-    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+/* ── My Game: row 2 — two checkbox groups side by side ───────────────────── */
+.my-game-checks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.my-game-group {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
+    padding: 10px 12px;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+}
+
+/* ── My Game: comment — full width, generous height ──────────────────────── */
+.my-game-comment textarea {
+    width: 100%;
+    min-height: 100px;
+    resize: vertical;
+    font-size: inherit;
+    font-family: inherit;
+    line-height: 1.5;
+    padding: 6px 8px;
+    box-sizing: border-box;
 }
 
 /* ── Disabled button state ───────────────────────────────────────────────── */
@@ -102,20 +202,14 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* ── Responsive: 768px — collapse form-grid and player-fields ────────────── */
+/* ── Responsive: collapse my-game rows and form-grid ────────────────────── */
 @media (max-width: 768px) {
+    .my-game-checks {
+        grid-template-columns: 1fr;
+    }
+
     .form-grid {
         grid-template-columns: 1fr;
     }
-
-    .player-fields {
-        grid-template-columns: 1fr;
-    }
 }
 
-/* ── Responsive: 600px — collapse checklist-grid ─────────────────────────── */
-@media (max-width: 600px) {
-    .checklist-grid {
-        grid-template-columns: 1fr;
-    }
-}

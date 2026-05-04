@@ -101,28 +101,34 @@ document.addEventListener('DOMContentLoaded', function () {
             const playerWrapper = document.createElement('div');
             playerWrapper.classList.add('field-list-item', 'player-fields');
             playerWrapper.innerHTML = `
-                <div class="form-field">
-                    <label for="players-${playerIndex}-player">Player</label>
-                    <select name="players-${playerIndex}-player" id="players-${playerIndex}-player"></select>
-                </div>
-                <div class="form-field">
-                    <label for="players-${playerIndex}-deck">Deck</label>
-                    <select name="players-${playerIndex}-deck" id="players-${playerIndex}-deck"></select>
-                </div>
-                <div class="borrowed-row">
+                <div class="player-row">
                     <div class="form-field">
-                        <label for="players-${playerIndex}-borrowed">Borrowed</label>
-                        <input type="checkbox" name="players-${playerIndex}-borrowed" id="players-${playerIndex}-borrowed">
-                    </div>
-                    <div class="form-field">
-                        <label for="players-${playerIndex}-lender">Geliehen von</label>
-                        <select name="players-${playerIndex}-lender" id="players-${playerIndex}-lender" class="lender-disabled" disabled></select>
+                        <label for="players-${playerIndex}-player">Player</label>
+                        <select name="players-${playerIndex}-player" id="players-${playerIndex}-player"></select>
                     </div>
                 </div>
-                <div class="form-field">
-                    <label for="players-${playerIndex}-early_fast_mana">Early Fast Mana</label>
-                    <input type="checkbox" name="players-${playerIndex}-early_fast_mana" id="players-${playerIndex}-early_fast_mana">
-                    <span class="field-hint">Sol Ring, Jeweled Lotus, etc. on turn 1–2</span>
+                <div class="deck-unit">
+                    <div class="form-field">
+                        <label for="players-${playerIndex}-deck">Deck</label>
+                        <select name="players-${playerIndex}-deck" id="players-${playerIndex}-deck"></select>
+                    </div>
+                    <div class="borrowed-row">
+                        <div class="form-field">
+                            <label for="players-${playerIndex}-borrowed">Borrowed</label>
+                            <input type="checkbox" name="players-${playerIndex}-borrowed" id="players-${playerIndex}-borrowed">
+                        </div>
+                        <div class="form-field">
+                            <label for="players-${playerIndex}-lender">Geliehen von</label>
+                            <select name="players-${playerIndex}-lender" id="players-${playerIndex}-lender" class="lender-disabled" disabled></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="efm-row">
+                    <div class="form-field form-field--inline">
+                        <input type="checkbox" name="players-${playerIndex}-early_fast_mana" id="players-${playerIndex}-early_fast_mana">
+                        <label for="players-${playerIndex}-early_fast_mana">Early Fast Mana</label>
+                        <span class="field-hint">Sol Ring, Jeweled Lotus, etc. on turn 1–2</span>
+                    </div>
                 </div>
                 <div class="remove-btn-row">
                     <button type="button" class="remove-player">Remove</button>

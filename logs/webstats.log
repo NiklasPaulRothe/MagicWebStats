@@ -167,3 +167,8 @@ WHERE data_owner."user".id = %(pk_1)s]
 [parameters: {'pk_1': 1}]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 2026-05-04 20:53:52,038 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-04 22:57:10,498 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-04 23:05:55,556 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-04 23:09:03,080 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-04 23:12:08,731 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-04 23:13:19,357 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
