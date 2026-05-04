@@ -14,7 +14,9 @@ def data():
     results = db.session.execute(text(''' SELECT "Name" AS name,
     ( SELECT count(*) AS count
            FROM data_owner."Participants"
-          WHERE "Participants".player_id = "Player".id) AS games,
+        LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+          WHERE "Participants".player_id = "Player".id
+          AND "Games".cedh = False) AS games,
     ( SELECT count(*) AS count
            FROM data_owner."Participants"
           WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true) AS "early_sol_ring",
@@ -26,19 +28,23 @@ def data():
                   WHERE "Participants".player_id = "Player".id AND "Games"."Date" > '2024-04-19'::date), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "Sol Ring (in%)",
     ( SELECT count(*) AS count
            FROM data_owner."Games"
-          WHERE "Games"."Winner" = "Player".id) AS winner,
+          WHERE "Games"."Winner" = "Player".id
+          AND "Games".cedh = False) AS winner,
     ( SELECT COALESCE((( SELECT count(*)::double precision AS count
                    FROM data_owner."Games"
-                  WHERE "Games"."Winner" = "Player".id)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
+                  WHERE "Games"."Winner" = "Player".id
+          AND "Games".cedh = False)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
                    FROM data_owner."Participants"
                    LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
                   WHERE "Participants".player_id = "Player".id), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "winrate (in%)",
     ( SELECT count(*) AS count
            FROM data_owner."Games"
-          WHERE "Games"."First_Player" = "Player".id) AS first,
+          WHERE "Games"."First_Player" = "Player".id
+          AND "Games".cedh = False) AS first,
     (SELECT COALESCE((( SELECT count(*)::double precision AS count
            FROM data_owner."Games"
-          WHERE "Games"."First_Player" = "Player".id)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
+          WHERE "Games"."First_Player" = "Player".id
+          AND "Games".cedh = False)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
            FROM data_owner."Participants"
           WHERE "Participants".player_id = "Player".id), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "first (in%)"
    FROM data_owner."Player"
@@ -67,27 +73,32 @@ def color_data():
            FROM data_owner."Participants"
              LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
              LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name") AS games,
+          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"
+          AND "Decks".cedh = False) AS games,
     ( SELECT count(*) AS count
            FROM data_owner."Participants"
              LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
              LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Decks"."Color_Identity" = "Color_Identities"."Name") AS wins,
+          WHERE "Games"."Winner" = "Participants".player_id AND "Decks"."Color_Identity" = "Color_Identities"."Name"
+          AND "Decks".cedh = False) AS wins,
     ((( SELECT count(*) AS count
            FROM data_owner."Participants"
              LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
              LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Decks"."Color_Identity" = "Color_Identities"."Name"))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
+          WHERE "Games"."Winner" = "Participants".player_id AND "Decks"."Color_Identity" = "Color_Identities"."Name"
+          AND "Decks".cedh = False))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
            FROM data_owner."Participants"
              LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
              LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"), 0)::double precision)::numeric(10,2) AS "winrate (in%)"
+          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"
+          AND "Decks".cedh = False), 0)::double precision)::numeric(10,2) AS "winrate (in%)"
    FROM data_owner."Color_Identities"
   WHERE NULLIF(( SELECT count(*) AS count
            FROM data_owner."Participants"
              LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
              LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"), 0)::numeric(10,2) IS NOT NULL;'''))
+          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"
+          AND "Decks".cedh = False), 0)::numeric(10,2) IS NOT NULL;'''))
 
     list = []
     for entry in results:
