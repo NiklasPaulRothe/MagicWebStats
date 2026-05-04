@@ -15,5 +15,7 @@ __pycache__
 
 .env
 app/logs/
+logs/
 files/
 logs/webstats.log
+.kiro/
