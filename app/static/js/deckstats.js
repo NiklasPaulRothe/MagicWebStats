@@ -122,6 +122,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (key === 'Spieler'){
                     return `<td><a id="${item[key]}-link" href="/player/${item[key]}">${item[key] || ''}</a></td>`
                 }
+                if (key === 'Farbe') {
+                    const name = item['Farbe'] || '';
+                    const imgs = Array.isArray(item['ColorImgs']) ? item['ColorImgs'] : [];
+                    const icons = imgs.map(src => `<img src="${src}" class="color-icon">`).join('');
+                    return `<td><div class="color-identity-cell">${icons ? `<span class="color-icons">${icons}</span>` : ''}<span class="color-identity-name">${name}</span></div></td>`;
+                }
+                if (key === 'WTurns') {
+                    const avg = item['WTurns'];
+                    const count = item['WTurnsCount'];
+                    if (!count) return `<td></td>`;
+                    return `<td>${avg} <small style="color:#aaa">(${count})</small></td>`;
+                }
                 return `<td>${item[key] || ''}</td>`;
             }).join('');
             tbody.appendChild(row);

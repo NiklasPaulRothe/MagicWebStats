@@ -56,6 +56,7 @@ class Color(db.Model):
     __table_args__ = {'schema': 'data_owner'}
     Name = db.Column(db.String, primary_key=True)
     abbreviation = db.Column(db.String, nullable=False)
+    img = db.Column(db.String)
 
 class Deck(db.Model):
     __tablename__ = 'Decks'

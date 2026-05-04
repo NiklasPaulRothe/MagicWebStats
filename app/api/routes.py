@@ -134,8 +134,18 @@ def deck_data():
            FROM data_owner."Games"
              LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
           WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id),
+    (SELECT count(*) AS count
+           FROM data_owner."Games"
+             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
+          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id
+            AND "Games".turns IS NOT NULL),
     "Decks".decklist AS decklist,
-    "Decks".elo_rating AS elo
+    "Decks".elo_rating AS elo,
+    (SELECT array_agg(c.img ORDER BY c."Name")
+           FROM data_owner.color_components cc
+             JOIN data_owner."Colors" c ON c."Name" = cc.color
+          WHERE cc.color_identity = "Decks"."Color_Identity"
+            AND c.img IS NOT NULL) AS color_imgs
    FROM data_owner."Decks",
     data_owner."Player"
   WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
@@ -144,7 +154,7 @@ def deck_data():
     list = []
     for entry in results:
         dict = {"Deckname": [], "Spieler": [], "Commander": [], "Farbe": [], "Spiele": [], "Siege": [],
-                "Winrate (in %)": [], "WTurns":[], "Decklist": [], "elo": []}
+                "Winrate (in %)": [], "WTurns":[], "WTurnsCount": [], "Decklist": [], "elo": [], "ColorImgs": None}
         dict["Deckname"].append(entry[0])
         dict["Spieler"].append(entry[1])
         dict["Commander"].append(entry[2])
@@ -156,8 +166,10 @@ def deck_data():
         else:
             dict["Winrate (in %)"].append("-")
         dict["WTurns"].append(entry[7])
-        dict["Decklist"].append(entry[8])
-        dict["elo"].append(entry[9])
+        dict["WTurnsCount"].append(entry[8])
+        dict["Decklist"].append(entry[9])
+        dict["elo"].append(entry[10])
+        dict["ColorImgs"] = entry[11] or []
         list.append(dict)
 
     return jsonify(list)

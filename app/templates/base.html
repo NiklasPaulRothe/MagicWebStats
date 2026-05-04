@@ -11,15 +11,9 @@
         <nav>
             <ul>
                 <li><a href="{{ url_for('main.index') }}">Home</a></li>
-                <li>
-                    <a href="javascript:void(0)">Stats</a>
-                    <div class="dropdown-content">
-                        <a href="{{ url_for('stats.playerstats') }}">Player</a>
-                        <a href="{{ url_for('stats.colorstats') }}">Color</a>
-                        <a href="{{ url_for('stats.deckstats') }}">Deck</a>
-                    </div>
-                </li>
-                <li><a href="{{ url_for('cards.card_meta') }}">Kartenmeta</a></li>
+                <li><a href="{{ url_for('stats.playerstats') }}">Player</a></li>
+                <li><a href="{{ url_for('stats.colorstats') }}">Color</a></li>
+                <li><a href="{{ url_for('stats.deckstats') }}">Deck</a></li>
                 <li>
                     <a href="javascript:void(0)">Add</a>
                     <div class="dropdown-content">
