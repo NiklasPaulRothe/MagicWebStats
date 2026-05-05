@@ -1,17 +1,74 @@
 {% extends "base.html" %}
 
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">{% endblock %}
+
 {% block content %}
-    <h1>{{ deckname }}</h1>
-    <form action="" method="post">
-        {{ form.hidden_tag() }}
+    <h1 style="margin-bottom: 5px;">{{ deckname }}</h1>
+    <p style="color: #f4c430; font-size: 0.9em; margin-top: 0; margin-bottom: 30px;">
+        Version {{ current_version }}
+    </p>
+    
+    <div style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;">
+        <!-- Main Edit Form -->
+        <div style="flex: 1; min-width: 300px;">
+            <form action="" method="post">
+                {{ form.hidden_tag() }}
 
-        <p>{{ form.name.label }} {{ form.name() }}</p>
-            {% for error in form.name.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        <p>{{ form.decklist.label }} {{ form.decklist() }}</p>
-        <p>{{ form.archive.label }} {{ form.archive }}</p>
+                <p>{{ form.name.label }} {{ form.name() }}</p>
+                    {% for error in form.name.errors %}
+                    <span style="color: red;">[{{ error }}]</span>
+                    {% endfor %}
+                <p>{{ form.decklist.label }} {{ form.decklist() }}</p>
 
-        <p>{{ form.submit }}</p>
-    </form>
+                <p style="margin-top: 20px;">{{ form.submit }}</p>
+            </form>
+        </div>
+
+        <!-- Deck Actions Box -->
+        <div class="form-section" style="flex: 0 0 auto; min-width: 250px;">
+            <h2 class="section-header">Deck Actions</h2>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <form action="" method="post" style="display: inline;">
+                    {{ form.hidden_tag() }}
+                    {{ form.archive_button(class="btn-danger", style="background-color: #dc3545; border-color: #dc3545; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;") }}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section" style="margin-top: 30px;">
+        <h2 class="section-header" style="display: flex; align-items: center; gap: 8px;">
+            Version Update
+            <span class="info-icon" style="position: relative; display: inline-block;">
+                <span style="display: inline-block; width: 18px; height: 18px; border-radius: 50%; background-color: #f4c430; color: #1e1e1e; text-align: center; line-height: 18px; font-size: 12px; font-weight: bold; cursor: pointer;">?</span>
+                <span class="info-tooltip" style="visibility: hidden; opacity: 0; position: absolute; left: 25px; top: -10px; background-color: #2a2a2a; color: #f4c430; padding: 8px 10px; border-radius: 4px; border: 1px solid #f4c430; width: 250px; font-size: 0.75em; font-weight: normal; line-height: 1.4; z-index: 1000; transition: opacity 0.3s, visibility 0.3s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); white-space: normal;">
+                    <strong>Version Update Erklärung:</strong><br><br>
+                    <strong>Deck Reworked:</strong> Erhöht die Hauptversion (X.0.0). Gedacht für konzeptuelle Überarbeitungen des Decks oder Powerlevel Changes.<br><br>
+                    <strong>Deck Patched:</strong> Erhöht die Patch-Version (X.Y.0). Gedacht für Anpassungen die Probleme des Decks beheben oder insgesamt merkliche Changes ohne das Deck konzeptuell zu verändern.<br><br>
+                    <strong>Deck Changed:</strong> Erhöht die Change-Version (X.Y.Z). Gedacht für einzelne getauschte Karten z.B. durch neue Sets.
+                </span>
+            </span>
+        </h2>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <form action="" method="post" style="display: inline;">
+                {{ form.hidden_tag() }}
+                {{ form.version_reworked(class="btn") }}
+            </form>
+            <form action="" method="post" style="display: inline;">
+                {{ form.hidden_tag() }}
+                {{ form.version_patched(class="btn") }}
+            </form>
+            <form action="" method="post" style="display: inline;">
+                {{ form.hidden_tag() }}
+                {{ form.version_changed(class="btn") }}
+            </form>
+        </div>
+    </div>
+    
+    <style>
+        .info-icon:hover .info-tooltip {
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
 {%  endblock %}

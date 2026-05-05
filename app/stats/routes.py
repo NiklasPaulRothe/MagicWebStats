@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date
-from sqlalchemy import literal, and_
+from sqlalchemy import literal, and_, func
 
 from app import db
 from app.stats import bp
@@ -392,7 +392,13 @@ def deck_add():
             Color_Identity = form.color_identity.data,
             Partner = partner,
             image_uri = img,
-            cedh = form.cedh.data
+            cedh = form.cedh.data,
+            Version = 1,
+            patch = 0,
+            change = 0,
+            Last_Rework = func.current_date(),
+            last_patch = func.current_date(),
+            Last_Change = func.current_date()
         )
         db.session.add(deck)
         db.session.commit()

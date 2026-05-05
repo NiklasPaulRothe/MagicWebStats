@@ -26,32 +26,66 @@ def deck_edit(deckname):
 
     deckname = deckname + " (" + deck.Commander + ")"
 
+    # Handle version updates without full form validation
+    if request.method == 'POST':
+        if form.archive_button.data:
+            deck.Active = False
+            db.session.commit()
+            flash(f'Deck "{deck.Name}" wurde archiviert')
+            return redirect(url_for('main.user', spieler=current_user.username))
+        
+        elif form.version_changed.data:
+            deck.change += 1
+            deck.Last_Change = func.current_date()
+            db.session.commit()
+            flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
+            return redirect(url_for('main.user', spieler=current_user.username))
+        
+        elif form.version_patched.data:
+            deck.patch += 1
+            deck.change = 0
+            deck.last_patch = func.current_date()
+            db.session.commit()
+            flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
+            return redirect(url_for('main.user', spieler=current_user.username))
+        
+        elif form.version_reworked.data:
+            deck.Version += 1
+            deck.patch = 0
+            deck.change = 0
+            deck.Last_Rework = func.current_date()
+            db.session.commit()
+            flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
+            return redirect(url_for('main.user', spieler=current_user.username))
+
     if not form.validate_on_submit():
         print(form.errors)
 
     if form.validate_on_submit():
-        deck.Name = form.name.data
-        deck.Active = not form.archive.data
-        db.session.commit()
-        if (form.decklist.data != ""):
-            deck.decklist = form.decklist.data
-            deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
-            deck.decksite = deckbuilder[0].strip()
-            deck.archidekt_id = deckbuilder[1].strip()
+            deck.Name = form.name.data
             db.session.commit()
-            try:
-                load_cards_from_archidekt(deck.archidekt_id, deck.id)
+            if (form.decklist.data != ""):
+                deck.decklist = form.decklist.data
+                deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
+                deck.decksite = deckbuilder[0].strip()
+                deck.archidekt_id = deckbuilder[1].strip()
                 db.session.commit()
-            except:
-                flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
-                db.session.rollback()
-        return redirect(url_for('main.user', spieler=current_user.username))
+                try:
+                    load_cards_from_archidekt(deck.archidekt_id, deck.id)
+                    db.session.commit()
+                except:
+                    flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
+                    db.session.rollback()
+            return redirect(url_for('main.user', spieler=current_user.username))
+    
     form.name.default = deck.Name
     form.decklist.default = deck.decklist
     form.current_name.default = deck.Name
     form.process()
 
-    return render_template('decks/edit.html', form=form, deckname=deckname)
+    current_version = f"{deck.Version}.{deck.patch}.{deck.change}"
+
+    return render_template('decks/edit.html', form=form, deckname=deckname, current_version=current_version)
 
 @bp.route('/choose_image/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
@@ -282,6 +316,7 @@ def deck_show(deckname):
     return render_template(
         'decks/show.html',
         deckname=deck.Name,
+        deck_version=f"{deck.Version}.{deck.patch}.{deck.change}",
         commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
         deck_stats=deck_stats,

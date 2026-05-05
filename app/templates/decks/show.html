@@ -13,7 +13,10 @@
 {% block content %}
 <main class="deck-container">
 
-    <h1>{{ deckname }}</h1>
+    <h1 style="margin-bottom: 5px;">{{ deckname }}</h1>
+    <p style="color: #f4c430; font-size: 0.9em; margin-top: 0; margin-bottom: 20px;">
+        Version {{ deck_version }}
+    </p>
     <!-- Non-intrusive controls above the header content -->
     <div class="deck-header-controls">
         <button type="button" id="btn-mode-stats" class="btn small primary">Stats</button>

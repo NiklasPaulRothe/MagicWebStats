@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">{% endblock %}
+
 {% block content %}
     <main>
         <h1>{{ spieler.Name }} Deckübersicht</h1>
@@ -51,7 +53,7 @@
                     row.innerHTML = Array.from(headers).map(header => {
                         if (header.textContent.trim() == ''){
                             let URL= encode(Deck)
-                            return `<td><a id="${Deck}-link" href="/decks/edit/${URL}">Bearbeiten</a></td>`
+                            return `<td><a id="${Deck}-link" href="/decks/edit/${URL}" class="btn">Bearbeiten</a></td>`
                         }
                         const key = header.textContent.trim();
                         if (key == 'Name') {

@@ -11,8 +11,11 @@ class DeckEditForm(FlaskForm):
     current_name = HiddenField()
     name = StringField('Name', validators=[DataRequired()])
     decklist = StringField('Link', validators=[Optional()])
-    archive = BooleanField('Archivieren', default=False)
     submit = SubmitField('Deck ändern')
+    archive_button = SubmitField('Archivieren')
+    version_changed = SubmitField('Deck Changed')
+    version_patched = SubmitField('Deck Patched')
+    version_reworked = SubmitField('Deck Reworked')
 
     def validate_name(self, name):
         deckname = db.session.scalar(sa.select(Deck).where(

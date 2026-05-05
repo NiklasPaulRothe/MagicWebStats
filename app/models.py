@@ -77,6 +77,9 @@ class Deck(db.Model):
     Last_Change = db.Column(db.Date, default=sa.func.current_date())
     last_patch = db.Column(db.Date, default=sa.func.current_date())
     cedh = db.Column(db.Boolean, default=False)
+    Version = db.Column(db.Integer, default=0)
+    patch = db.Column(db.Integer, default=0)
+    change = db.Column(db.Integer, default=0)
 
 class Game(db.Model):
     __tablename__ = 'Games'
