@@ -12,20 +12,143 @@ function add_player_list(player_id, players) {
 }
 
 function add_deck_list(player_id, decks) {
-    const dropdown = document.getElementById("players-" + player_id + "-deck");
-    dropdown.innerHTML = "";
     const isBorrowed = document.getElementById("players-" + player_id + "-borrowed").checked;
     const selectedName = isBorrowed
         ? document.getElementById("players-" + player_id + "-lender").value
         : document.getElementById("players-" + player_id + "-player").value;
 
-    decks.forEach(deck => {
-        if (deck[2] === selectedName) {
-            const option = new Option(`${deck[0]} (${deck[1]})`, `${deck[0]} (${deck[1]})`);
-            dropdown.add(option);
+    const filteredDecks = decks.filter(deck => deck[2] === selectedName);
+    buildDeckWidget(player_id, filteredDecks);
+}
+
+/**
+ * Builds a collapsed custom dropdown for deck selection.
+ * The native <select> stays hidden so form submission still works.
+ */
+function buildDeckWidget(player_id, filteredDecks) {
+    const hiddenSelect = document.getElementById("players-" + player_id + "-deck");
+    hiddenSelect.innerHTML = "";
+    filteredDecks.forEach(deck => {
+        const val = `${deck[0]} (${deck[1]})`;
+        hiddenSelect.add(new Option(val, val));
+    });
+
+    const wrapper = hiddenSelect.closest('.deck-select-wrapper');
+    if (!wrapper) return;
+
+    // Remove any existing widget so we start fresh on player/lender change
+    const existing = wrapper.querySelector('.deck-custom-select');
+    if (existing) existing.remove();
+
+    const widget = document.createElement('div');
+    widget.className = 'deck-custom-select';
+    wrapper.appendChild(widget);
+
+    // ── Trigger (always visible, shows current selection) ──────────────────
+    const trigger = document.createElement('div');
+    trigger.className = 'deck-trigger';
+
+    const triggerName = document.createElement('span');
+    triggerName.className = 'deck-option__name';
+
+    const triggerCmd = document.createElement('span');
+    triggerCmd.className = 'deck-option__commander';
+
+    const arrow = document.createElement('span');
+    arrow.className = 'deck-trigger__arrow';
+    arrow.textContent = '▾';
+
+    trigger.appendChild(triggerName);
+    trigger.appendChild(triggerCmd);
+    trigger.appendChild(arrow);
+    widget.appendChild(trigger);
+
+    // ── Dropdown list (hidden by default) ──────────────────────────────────
+    const list = document.createElement('div');
+    list.className = 'deck-dropdown-list';
+    widget.appendChild(list);
+
+    function setSelected(deck) {
+        triggerName.textContent = deck ? deck[0] : '— no decks —';
+        triggerCmd.textContent = deck ? deck[1] : '';
+        if (deck) {
+            hiddenSelect.value = `${deck[0]} (${deck[1]})`;
+        }
+        list.querySelectorAll('.deck-option').forEach(el => {
+            el.classList.toggle('deck-option--selected',
+                el.dataset.value === hiddenSelect.value);
+        });
+    }
+
+    function closeList() {
+        list.classList.remove('deck-dropdown-list--open');
+        arrow.textContent = '▾';
+    }
+
+    function openList() {
+        list.classList.add('deck-dropdown-list--open');
+        arrow.textContent = '▴';
+    }
+
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (list.classList.contains('deck-dropdown-list--open')) {
+            closeList();
+        } else {
+            // Close any other open deck dropdowns on the page
+            document.querySelectorAll('.deck-dropdown-list--open').forEach(el => {
+                el.classList.remove('deck-dropdown-list--open');
+                el.closest('.deck-custom-select')
+                  .querySelector('.deck-trigger__arrow').textContent = '▾';
+            });
+            openList();
         }
     });
+
+    if (filteredDecks.length === 0) {
+        triggerName.textContent = '— no decks —';
+        triggerCmd.textContent = '';
+        trigger.style.cursor = 'default';
+        return;
+    }
+
+    filteredDecks.forEach((deck) => {
+        const item = document.createElement('div');
+        item.className = 'deck-option';
+        item.dataset.value = `${deck[0]} (${deck[1]})`;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'deck-option__name';
+        nameSpan.textContent = deck[0];
+
+        const cmdSpan = document.createElement('span');
+        cmdSpan.className = 'deck-option__commander';
+        cmdSpan.textContent = deck[1];
+
+        item.appendChild(nameSpan);
+        item.appendChild(cmdSpan);
+
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setSelected(deck);
+            closeList();
+        });
+
+        list.appendChild(item);
+    });
+
+    // Default to first deck
+    setSelected(filteredDecks[0]);
 }
+
+// Close any open deck dropdown when clicking elsewhere
+document.addEventListener('click', () => {
+    document.querySelectorAll('.deck-dropdown-list--open').forEach(el => {
+        el.classList.remove('deck-dropdown-list--open');
+        el.closest('.deck-custom-select')
+          .querySelector('.deck-trigger__arrow').textContent = '▾';
+    });
+});
 
 document.addEventListener('DOMContentLoaded', function () {
     const dateInput = document.getElementById('date-field');
@@ -110,7 +233,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="deck-unit">
                     <div class="form-field">
                         <label for="players-${playerIndex}-deck">Deck</label>
-                        <select name="players-${playerIndex}-deck" id="players-${playerIndex}-deck"></select>
+                        <div class="deck-select-wrapper">
+                            <select name="players-${playerIndex}-deck" id="players-${playerIndex}-deck" style="display:none"></select>
+                        </div>
                     </div>
                     <div class="borrowed-row">
                         <div class="form-field">

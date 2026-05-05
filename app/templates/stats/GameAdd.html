@@ -25,7 +25,9 @@
                         <div class="deck-unit">
                             <div class="form-field">
                                 {{ player_form.deck.label }}
-                                {{ player_form.deck() }}
+                                <div class="deck-select-wrapper">
+                                    {{ player_form.deck(style="display:none") }}
+                                </div>
                             </div>
                             <div class="borrowed-row">
                                 <div class="form-field">

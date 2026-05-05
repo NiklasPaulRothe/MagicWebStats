@@ -221,3 +221,108 @@ button:disabled {
     }
 }
 
+
+/* ── Custom deck selector widget ─────────────────────────────────────────── */
+.deck-select-wrapper {
+    position: relative;
+}
+
+.deck-custom-select {
+    position: relative;
+    width: 100%;
+    user-select: none;
+}
+
+/* ── Trigger — the always-visible collapsed row ──────────────────────────── */
+.deck-trigger {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 28px 7px 10px;
+    background-color: #1e1e1e;
+    border: 1px solid #f4c430;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.15s ease;
+}
+
+.deck-trigger:hover {
+    background-color: #2a2a2a;
+}
+
+.deck-trigger__arrow {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #f4c430;
+    font-size: 0.85em;
+    pointer-events: none;
+}
+
+/* ── Dropdown list — hidden until open ───────────────────────────────────── */
+.deck-dropdown-list {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    background-color: #1e1e1e;
+    border: 1px solid #f4c430;
+    border-radius: 4px;
+    z-index: 200;
+    max-height: 260px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.deck-dropdown-list--open {
+    display: block;
+}
+
+/* ── Individual option row ───────────────────────────────────────────────── */
+.deck-option {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #2e2e2e;
+    transition: background-color 0.15s ease;
+}
+
+.deck-option:last-child {
+    border-bottom: none;
+}
+
+.deck-option:hover {
+    background-color: #2a2a2a;
+}
+
+.deck-option--selected {
+    background-color: #252525;
+    outline: 2px solid #f4c430;
+    outline-offset: -2px;
+}
+
+/* ── Text inside trigger and options ─────────────────────────────────────── */
+.deck-option__name,
+.deck-trigger .deck-option__name {
+    color: antiquewhite;
+    font-size: 0.9em;
+}
+
+.deck-option__commander,
+.deck-trigger .deck-option__commander {
+    color: #f4c430;
+    font-weight: bold;
+    font-size: 0.95em;
+}
+
+.deck-option--empty {
+    color: #666;
+    font-style: italic;
+    cursor: default;
+    padding: 8px 10px;
+}
