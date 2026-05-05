@@ -326,3 +326,155 @@ button:disabled {
     cursor: default;
     padding: 8px 10px;
 }
+
+/* ── Hub page styles ─────────────────────────────────────────────────────── */
+
+/* Hub actions — three Add buttons in a row */
+.hub-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Base button styles (global, reusable) */
+.btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid #f4c430;
+    background-color: transparent;
+    color: #f4c430;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background-color: #f4c430;
+    color: #1e1e1e;
+}
+
+.btn.primary {
+    background-color: #f4c430;
+    color: #1e1e1e;
+}
+
+.btn.primary:hover {
+    background-color: #d4a420;
+}
+
+/* Danger button variant — red for Delete */
+.btn-danger {
+    background-color: #8b0000;
+    border-color: #ff4444;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #a00000;
+    border-color: #ff6666;
+}
+
+/* Games table — full-width, styled header, alternating rows */
+.deck-games-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.deck-games-table th {
+    background-color: #111;
+    color: #f4c430;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 2px solid #f4c430;
+}
+
+.deck-games-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #333;
+    vertical-align: middle;
+}
+
+.deck-games-table tr:nth-child(even) {
+    background-color: #282c34;
+}
+
+.deck-games-table tr:nth-child(odd) {
+    background-color: #1e1e1e;
+}
+
+/* Opponent row — flex container for deck cards in Decks column */
+.opponent-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+/* Individual opponent card — commander image + deck name stacked */
+.opponent-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    text-align: center;
+}
+
+.opponent-commander-img {
+    width: 80px;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid #f4c430;
+    margin-bottom: 6px;
+}
+
+.opponent-info {
+    font-size: 12px;
+    color: antiquewhite;
+}
+
+/* Pagination controls — centered, flex row */
+.pagination {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    padding: 12px 0;
+}
+
+.pagination a {
+    color: #f4c430;
+    text-decoration: none;
+    padding: 6px 12px;
+    border: 1px solid #f4c430;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.pagination a:hover {
+    background-color: #f4c430;
+    color: #1e1e1e;
+}
+
+.pagination span {
+    color: antiquewhite;
+    font-size: 14px;
+}
+
+/* Read-only player name in edit form */
+.readonly-player {
+    display: inline-block;
+    padding: 6px 8px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #aaa;
+    font-style: italic;
+}

@@ -91,7 +91,7 @@ class Game(db.Model):
     first_ko_turn = db.Column(db.Integer)
     first_ko_by = db.Column(db.String)
     cedh = db.Column(db.Boolean, default=False)
-    added_by = db.Column(db.Integer, db.ForeignKey('data_owner.User.id'))
+    added_by = db.Column(db.Integer)
 
 class Participant(db.Model):
     __tablename__ = 'Participants'
@@ -100,8 +100,6 @@ class Participant(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey('data_owner.Player.id'), primary_key=True)
     deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
     early_sol_ring = db.Column(db.Boolean, nullable=False, default=False)
-    fun = db.Column(db.Integer)
-    performance = db.Column(db.Integer)
     mulligans = db.Column(db.Integer)
     comments = db.Column(db.String)
     landdrops = db.Column(db.Integer)

@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">{% endblock %}
+
+{% block content %}
+    <h1>Edit Game</h1>
+    <form method="post">
+        {{ form.hidden_tag() }}
+
+        <section class="form-section" id="section-players">
+            <h2 class="section-header">Players</h2>
+            <div id="players-fields">
+                {% for pf in form.participants %}
+                    <div class="field-list-item player-fields">
+                        <div class="player-row">
+                            <div class="form-field">
+                                <label>Player</label>
+                                <span class="readonly-player">{{ pf.player_name.data }}</span>
+                                {{ pf.player_id() }}
+                            </div>
+                        </div>
+                        <div class="deck-unit">
+                            <div class="form-field">
+                                {{ pf.deck.label }}
+                                <div class="deck-select-wrapper">
+                                    {{ pf.deck(style="display:none") }}
+                                </div>
+                            </div>
+                            <div class="borrowed-row">
+                                <div class="form-field">
+                                    {{ pf.borrowed.label }}
+                                    {{ pf.borrowed() }}
+                                </div>
+                                <div class="form-field">
+                                    {{ pf.lender.label }}
+                                    {{ pf.lender(class="lender-disabled" if not pf.borrowed.data else "", disabled=not pf.borrowed.data) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="efm-row">
+                            <div class="form-field form-field--inline">
+                                {{ pf.early_fast_mana() }}
+                                {{ pf.early_fast_mana.label }}
+                                <span class="field-hint">Sol Ring oder ähnliches in Turn 1-2</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <datalist id="game-condition-list">
+            {% for value in game_condition_suggestions %}
+                <option value="{{ value }}">
+            {% endfor %}
+        </datalist>
+
+        <section class="form-section" id="section-game-info">
+            <h2 class="section-header">Game Info</h2>
+
+            <div class="game-info-cedh">
+                <div class="form-field form-field--inline">
+                    {{ form.cedh() }}
+                    {{ form.cedh.label }}
+                </div>
+            </div>
+
+            <div class="game-info-groups">
+                <div class="game-info-group">
+                    <div class="form-field">
+                        {{ form.winner.label }}
+                        {{ form.winner(class="input-error" if form.winner.errors else "") }}
+                        {% for error in form.winner.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.first.label }}
+                        {{ form.first(class="input-error" if form.first.errors else "") }}
+                        {% for error in form.first.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.date.label }}
+                        {{ form.date(id="date-field", class="input-error" if form.date.errors else "") }}
+                        {% for error in form.date.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="game-info-group">
+                    <div class="form-field">
+                        {{ form.turns.label }}
+                        {{ form.turns(size=5, class="input-error" if form.turns.errors else "") }}
+                        {% for error in form.turns.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.final_blow.label }}
+                        {{ form.final_blow(list="game-condition-list", class="input-error" if form.final_blow.errors else "") }}
+                        <span class="field-hint">Win condition or combo used</span>
+                        {% for error in form.final_blow.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="game-info-group">
+                    <div class="form-field">
+                        {{ form.first_ko_turn.label }}
+                        {{ form.first_ko_turn(size=5, class="input-error" if form.first_ko_turn.errors else "") }}
+                        {% for error in form.first_ko_turn.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.first_ko_by.label }}
+                        {{ form.first_ko_by(list="game-condition-list", class="input-error" if form.first_ko_by.errors else "") }}
+                        <span class="field-hint">Means of first KO (combo, attack, etc.)</span>
+                        {% for error in form.first_ko_by.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {% if current_user.username == 'Niklas' and niklas_is_participant %}
+        <section class="form-section" id="section-my-game">
+            <h2 class="section-header">My Game</h2>
+
+            <div class="my-game-numbers">
+                <div class="my-game-group">
+                    <div class="form-field">
+                        {{ form.my_game.mulligans.label }}
+                        {{ form.my_game.mulligans(size=5, class="input-error" if form.my_game.mulligans.errors else "") }}
+                        <span class="field-hint">Number of mulligans (0–7)</span>
+                        {% for error in form.my_game.mulligans.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="form-field">
+                        {{ form.my_game.landdrops.label }}
+                        {{ form.my_game.landdrops(size=5, class="input-error" if form.my_game.landdrops.errors else "") }}
+                        <span class="field-hint">Land drops taken this game</span>
+                        {% for error in form.my_game.landdrops.errors %}
+                            <span class="field-error">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="my-game-checks">
+                <div class="my-game-group">
+                    <div class="form-field form-field--inline">
+                        {{ form.my_game.enough_mana() }} {{ form.my_game.enough_mana.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.my_game.enough_gas() }} {{ form.my_game.enough_gas.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.my_game.deckplan() }} {{ form.my_game.deckplan.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.my_game.unanswered_threats() }} {{ form.my_game.unanswered_threats.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.my_game.fun_moments() }} {{ form.my_game.fun_moments.label }}
+                    </div>
+                </div>
+
+                <div class="my-game-group">
+                    <div class="form-field form-field--inline">
+                        {{ form.my_game.loss_without_answer() }} {{ form.my_game.loss_without_answer.label }}
+                    </div>
+                    <div class="form-field form-field--inline">
+                        {{ form.my_game.selfmade_win() }} {{ form.my_game.selfmade_win.label }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="my-game-comment">
+                <div class="form-field">
+                    {{ form.my_game.comment.label }}
+                    {{ form.my_game.comment(rows=5) }}
+                    {% for error in form.my_game.comment.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <p>{{ form.submit }}</p>
+    </form>
+
+    <!-- JSON data for JS -->
+    <script id="deck-data" type="application/json">{{ decks | tojson }}</script>
+    <script id="player-data" type="application/json">{{ player_names | tojson }}</script>
+    <script src="{{ url_for('static', filename='js/GameAdd.js') }}"></script>
+    <script>
+        /**
+         * Builds a collapsed custom dropdown for deck selection in edit form.
+         * Modified version for participants instead of players.
+         */
+        function buildDeckWidgetEdit(participantIndex, filteredDecks) {
+            const hiddenSelect = document.querySelector(`select[name="participants-${participantIndex}-deck"]`);
+            if (!hiddenSelect) return;
+            
+            hiddenSelect.innerHTML = "";
+            filteredDecks.forEach(deck => {
+                const val = `${deck[0]} (${deck[1]})`;
+                hiddenSelect.add(new Option(val, val));
+            });
+
+            const wrapper = hiddenSelect.closest('.deck-select-wrapper');
+            if (!wrapper) return;
+
+            // Remove any existing widget so we start fresh on lender change
+            const existing = wrapper.querySelector('.deck-custom-select');
+            if (existing) existing.remove();
+
+            const widget = document.createElement('div');
+            widget.className = 'deck-custom-select';
+            wrapper.appendChild(widget);
+
+            // ── Trigger (always visible, shows current selection) ──────────────────
+            const trigger = document.createElement('div');
+            trigger.className = 'deck-trigger';
+
+            const triggerName = document.createElement('span');
+            triggerName.className = 'deck-option__name';
+
+            const triggerCmd = document.createElement('span');
+            triggerCmd.className = 'deck-option__commander';
+
+            const arrow = document.createElement('span');
+            arrow.className = 'deck-trigger__arrow';
+            arrow.textContent = '▾';
+
+            trigger.appendChild(triggerName);
+            trigger.appendChild(triggerCmd);
+            trigger.appendChild(arrow);
+            widget.appendChild(trigger);
+
+            // ── Dropdown list (hidden by default) ──────────────────────────────────
+            const list = document.createElement('div');
+            list.className = 'deck-dropdown-list';
+            widget.appendChild(list);
+
+            function setSelected(deck) {
+                triggerName.textContent = deck ? deck[0] : '— no decks —';
+                triggerCmd.textContent = deck ? deck[1] : '';
+                if (deck) {
+                    hiddenSelect.value = `${deck[0]} (${deck[1]})`;
+                }
+                list.querySelectorAll('.deck-option').forEach(el => {
+                    el.classList.toggle('deck-option--selected',
+                        el.dataset.value === hiddenSelect.value);
+                });
+            }
+
+            function closeList() {
+                list.classList.remove('deck-dropdown-list--open');
+                arrow.textContent = '▾';
+            }
+
+            function openList() {
+                list.classList.add('deck-dropdown-list--open');
+                arrow.textContent = '▴';
+            }
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (list.classList.contains('deck-dropdown-list--open')) {
+                    closeList();
+                } else {
+                    // Close any other open deck dropdowns on the page
+                    document.querySelectorAll('.deck-dropdown-list--open').forEach(el => {
+                        el.classList.remove('deck-dropdown-list--open');
+                        el.closest('.deck-custom-select')
+                          .querySelector('.deck-trigger__arrow').textContent = '▾';
+                    });
+                    openList();
+                }
+            });
+
+            if (filteredDecks.length === 0) {
+                triggerName.textContent = '— no decks —';
+                triggerCmd.textContent = '';
+                trigger.style.cursor = 'default';
+                return;
+            }
+
+            filteredDecks.forEach((deck) => {
+                const item = document.createElement('div');
+                item.className = 'deck-option';
+                item.dataset.value = `${deck[0]} (${deck[1]})`;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'deck-option__name';
+                nameSpan.textContent = deck[0];
+
+                const cmdSpan = document.createElement('span');
+                cmdSpan.className = 'deck-option__commander';
+                cmdSpan.textContent = deck[1];
+
+                item.appendChild(nameSpan);
+                item.appendChild(cmdSpan);
+
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setSelected(deck);
+                    closeList();
+                });
+
+                list.appendChild(item);
+            });
+
+            // Try to select the current deck value if it exists
+            const currentValue = hiddenSelect.value;
+            if (currentValue) {
+                const currentDeck = filteredDecks.find(d => `${d[0]} (${d[1]})` === currentValue);
+                if (currentDeck) {
+                    setSelected(currentDeck);
+                } else if (filteredDecks.length > 0) {
+                    setSelected(filteredDecks[0]);
+                }
+            } else if (filteredDecks.length > 0) {
+                setSelected(filteredDecks[0]);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const deckData = JSON.parse(document.getElementById('deck-data').textContent);
+            const playerData = JSON.parse(document.getElementById('player-data').textContent);
+            
+            // Build deck widget for each participant
+            const playerFields = document.querySelectorAll('.player-fields');
+            playerFields.forEach((playerField, index) => {
+                const playerNameSpan = playerField.querySelector('.readonly-player');
+                const playerName = playerNameSpan ? playerNameSpan.textContent.trim() : '';
+                
+                // Get the borrowed checkbox and lender select
+                const borrowedCheckbox = playerField.querySelector(`input[name="participants-${index}-borrowed"]`);
+                const lenderSelect = playerField.querySelector(`select[name="participants-${index}-lender"]`);
+                const deckSelect = playerField.querySelector(`select[name="participants-${index}-deck"]`);
+                
+                // Store the original deck value
+                const originalDeckValue = deckSelect ? deckSelect.value : '';
+                
+                // Populate lender dropdown with all players
+                if (lenderSelect) {
+                    lenderSelect.innerHTML = '';
+                    playerData.forEach(player => {
+                        const option = new Option(player, player);
+                        lenderSelect.add(option);
+                    });
+                }
+                
+                // Function to update deck list based on borrowed status
+                function updateDeckList() {
+                    const isBorrowed = borrowedCheckbox ? borrowedCheckbox.checked : false;
+                    const selectedName = isBorrowed && lenderSelect ? lenderSelect.value : playerName;
+                    
+                    // Filter decks for the selected owner
+                    const filteredDecks = deckData.filter(deck => deck[2] === selectedName);
+                    
+                    // Store current value before rebuilding
+                    const currentValue = deckSelect ? deckSelect.value : '';
+                    
+                    // Build the deck widget
+                    buildDeckWidgetEdit(index, filteredDecks);
+                    
+                    // Try to restore the original value if it's still valid
+                    if (deckSelect && currentValue) {
+                        const stillValid = filteredDecks.some(d => `${d[0]} (${d[1]})` === currentValue);
+                        if (stillValid) {
+                            deckSelect.value = currentValue;
+                        }
+                    }
+                }
+                
+                // Function to update lender state
+                function updateLenderState() {
+                    if (lenderSelect && borrowedCheckbox) {
+                        lenderSelect.disabled = !borrowedCheckbox.checked;
+                        if (borrowedCheckbox.checked) {
+                            lenderSelect.classList.remove('lender-disabled');
+                        } else {
+                            lenderSelect.classList.add('lender-disabled');
+                        }
+                    }
+                }
+                
+                // Initial setup
+                updateLenderState();
+                updateDeckList();
+                
+                // Add event listeners
+                if (borrowedCheckbox) {
+                    borrowedCheckbox.addEventListener('change', function() {
+                        updateLenderState();
+                        updateDeckList();
+                    });
+                }
+                
+                if (lenderSelect) {
+                    lenderSelect.addEventListener('change', function() {
+                        if (borrowedCheckbox && borrowedCheckbox.checked) {
+                            updateDeckList();
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock %}

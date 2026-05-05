@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">{% endblock %}
+
+{% block content %}
+    <h1>Game Management</h1>
+
+    <section class="form-section" id="section-actions">
+        <h2 class="section-header">Add</h2>
+        <div class="hub-actions">
+            <a href="{{ url_for('stats.player_add') }}" class="btn primary">Add Player</a>
+            <a href="{{ url_for('stats.deck_add') }}" class="btn primary">Add Deck</a>
+            <a href="{{ url_for('stats.game_add') }}" class="btn primary">Add Game</a>
+        </div>
+    </section>
+
+    <section class="form-section" id="section-games">
+        <h2 class="section-header">My Games</h2>
+
+        {% if game_rows %}
+            <table class="deck-games-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Decks</th>
+                        <th>Winner</th>
+                        <th>First Player</th>
+                        <th>Edit</th>
+                        <th>Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in game_rows %}
+                    <tr>
+                        <td>{{ row.date }}</td>
+                        <td>
+                            <div class="opponent-row">
+                                {% for p in row.participants %}
+                                    <div class="opponent-card">
+                                        <img src="{{ p.commander_image }}" class="opponent-commander-img" alt="{{ p.deck_name }}">
+                                        <div class="opponent-info">{{ p.deck_name }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td>{{ row.winner_name }}</td>
+                        <td>{{ row.first_player_name }}</td>
+                        <td><a href="{{ url_for('stats.game_edit', game_id=row.game_id) }}" class="btn">Edit</a></td>
+                        <td>
+                            <form method="post" action="{{ url_for('stats.game_delete', game_id=row.game_id) }}" onsubmit="return confirm('Delete this game and all its participants?')">
+
+                  {% if csrf_token %}
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% endif %}
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if pagination.pages > 1 %}
+            <div class="pagination">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('stats.game_hub', page=pagination.prev_num) }}">&laquo; Prev</a>
+                {% endif %}
+                <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('stats.game_hub', page=pagination.next_num) }}">Next &raquo;</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        {% else %}
+            <p>No games added yet.</p>
+        {% endif %}
+    </section>
+{% endblock %}

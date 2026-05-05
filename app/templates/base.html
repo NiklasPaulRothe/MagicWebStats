@@ -14,14 +14,9 @@
                 <li><a href="{{ url_for('stats.playerstats') }}">Player</a></li>
                 <li><a href="{{ url_for('stats.colorstats') }}">Color</a></li>
                 <li><a href="{{ url_for('stats.deckstats') }}">Deck</a></li>
-                <li>
-                    <a href="javascript:void(0)">Add</a>
-                    <div class="dropdown-content">
-                        <a href="{{ url_for('stats.player_add') }}">Player</a>
-                        <a href="{{ url_for('stats.deck_add') }}">Deck</a>
-                        <a href="{{ url_for('stats.game_add') }}">Game</a>
-                    </div>
-                </li>
+                {% if not current_user.is_anonymous and current_user.role == 'admin' %}
+                <li><a href="{{ url_for('stats.game_hub') }}">Manage</a></li>
+                {% endif %}
                 {% if current_user.is_anonymous %}
                     <li><a href="{{ url_for('auth.login') }}">Login</a></li>
                 {% else %}

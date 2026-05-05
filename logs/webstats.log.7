@@ -1,4 +1,23 @@
-2026-05-04 20:33:13,383 ERROR: Exception on /index [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+2026-05-05 00:07:21,280 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:08:52,350 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:09:40,836 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:10:24,088 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:12:02,046 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:12:40,745 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:14:57,721 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:15:59,604 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:18:46,972 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:21:10,424 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:22:53,611 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:24:26,210 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:27:00,847 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:29:31,488 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:32:39,576 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:34:50,006 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:37:35,514 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:38:41,193 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 00:39:19,116 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 09:18:24,704 ERROR: Exception on /decks/elo [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
     self.dialect.do_execute(
@@ -30,9 +49,9 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 284, in decorated_view
-    elif not current_user.is_authenticated:
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\auth\__init__.py", line 14, in decorated_view
+    if current_user.role not in roles:
+       ^^^^^^^^^^^^^^^^^
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 318, in __get__
     obj = instance._get_current_object()
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 526, in _get_current_object
@@ -166,4 +185,3 @@ FROM data_owner."user"
 WHERE data_owner."user".id = %(pk_1)s]
 [parameters: {'pk_1': 1}]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-05-04 20:33:46,529 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
