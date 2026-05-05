@@ -190,6 +190,76 @@ def deck_data():
 
     return jsonify(list)
 
+@bp.route('/userdecks/archive/<spieler>')
+@login_required
+def userdecks_archive(spieler):
+    results = db.session.execute(text('''
+    SELECT  "Decks".id,
+            "Name", 
+            "Commander", 
+            "Color_Identity", 
+            (   SELECT count(*) AS count 
+                FROM "data_owner"."Participants"
+                WHERE "Participants".deck_id = "Decks".id 
+                AND "Participants".player_id = :player
+            ),
+            (   SELECT count(*) AS count
+                FROM "data_owner"."Games"
+                LEFT JOIN "data_owner"."Participants"   
+                ON "Participants".game_id = "Games".id
+                WHERE "Games"."Winner" = "Participants".player_id 
+                AND "Participants".deck_id = "Decks".id  
+                AND "Participants".player_id = :player  
+            ),
+            (   
+                (
+                    (   SELECT count(*) AS count
+                        FROM "data_owner"."Games"
+                        LEFT JOIN "data_owner"."Participants"   
+                        ON "Participants".game_id = "Games".id
+                        WHERE "Games"."Winner" = "Participants".player_id 
+                        AND "Participants".deck_id = "Decks".id  
+                        AND "Participants".player_id = :player))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
+                        FROM "data_owner"."Participants"
+                        WHERE "Participants".deck_id = "Decks".id 
+                        AND "Participants".player_id = :player
+                    ),  
+                    0
+                )::double precision
+            )::numeric(10,2),
+            decklist,
+            (SELECT array_agg(c.img ORDER BY c."Name")
+             FROM data_owner.color_components cc
+             JOIN data_owner."Colors" c ON c."Name" = cc.color
+             WHERE cc.color_identity = "Decks"."Color_Identity"
+               AND c.img IS NOT NULL) AS color_imgs
+    FROM "data_owner"."Decks"
+    WHERE "Player" = :player AND "Active" = false
+    ORDER BY "Name";'''), {'player': spieler})
+
+    list = []
+    for entry in results:
+        color_imgs = entry[8] or []
+        if not color_imgs:
+            colorless = Color.query.filter_by(Name='Colorless').first()
+            if colorless and colorless.img:
+                color_imgs = [colorless.img]
+        winrate = float(entry[6]) if entry[6] is not None else None
+        deck = {
+            "id": entry[0],
+            "Name": entry[1],
+            "Commander": entry[2],
+            "ColorImgs": color_imgs,
+            "Spiele": entry[4],
+            "Siege": entry[5],
+            "Winrate (in %)": winrate,
+            "Decklist": entry[7],
+        }
+        list.append(deck)
+
+    return jsonify(list)
+
+
 @bp.route('/userdecks/<spieler>')
 @login_required
 def userdecks(spieler):
@@ -232,7 +302,12 @@ def userdecks(spieler):
                     0
                 )::double precision
             )::numeric(10,2),
-            decklist
+            decklist,
+            (SELECT array_agg(c.img ORDER BY c."Name")
+             FROM data_owner.color_components cc
+             JOIN data_owner."Colors" c ON c."Name" = cc.color
+             WHERE cc.color_identity = "Decks"."Color_Identity"
+               AND c.img IS NOT NULL) AS color_imgs
     FROM "data_owner"."Decks"
     WHERE "Player" = :player AND "Active" = true
     ORDER BY "Name";'''),{'player': spieler})
@@ -240,7 +315,7 @@ def userdecks(spieler):
     list = []
     for entry in results:
         dict = {"Name": [], "Commander": [], "Color Identity": [], "Spiele": [], "Zuletzt gespielt": [], "Siege": [],
-                "Winrate (in %)": [], "Decklist": []}
+                "Winrate (in %)": [], "Decklist": [], "ColorImgs": None}
         dict["Name"].append(entry[0])
         dict["Commander"].append(entry[1])
         dict["Color Identity"].append(entry[2])
@@ -255,6 +330,12 @@ def userdecks(spieler):
         else:
             dict["Winrate (in %)"].append("-")
         dict["Decklist"].append(entry[7])
+        dict["ColorImgs"] = entry[8] or []
+        # Fallback to colorless symbol if no color images
+        if not dict["ColorImgs"]:
+            colorless = Color.query.filter_by(Name='Colorless').first()
+            if colorless and colorless.img:
+                dict["ColorImgs"] = [colorless.img]
         list.append(dict)
 
     return jsonify(list)

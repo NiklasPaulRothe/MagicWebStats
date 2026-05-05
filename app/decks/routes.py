@@ -1,6 +1,6 @@
 import statistics
 
-from flask import render_template, flash, redirect, url_for, request, session, current_app
+from flask import render_template, flash, redirect, url_for, request, session, current_app, abort
 from flask_login import login_required, current_user
 from sqlalchemy import select, and_, desc, func
 
@@ -427,6 +427,33 @@ def get_game_k_factor(participants_games_played):
         return 40
     else:
         return 24
+
+
+@bp.route('/archive/<player_name>', methods=['GET'])
+@login_required
+def deck_archive(player_name):
+    player = Player.query.filter_by(Name=player_name).first_or_404()
+    is_owner = (current_user.spieler == player.id)
+    is_admin = (current_user.role == 'admin')
+    return render_template(
+        'decks/archive.html',
+        spieler=player,
+        player_name=player_name,
+        is_owner=is_owner,
+        is_admin=is_admin
+    )
+
+
+@bp.route('/dearchive/<int:deck_id>', methods=['POST'])
+@login_required
+def dearchive(deck_id):
+    deck = Deck.query.get_or_404(deck_id)
+    player_name = request.form.get('player_name')
+    if deck.Player != current_user.spieler and current_user.role != 'admin':
+        abort(403)
+    deck.Active = True
+    db.session.commit()
+    return redirect(url_for('decks.deck_archive', player_name=player_name))
 
 
 @bp.route('/elo', methods=['GET'])

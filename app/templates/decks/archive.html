@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <main>
+        <h1>{{ player_name }}'s Archiv</h1>
+        <section id="archive-decks">
+            <p id="empty-state" style="display:none;">Archiv leer</p>
+            <table id="archive-deck-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th data-type="string">Name</th>
+                        <th data-type="string">Commander</th>
+                        <th data-type="string">Farbe</th>
+                        <th data-type="number">Spiele</th>
+                        <th data-type="number">Siege</th>
+                        <th data-type="number">Winrate (in %)</th>
+                        {% if is_owner or is_admin %}
+                        <th data-type="string">Reaktivieren</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Archive deck data will be populated here -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <script>
+        const isOwnerOrAdmin = {{ (is_owner or is_admin)|tojson }};
+        const currentPlayerName = {{ player_name|tojson }};
+
+        function encode(name) {
+            return encodeURIComponent(name);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            fetch('/api/userdecks/archive/' + '{{ spieler.id }}')
+                .then(response => response.json())
+                .then(data => populateTable('archive-deck-table', data));
+
+            function populateTable(tableId, data) {
+                const table = document.getElementById(tableId);
+                const tbody = table.querySelector('tbody');
+                const emptyState = document.getElementById('empty-state');
+
+                tbody.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    emptyState.style.display = '';
+                    table.style.display = 'none';
+                    return;
+                }
+
+                emptyState.style.display = 'none';
+                table.style.display = '';
+
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    let cells = '';
+
+                    // Name — link to deck show page
+                    const encodedName = encode(item['Name']);
+                    cells += `<td><a href="/decks/show/${encodedName}">${item['Name'] || ''}</a></td>`;
+
+                    // Commander — link to decklist if available, plain text otherwise
+                    if (item['Decklist']) {
+                        cells += `<td><a href="${item['Decklist']}">${item['Commander'] || ''}</a></td>`;
+                    } else {
+                        cells += `<td>${item['Commander'] || ''}</td>`;
+                    }
+
+                    // Farbe — color identity images
+                    const colorImgs = item['ColorImgs'] || [];
+                    const imgTags = colorImgs.map(src => `<img src="${src}" alt="color" style="height:1.2em; vertical-align:middle;">`).join('');
+                    cells += `<td>${imgTags}</td>`;
+
+                    // Spiele
+                    cells += `<td>${item['Spiele'] != null ? item['Spiele'] : ''}</td>`;
+
+                    // Siege
+                    cells += `<td>${item['Siege'] != null ? item['Siege'] : ''}</td>`;
+
+                    // Winrate (in %)
+                    const winrate = item['Winrate (in %)'];
+                    cells += `<td>${winrate != null ? winrate : '-'}</td>`;
+
+                    // Reaktivieren — only when owner or admin
+                    if (isOwnerOrAdmin) {
+                        cells += `<td>
+                            <form method="POST" action="/decks/dearchive/${item['id']}" style="all:unset;">
+                                <input type="hidden" name="player_name" value="${currentPlayerName}">
+                                <button type="submit">Reaktivieren</button>
+                            </form>
+                        </td>`;
+                    }
+
+                    row.innerHTML = cells;
+                    tbody.appendChild(row);
+                });
+            }
+
+            // Sort table functionality
+            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+
+            const comparer = (idx, asc, type) => (a, b) => {
+                const v1 = getCellValue(asc ? a : b, idx);
+                const v2 = getCellValue(asc ? b : a, idx);
+
+                if (type === 'number') {
+                    const n1 = parseFloat(v1);
+                    const n2 = parseFloat(v2);
+                    if (isNaN(n1) && isNaN(n2)) return 0;
+                    if (isNaN(n1)) return 1;
+                    if (isNaN(n2)) return -1;
+                    return n1 - n2;
+                } else {
+                    return v1.toString().localeCompare(v2);
+                }
+            };
+
+            document.querySelectorAll('#archive-deck-table th').forEach(th => th.addEventListener('click', function () {
+                const table = th.closest('table');
+                const tbody = table.querySelector('tbody');
+                Array.from(tbody.querySelectorAll('tr'))
+                    .sort(comparer(
+                        Array.from(th.parentNode.children).indexOf(th),
+                        this.asc = !this.asc,
+                        th.getAttribute('data-type')
+                    ))
+                    .forEach(tr => tbody.appendChild(tr));
+            }));
+        });
+    </script>
+{% endblock %}

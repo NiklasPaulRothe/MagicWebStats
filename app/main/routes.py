@@ -98,23 +98,28 @@ def user(spieler):
     print(spieler)
     user = db.first_or_404(sa.select(User).where(User.username == spieler))
     owner = (user.id == current_user.id)
+    username = user.username
     spieler = db.session.scalar(sa.select(Player).where(Player.id == user.spieler))
     return render_template(
         'user.html',
         spieler=spieler,
-        owner=owner)
+        owner=owner,
+        username=username)
 
 @bp.route('/player/<spieler>')
 @login_required
 def player(spieler):
     player = db.session.scalar(sa.select(Player).where(Player.Name == spieler))
+    username = None
     try:
-        user = db.first_or_null(sa.select(User).where(User.spieler == player.id))
+        user = db.session.scalar(sa.select(User).where(User.spieler == player.id))
         owner = (user.id == current_user.id)
+        username = user.username
     except:
         owner = False
     return render_template(
         'user.html',
         spieler=player,
-        owner=owner)
+        owner=owner,
+        username=username)
 

@@ -5,6 +5,9 @@
         <h1>{{ spieler.Name }} Deckübersicht</h1>
         <section id="deck-stats">
             <h2>Deck Stats</h2>
+            <div class="deck-stats-controls">
+                <a href="/decks/archive/{{ spieler.Name }}"><button type="button">Archiv</button></a>
+            </div>
             <table id="user-deck-stats-table">
                 <thead>
                     <tr>
@@ -58,6 +61,11 @@
                         }
                         if (key == 'Commander') {
                             return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
+                        }
+                        if (key == 'Color Identity') {
+                            const colorImgs = item['ColorImgs'] || [];
+                            const imgTags = colorImgs.map(src => `<img src="${src}" alt="color" style="height:1.2em; vertical-align:middle;">`).join('');
+                            return `<td>${imgTags}</td>`;
                         }
                         return `<td>${item[key] || ''}</td>`
                     }).join('');
