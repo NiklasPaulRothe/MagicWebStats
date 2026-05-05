@@ -40,3 +40,5 @@ UnboundLocalError: cannot access local variable 'name' where it is not associate
         ^^^^^^^^
 AttributeError: 'dict' object has no attribute 'name'
  [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:90]
+2026-05-05 21:48:38,855 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:48:46,631 INFO: Saved 2 tags for deck 1088 [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:88]
