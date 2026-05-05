@@ -8,7 +8,7 @@ from pyrchidekt.api import getDeckById
 
 from app import db, third_party_data
 from app.auth import role_required
-from app.models import DeckComponent, Deck
+from app.models import DeckComponent, Deck, DeckTag
 from app.third_party_data import bp
 
 
@@ -64,6 +64,31 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
             name = card.card.oracle_card.name
             current_app.logger.info(f'{name} couldn''t be found' + traceback.format_exc())
             continue
+    
+    # Handle deck tags
+    try:
+        # Get tags from the Archidekt deck object
+        deck_tags = getattr(deck, 'deck_tags', [])
+        print(deck_tags)
+        
+        # Delete all existing tags for this deck
+        existing_tags = DeckTag.query.filter(DeckTag.deck_id == deck_id).all()
+        for tag in existing_tags:
+            db.session.delete(tag)
+        
+        # Add new tags
+        if deck_tags:
+            for tag in deck_tags:
+                print(tag)
+                deck_tag = DeckTag(
+                    deck_id=deck_id,
+                    tag=tag['name'].strip()
+                )
+                db.session.add(deck_tag)
+            current_app.logger.info(f'Saved {len(deck_tags)} tags for deck {deck_id}')
+    except Exception as e:
+        current_app.logger.error(f'Error saving tags for deck {deck_id}: {str(e)}' + traceback.format_exc())
+    
     try:
         db.session.commit()
     except:

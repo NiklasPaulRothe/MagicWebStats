@@ -1,13 +1,77 @@
 import os
+import time
 
 import ijson
 import psycopg2
 import requests
 from dotenv import load_dotenv
+import pyrchidekt
 
 if __name__ == '__main__':
     print('Fetching Card Data...')
     load_dotenv()
+    
+    # Fetch deck tags from Archidekt for all decks with archidekt links
+    print('Fetching deck tags from Archidekt...')
+    try:
+        conn = psycopg2.connect(os.environ.get('DATABASE_URL', '').replace(
+            'postgres://', 'postgresql://'))
+        print('Connected to PostgreSQL for deck tags...')
+        
+        # Get all decks with archidekt_id
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, "Name", archidekt_id 
+            FROM data_owner."Decks" 
+            WHERE archidekt_id IS NOT NULL AND archidekt_id != ''
+        """)
+        decks_with_archidekt = cur.fetchall()
+        
+        print(f'Found {len(decks_with_archidekt)} decks with Archidekt links')
+        
+        for deck_id, deck_name, archidekt_id in decks_with_archidekt:
+            try:
+                print(f'Fetching tags for deck: {deck_name} (ID: {deck_id})')
+                
+                # Fetch deck data from Archidekt
+                deck = pyrchidekt.api.getDeckById(archidekt_id.strip())
+                deck_tags = getattr(deck, 'deck_tags', [])
+                
+                # Delete existing tags for this deck
+                cur.execute("DELETE FROM data_owner.deck_tags WHERE deck_id = %s", (deck_id,))
+                
+                # Insert new tags
+                if deck_tags:
+                    for tag in deck_tags:
+                        tag_name = tag['name'].strip()
+                        if tag_name:  # Only insert non-empty tags
+                            cur.execute("""
+                                INSERT INTO data_owner.deck_tags (deck_id, tag)
+                                VALUES (%s, %s)
+                                ON CONFLICT (deck_id, tag) DO NOTHING
+                            """, (deck_id, tag_name))
+                    print(f'  Saved {len(deck_tags)} tags')
+                else:
+                    print(f'  No tags found')
+                
+                conn.commit()
+                
+                # Wait 1 second to avoid rate limiting
+                time.sleep(1)
+                
+            except Exception as e:
+                print(f'  Error fetching tags for deck {deck_name}: {str(e)}')
+                conn.rollback()
+                # Continue with next deck even if one fails
+                continue
+        
+        print('Deck tags fetching completed!')
+        cur.close()
+        
+    except Exception as e:
+        print(f'Exception while fetching deck tags: {str(e)}')
+    
+    print('Starting Scryfall card data fetch...')
 
     # This Block fetches the complete data dump from scryfall in a json
     try:

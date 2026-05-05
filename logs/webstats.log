@@ -6,3 +6,37 @@
 2026-05-05 21:20:45,070 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:184]
 2026-05-05 21:20:51,014 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:184]
 2026-05-05 21:21:27,487 INFO: testdeck [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:184]
+2026-05-05 21:27:32,037 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:28:10,832 INFO: versiontest [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
+2026-05-05 21:28:15,008 INFO: versiontest [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
+2026-05-05 21:28:51,129 INFO: versiontest [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
+2026-05-05 21:38:59,657 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:41:03,198 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:42:53,333 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:43:08,103 ERROR: Error saving tags for deck 1088: 'dict' object has no attribute 'strip'Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 82, in load_cards_from_archidekt
+    if tag_name and tag_name.strip():  # Only add non-empty tags
+                    ^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'strip'
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:90]
+2026-05-05 21:44:13,015 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:44:25,072 ERROR: Error saving tags for deck 1088: 'dict' object has no attribute 'name'Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 82, in load_cards_from_archidekt
+    if tag.name:  # Only add non-empty tags
+       ^^^^^^^^
+AttributeError: 'dict' object has no attribute 'name'
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:90]
+2026-05-05 21:45:56,994 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:46:04,484 ERROR: Error saving tags for deck 1088: cannot access local variable 'name' where it is not associated with a valueTraceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 84, in load_cards_from_archidekt
+    tag=tag[name].strip()
+            ^^^^
+UnboundLocalError: cannot access local variable 'name' where it is not associated with a value
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:89]
+2026-05-05 21:48:07,892 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:48:15,268 ERROR: Error saving tags for deck 1088: 'dict' object has no attribute 'name'Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 85, in load_cards_from_archidekt
+    tag=tag.name.strip()
+        ^^^^^^^^
+AttributeError: 'dict' object has no attribute 'name'
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:90]

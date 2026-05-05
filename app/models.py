@@ -173,3 +173,14 @@ class DeckVersionHistory(db.Model):
     new_change = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.String, nullable=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=sa.func.current_timestamp())
+
+class DeckTag(db.Model):
+    __tablename__ = 'deck_tags'
+    __table_args__ = (
+        sa.UniqueConstraint('deck_id', 'tag', name='unique_deck_tag'),
+        {'schema': 'data_owner'}
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
+    tag = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=sa.func.current_timestamp())
