@@ -49,20 +49,28 @@
                 </span>
             </span>
         </h2>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <form action="" method="post" style="display: inline;">
-                {{ form.hidden_tag() }}
+        
+        <form action="" method="post" id="version-form">
+            {{ form.hidden_tag() }}
+            
+            <div style="margin-bottom: 15px;">
+                <label for="version_comment" style="display: block; margin-bottom: 5px; color: #f4c430; font-size: 0.9em;">
+                    Version Change Comment (optional)
+                </label>
+                {{ form.version_comment(
+                    id="version_comment",
+                    rows="3",
+                    style="width: 100%; max-width: 600px; padding: 8px; background-color: #2a2a2a; color: antiquewhite; border: 1px solid #3a3f4b; border-radius: 6px; font-family: inherit; font-size: 0.9em;",
+                    placeholder="Describe what changed in this version..."
+                ) }}
+            </div>
+            
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                 {{ form.version_reworked(class="btn") }}
-            </form>
-            <form action="" method="post" style="display: inline;">
-                {{ form.hidden_tag() }}
                 {{ form.version_patched(class="btn") }}
-            </form>
-            <form action="" method="post" style="display: inline;">
-                {{ form.hidden_tag() }}
                 {{ form.version_changed(class="btn") }}
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
     
     <style>

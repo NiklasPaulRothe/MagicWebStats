@@ -16,6 +16,11 @@
     <h1 style="margin-bottom: 5px;">{{ deckname }}</h1>
     <p style="color: #f4c430; font-size: 0.9em; margin-top: 0; margin-bottom: 20px;">
         Version {{ deck_version }}
+        <a href="{{ url_for('decks.version_history', deckname=deckname) }}" 
+           style="margin-left: 8px; text-decoration: none; color: #f4c430; font-size: 0.85em;"
+           title="Version History">
+            🔗
+        </a>
     </p>
     <!-- Non-intrusive controls above the header content -->
     <div class="deck-header-controls">

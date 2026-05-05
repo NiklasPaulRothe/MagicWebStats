@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block head %}
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/deckpage.css') }}">
+</head>
+{% endblock %}
+
+{% block content %}
+<main class="deck-container">
+    <h1 style="margin-bottom: 5px;">{{ deckname }}</h1>
+    <h2 style="color: #f4c430; font-size: 1.2em; margin-top: 0; margin-bottom: 20px;">
+        Version History
+    </h2>
+    
+    <div style="width: 100%; max-width: 900px; margin-bottom: 20px;">
+        <a href="{{ url_for('decks.deck_show', deckname=deckname) }}" 
+           style="color: #f4c430; text-decoration: none; font-size: 0.9em;">
+            ← Back to Deck
+        </a>
+    </div>
+
+    <section class="deck-games" style="max-width: 900px;">
+        {% if history %}
+        <table class="deck-games-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Change Type</th>
+                    <th>Previous Version</th>
+                    <th>New Version</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for entry in history %}
+                <tr>
+                    <td>{{ entry.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        {% if entry.change_type == 'rework' %}
+                            <span style="color: #ff6b6b; font-weight: 600;">Rework</span>
+                        {% elif entry.change_type == 'patch' %}
+                            <span style="color: #4ecdc4; font-weight: 600;">Patch</span>
+                        {% else %}
+                            <span style="color: #95e1d3; font-weight: 600;">Change</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ entry.previous_version }}.{{ entry.previous_patch }}.{{ entry.previous_change }}</td>
+                    <td style="color: #f4c430; font-weight: 600;">
+                        {{ entry.new_version }}.{{ entry.new_patch }}.{{ entry.new_change }}
+                    </td>
+                    <td style="max-width: 300px; white-space: pre-wrap; word-wrap: break-word;">
+                        {% if entry.comment %}
+                            {{ entry.comment }}
+                        {% else %}
+                            <span style="color: #666; font-style: italic;">No comment</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="background-color: #1e1e1e; padding: 40px; border-radius: 10px; text-align: center; color: #999;">
+            <p style="margin: 0; font-size: 1.1em;">No version history available yet.</p>
+            <p style="margin: 10px 0 0 0; font-size: 0.9em;">Version changes will appear here once you update the deck.</p>
+        </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

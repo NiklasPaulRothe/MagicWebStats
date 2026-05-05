@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms.fields.simple import StringField, SubmitField, HiddenField, BooleanField
+from wtforms.fields.simple import StringField, SubmitField, HiddenField, BooleanField, TextAreaField
 from wtforms.validators import DataRequired, Optional, ValidationError
 import sqlalchemy as sa
 
@@ -11,6 +11,7 @@ class DeckEditForm(FlaskForm):
     current_name = HiddenField()
     name = StringField('Name', validators=[DataRequired()])
     decklist = StringField('Link', validators=[Optional()])
+    version_comment = TextAreaField('Version Change Comment', validators=[Optional()])
     submit = SubmitField('Deck ändern')
     archive_button = SubmitField('Archivieren')
     version_changed = SubmitField('Deck Changed')

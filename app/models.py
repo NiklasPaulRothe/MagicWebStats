@@ -171,4 +171,5 @@ class DeckVersionHistory(db.Model):
     new_version = db.Column(db.Integer, nullable=False)
     new_patch = db.Column(db.Integer, nullable=False)
     new_change = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.String, nullable=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=sa.func.current_timestamp())

@@ -35,6 +35,9 @@ def deck_edit(deckname):
             return redirect(url_for('main.user', spieler=current_user.username))
         
         elif form.version_changed.data:
+            # Get the comment from the form
+            comment = form.version_comment.data.strip() if form.version_comment.data else None
+            
             # Save version history before updating
             history_entry = DeckVersionHistory(
                 deck_id=deck.id,
@@ -44,7 +47,8 @@ def deck_edit(deckname):
                 previous_change=deck.change,
                 new_version=deck.Version,
                 new_patch=deck.patch,
-                new_change=deck.change + 1
+                new_change=deck.change + 1,
+                comment=comment
             )
             db.session.add(history_entry)
             
@@ -55,6 +59,9 @@ def deck_edit(deckname):
             return redirect(url_for('main.user', spieler=current_user.username))
         
         elif form.version_patched.data:
+            # Get the comment from the form
+            comment = form.version_comment.data.strip() if form.version_comment.data else None
+            
             # Save version history before updating
             history_entry = DeckVersionHistory(
                 deck_id=deck.id,
@@ -64,7 +71,8 @@ def deck_edit(deckname):
                 previous_change=deck.change,
                 new_version=deck.Version,
                 new_patch=deck.patch + 1,
-                new_change=0
+                new_change=0,
+                comment=comment
             )
             db.session.add(history_entry)
             
@@ -76,6 +84,9 @@ def deck_edit(deckname):
             return redirect(url_for('main.user', spieler=current_user.username))
         
         elif form.version_reworked.data:
+            # Get the comment from the form
+            comment = form.version_comment.data.strip() if form.version_comment.data else None
+            
             # Save version history before updating
             history_entry = DeckVersionHistory(
                 deck_id=deck.id,
@@ -85,7 +96,8 @@ def deck_edit(deckname):
                 previous_change=deck.change,
                 new_version=deck.Version + 1,
                 new_patch=0,
-                new_change=0
+                new_change=0,
+                comment=comment
             )
             db.session.add(history_entry)
             
@@ -161,6 +173,22 @@ from collections import defaultdict
 
 from collections import defaultdict, Counter
 import statistics
+
+@bp.route('/version-history/<deckname>', methods=['GET'], strict_slashes=False)
+@login_required
+def version_history(deckname):
+    deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
+    
+    # Get all version history entries for this deck, ordered by timestamp descending
+    history = models.DeckVersionHistory.query.filter_by(
+        deck_id=deck.id
+    ).order_by(models.DeckVersionHistory.timestamp.desc()).all()
+    
+    return render_template(
+        'decks/version_history.html',
+        deckname=deck.Name,
+        history=history
+    )
 
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
