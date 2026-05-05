@@ -184,13 +184,33 @@ def deck_show(deckname):
         turn_count = game_data.turns if game_data.turns else "-"
         final_blow = game_data.final_blow if game_data.final_blow else "Not Tracked"
 
+        # Get participant data for this deck in this game
+        my_participant = next((p for p in all_participants_in_game if p.player_id == deck.Player and p.deck_id == deck.id), None)
+        participant_data = None
+        if my_participant:
+            is_win = game_data.Winner == deck.Player
+            participant_data = {
+                "mulligans": getattr(my_participant, "mulligans", None),
+                "landdrops": getattr(my_participant, "landdrops", None),
+                "lands": getattr(my_participant, "lands", None),
+                "enough_mana": getattr(my_participant, "enough_mana", None),
+                "enough_gas": getattr(my_participant, "enough_gas", None),
+                "deckplan": getattr(my_participant, "deckplan", None),
+                "unanswered_threats": getattr(my_participant, "unanswered_threats", None),
+                "fun_moments": getattr(my_participant, "fun_moments", None),
+                "loss_without_answer": getattr(my_participant, "loss_without_answer", None) if not is_win else None,
+                "selfmade_win": getattr(my_participant, "selfmade_win", None) if is_win else None,
+                "comments": getattr(my_participant, "comments", None),
+                "is_win": is_win
+            }
 
         row.append({
             "Datum": game_data.Date.strftime("%Y-%m-%d"),
             "Gegner": opponent_data,
             "Winner": winner_name,
             "Turns": turn_count,
-            "Final_Blow": final_blow
+            "Final_Blow": final_blow,
+            "participant_data": participant_data
         })
 
         # Collect full win turn stats
@@ -262,6 +282,7 @@ def deck_show(deckname):
         percent_fields = {"enough_mana", "enough_gas", "deckplan", "unanswered_threats", "fun_moments"}
         for f in fields:
             numeric_values = []
+            filled_count = 0
             for p in participants:
                 if not hasattr(p, f):
                     continue
@@ -276,17 +297,89 @@ def deck_show(deckname):
                 if (f == "lands" or f == "landdrops") and num == -1:
                     continue
                 numeric_values.append(num)
+                filled_count += 1
 
             if not numeric_values:
                 participant_avgs[f] = "–"
                 continue
 
             if f in percent_fields:
-                # Convert mean to percentage string
-                participant_avgs[f] = f"{round(statistics.mean(numeric_values) * 100, 1)}%"
+                # Convert mean to percentage string with count
+                participant_avgs[f] = f"{round(statistics.mean(numeric_values) * 100, 1)}% ({filled_count})"
             else:
-                # Keep as numeric average (e.g., mulligans, landdrops, lands)
-                participant_avgs[f] = round(statistics.mean(numeric_values), 2)
+                # Keep as numeric average with count (e.g., mulligans, landdrops, lands)
+                participant_avgs[f] = f"{round(statistics.mean(numeric_values), 2)} ({filled_count})"
+        
+        # === Special fields: lockout loss without answer and selbsterspielter sieg ===
+        # lockout_loss_without_answer: only count games where the deck lost
+        loss_values = []
+        loss_filled_count = 0
+        for p in participants:
+            game_obj = games.get(p.game_id)
+            if not game_obj:
+                continue
+            # Only count losses
+            if game_obj.Winner == deck.Player:
+                continue
+            raw = getattr(p, "loss_without_answer", None)
+            if raw is None:
+                continue
+            try:
+                num = float(raw)
+                loss_values.append(num)
+                loss_filled_count += 1
+            except Exception:
+                continue
+        
+        if loss_values:
+            participant_avgs["lockout_loss_without_answer"] = f"{round(statistics.mean(loss_values) * 100, 1)}% ({loss_filled_count})"
+        else:
+            participant_avgs["lockout_loss_without_answer"] = "–"
+        
+        # selbsterspielter_sieg: only count games where the deck won
+        win_values = []
+        win_filled_count = 0
+        for p in participants:
+            game_obj = games.get(p.game_id)
+            if not game_obj:
+                continue
+            # Only count wins
+            if game_obj.Winner != deck.Player:
+                continue
+            raw = getattr(p, "selfmade_win", None)
+            if raw is None:
+                continue
+            try:
+                num = float(raw)
+                win_values.append(num)
+                win_filled_count += 1
+            except Exception:
+                continue
+        
+        if win_values:
+            participant_avgs["selbsterspielter_sieg"] = f"{round(statistics.mean(win_values) * 100, 1)}% ({win_filled_count})"
+        else:
+            participant_avgs["selbsterspielter_sieg"] = "–"
+        
+        # all_landdrops: percentage of games where landdrops is -1
+        all_landdrops_count = 0
+        total_landdrops_filled = 0
+        for p in participants:
+            raw = getattr(p, "landdrops", None)
+            if raw is None:
+                continue
+            try:
+                num = float(raw)
+                total_landdrops_filled += 1
+                if num == -1:
+                    all_landdrops_count += 1
+            except Exception:
+                continue
+        
+        if total_landdrops_filled > 0:
+            participant_avgs["all_landdrops"] = f"{round((all_landdrops_count / total_landdrops_filled) * 100, 1)}% ({all_landdrops_count})"
+        else:
+            participant_avgs["all_landdrops"] = "–"
 
         # === Private comments (Player 1 owner and User ID 1) ===
     show_private_comments = (deck.Player == 1 and getattr(current_user, "id", None) == 1)

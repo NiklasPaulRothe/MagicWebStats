@@ -223,28 +223,46 @@
     color: #f4c430;
 }
 
-/* Table styling */
+/* Table styling - matching game hub style */
 .deck-games-table {
     width: 100%;
     border-collapse: collapse;
-    background-color: #282c34;
+    background-color: #1e1e1e;
     border-radius: 8px;
     overflow: hidden;
-}
-
-.deck-games-table th, .deck-games-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #444;
-    text-align: left;
 }
 
 .deck-games-table th {
     background-color: #111;
     color: #f4c430;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 2px solid #f4c430;
+}
+
+.deck-games-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #333;
+    vertical-align: middle;
 }
 
 .deck-games-table tr:nth-child(even) {
+    background-color: #282c34;
+}
+
+.deck-games-table tr:nth-child(odd) {
     background-color: #1e1e1e;
+}
+
+/* Participant detail row styling */
+.participant-detail-row td {
+    background-color: #252525 !important;
+    color: antiquewhite;
+    font-size: 0.9em;
+}
+
+.participant-detail-row strong {
+    color: #f4c430;
 }
 
 /* Opponent list styling */
@@ -280,36 +298,6 @@
     color: #f4c430;
 }
 
-.deck-games {
-    width: 100%;
-    max-width: 1000px;
-}
-
-.deck-games-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: #282c34;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.deck-games-table th,
-.deck-games-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #444;
-    text-align: left;
-    vertical-align: middle;
-}
-
-.deck-games-table th {
-    background-color: #111;
-    color: #f4c430;
-}
-
-.deck-games-table tr:nth-child(even) {
-    background-color: #1e1e1e;
-}
-
 /* Opponent layout inside a row */
 .opponent-row {
     display: flex;
@@ -324,6 +312,8 @@
     align-items: center;
     width: 100px;
     text-align: center;
+    text-decoration: none;
+    color: inherit;
 }
 
 .opponent-commander-img {
@@ -331,10 +321,10 @@
     height: auto;
     border-radius: 4px;
     border: 1px solid #f4c430;
+    margin-bottom: 6px;
 }
 
 .opponent-info {
-    margin-top: 6px;
     font-size: 12px;
     color: antiquewhite;
 }
@@ -349,11 +339,6 @@
     margin: 4px 0;
     color: antiquewhite;
     font-size: 14px;
-}
-
-.opponent-card {
-    text-decoration: none;
-    color: inherit;
 }
 
 .deck-stats-breakdown {

@@ -134,16 +134,38 @@
         <div class="deck-header-text">
           <div class="deck-stats-summary">
             <h3 style="margin-top:0;">Participant Averages</h3>
-            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px; align-items:start;">
-              <div><strong>Mulligans:</strong> {{ participant_avgs.mulligans }}</div>
-              <div><strong>Landdrops:</strong> {{ participant_avgs.landdrops }}</div>
+            
+            <!-- Group 1: Game Performance -->
+            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Game Performance</h4>
+            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
               <div><strong>Enough Mana:</strong> {{ participant_avgs.enough_mana }}</div>
               <div><strong>Enough Gas:</strong> {{ participant_avgs.enough_gas }}</div>
               <div><strong>Deck Plan:</strong> {{ participant_avgs.deckplan }}</div>
               <div><strong>Unanswered Threats:</strong> {{ participant_avgs.unanswered_threats }}</div>
-              <div><strong>Fun Moments:</strong> {{ participant_avgs.fun_moments }}</div>
+            </div>
+            
+            <!-- Group 2: Mulligan & Landdrops -->
+            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Mulligan & Landdrops</h4>
+            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
+              <div><strong>Mulligans:</strong> {{ participant_avgs.mulligans }}</div>
+              <div><strong>Landdrops:</strong> {{ participant_avgs.landdrops }}</div>
+              <div><strong>All Landdrops:</strong> {{ participant_avgs.all_landdrops }}</div>
               <div><strong>Lands:</strong> {{ participant_avgs.lands }}</div>
             </div>
+            
+            <!-- Group 3: Win/Loss Analysis -->
+            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Win/Loss Analysis</h4>
+            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
+              <div><strong>Lockout Loss Without Answer:</strong> {{ participant_avgs.lockout_loss_without_answer }}</div>
+              <div><strong>Selbsterspielter Sieg:</strong> {{ participant_avgs.selbsterspielter_sieg }}</div>
+            </div>
+            
+            <!-- Group 4: Fun -->
+            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Fun</h4>
+            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start;">
+              <div><strong>Fun Moments:</strong> {{ participant_avgs.fun_moments }}</div>
+            </div>
+            
           </div>
         </div>
       </div>
@@ -217,6 +239,62 @@
                     <td>{{ game.Turns}}</td>
                     <td>{{ game.Final_Blow }}</td>
                 </tr>
+                {% if show_private_avgs and game.participant_data %}
+                <tr class="participant-detail-row">
+                    <td colspan="5" style="padding: 16px; background-color: #252525;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px;">
+                            {% set pd = game.participant_data %}
+                            
+                            {% if pd.mulligans is not none %}
+                            <div><strong>Mulligans:</strong> {{ pd.mulligans }}</div>
+                            {% endif %}
+                            
+                            {% if pd.landdrops is not none %}
+                            <div><strong>Landdrops:</strong> {{ pd.landdrops if pd.landdrops != -1 else "All" }}</div>
+                            {% endif %}
+                            
+                            {% if pd.lands is not none and pd.lands != -1 %}
+                            <div><strong>Lands:</strong> {{ pd.lands }}</div>
+                            {% endif %}
+                            
+                            {% if pd.enough_mana is not none %}
+                            <div><strong>Enough Mana:</strong> {{ "Yes" if pd.enough_mana else "No" }}</div>
+                            {% endif %}
+                            
+                            {% if pd.enough_gas is not none %}
+                            <div><strong>Enough Gas:</strong> {{ "Yes" if pd.enough_gas else "No" }}</div>
+                            {% endif %}
+                            
+                            {% if pd.deckplan is not none %}
+                            <div><strong>Deck Plan:</strong> {{ "Yes" if pd.deckplan else "No" }}</div>
+                            {% endif %}
+                            
+                            {% if pd.unanswered_threats is not none %}
+                            <div><strong>Unanswered Threats:</strong> {{ "Yes" if pd.unanswered_threats else "No" }}</div>
+                            {% endif %}
+                            
+                            {% if pd.fun_moments is not none %}
+                            <div><strong>Fun Moments:</strong> {{ "Yes" if pd.fun_moments else "No" }}</div>
+                            {% endif %}
+                            
+                            {% if not pd.is_win and pd.loss_without_answer is not none %}
+                            <div><strong>Lockout Loss Without Answer:</strong> {{ "Yes" if pd.loss_without_answer else "No" }}</div>
+                            {% endif %}
+                            
+                            {% if pd.is_win and pd.selfmade_win is not none %}
+                            <div><strong>Selbsterspielter Sieg:</strong> {{ "Yes" if pd.selfmade_win else "No" }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if pd.comments %}
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #333;">
+                            <strong style="color: #f4c430;">Comments:</strong>
+                            <div style="margin-top: 6px; white-space: pre-wrap; color: antiquewhite;">{{ pd.comments }}</div>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
             {% endfor %}
             </tbody>
         </table>
