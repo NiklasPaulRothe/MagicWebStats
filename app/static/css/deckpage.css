@@ -10,14 +10,24 @@
 /* Deck header section */
 .deck-header {
     display: flex;
-    align-items: flex-start;
-    gap: 24px;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 16px;
     background-color: #1e1e1e;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
     width: 100%;
-    max-width: 900px;
+    max-width: 1400px;
+}
+
+/* Commander section with image and meta info */
+.commander-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    flex-shrink: 0;
 }
 
 .commander-image {
@@ -34,11 +44,30 @@
     box-shadow: 0 6px 16px rgba(244, 196, 48, 0.4);
 }
 
-.deck-header-text {
-    flex: 1;
+.commander-meta {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px;
+    width: 100%;
+    background-color: #252525;
+    border-radius: 6px;
+    padding: 10px 12px;
+    border: 1px solid #333;
+}
+
+.commander-meta .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+}
+
+.deck-header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+    min-width: 280px;
 }
 
 .deck-stats-summary {
@@ -47,7 +76,7 @@
     gap: 12px;
 }
 
-/* Stats section styling */
+/* Stats section styling - for overall and win turn stats */
 .stats-section {
     background-color: #252525;
     border-radius: 6px;
@@ -66,7 +95,7 @@
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 8px 12px;
 }
 
@@ -94,63 +123,63 @@
     font-weight: 600;
 }
 
-/* Stats breakdown by player count */
+/* Stats breakdown by player count - different style */
 .deck-stats-breakdown {
     display: flex;
+    flex-direction: row;
     gap: 12px;
-    flex-wrap: wrap;
+    flex: 1;
 }
 
-.stat-group {
+.stats-section-podsize {
     background-color: #252525;
     border-radius: 8px;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border: 2px solid #f4c430;
-    flex: 1;
-    min-width: 150px;
     box-shadow: 0 2px 8px rgba(244, 196, 48, 0.15);
+    flex: 1;
+    min-width: 140px;
 }
 
-.stat-group h4 {
-    margin: 0 0 12px 0;
-    color: #f4c430;
-    font-size: 1em;
-    font-weight: 600;
+.stats-section-podsize .stats-section-title {
     text-align: center;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #f4c430;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f4c430;
+    margin-bottom: 10px;
 }
 
-.stat-group-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.stat-item-compact {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9em;
-}
-
-.stat-item-compact .stat-label {
-    color: #aaa;
-    font-size: 1em;
-    text-transform: none;
-}
-
-.stat-item-compact .stat-value {
-    color: antiquewhite;
-    font-size: 1em;
-    font-weight: 500;
+.stats-section-podsize .stats-grid {
+    grid-template-columns: 1fr;
 }
 
 /* Responsive adjustments */
+@media (max-width: 1200px) {
+    .deck-header {
+        flex-wrap: wrap;
+    }
+    
+    .deck-stats-breakdown {
+        width: 100%;
+    }
+}
+
 @media (max-width: 768px) {
     .deck-header {
         flex-direction: column;
         align-items: center;
+    }
+    
+    .commander-section {
+        width: 100%;
+    }
+    
+    .deck-header-text {
+        width: 100%;
+    }
+    
+    .deck-stats-breakdown {
+        width: 100%;
+        flex-direction: column;
     }
     
     .commander-image {
@@ -159,14 +188,6 @@
     
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .deck-stats-breakdown {
-        width: 100%;
-    }
-    
-    .stat-group {
-        min-width: 120px;
     }
 }
 

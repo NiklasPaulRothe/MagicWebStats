@@ -24,7 +24,7 @@
     </div>
 
     <section class="deck-header">
-        <div>
+        <div class="commander-section">
             {% if is_owner %}
                 <a href="{{ url_for('decks.choose_commander_image', deckname=deckname) }}">
                     <img src="{{ commander }}" alt="Commander Image" class="commander-image" title="Bild ändern">
@@ -32,7 +32,18 @@
             {% else %}
                 <img src="{{ commander }}" alt="Commander Image" class="commander-image">
             {% endif %}
+            <div class="commander-meta">
+                <div class="stat-item">
+                    <span class="stat-label">Avg Pod Size</span>
+                    <span class="stat-value">{{ deck_stats.avg_participants }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Last Played</span>
+                    <span class="stat-value">{{ deck_stats.last_played }}</span>
+                </div>
+            </div>
         </div>
+        
         <div class="deck-header-text">
             <div class="deck-stats-summary">
                 <!-- Overall Stats -->
@@ -50,14 +61,6 @@
                         <div class="stat-item">
                             <span class="stat-label">Winrate</span>
                             <span class="stat-value stat-highlight">{{ deck_stats.winrate }}%</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Pod Size</span>
-                            <span class="stat-value">{{ deck_stats.avg_participants }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Last Played</span>
-                            <span class="stat-value">{{ deck_stats.last_played }}</span>
                         </div>
                     </div>
                 </div>
@@ -85,27 +88,27 @@
         
         <div class="deck-stats-breakdown">
             {% for size in [3, 4, 5] %}
-                <div class="stat-group">
-                    <h4>{{ size }} Players</h4>
-                    <div class="stat-group-content">
-                        <div class="stat-item-compact">
-                            <span class="stat-label">Games:</span>
+                <div class="stats-section stats-section-podsize">
+                    <h4 class="stats-section-title">{{ size }} Players</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Games</span>
                             <span class="stat-value">{{ deck_stats_by_size[size].games }}</span>
                         </div>
-                        <div class="stat-item-compact">
-                            <span class="stat-label">Wins:</span>
+                        <div class="stat-item">
+                            <span class="stat-label">Wins</span>
                             <span class="stat-value">{{ deck_stats_by_size[size].wins }}</span>
                         </div>
-                        <div class="stat-item-compact">
-                            <span class="stat-label">Winrate:</span>
+                        <div class="stat-item">
+                            <span class="stat-label">Winrate</span>
                             <span class="stat-value stat-highlight">{{ deck_stats_by_size[size].winrate }}%</span>
                         </div>
-                        <div class="stat-item-compact">
-                            <span class="stat-label">Avg Turns:</span>
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Turns</span>
                             <span class="stat-value">{{ deck_stats_by_size[size].avg_turns }}</span>
                         </div>
-                        <div class="stat-item-compact">
-                            <span class="stat-label">Median:</span>
+                        <div class="stat-item">
+                            <span class="stat-label">Median</span>
                             <span class="stat-value">{{ deck_stats_by_size[size].median_turns }}</span>
                         </div>
                     </div>
