@@ -40,10 +40,11 @@ class Role(db.Model, RoleMixin):
     name = db.Column(db.String(50), unique=True)
 
 class UserRoles(db.Model):
+    __tablename__ = 'user_roles'
     __table_args__ = {'schema': 'data_owner'}
     id = db.Column(db.Integer(), primary_key=True)
-    user_id = db.Column(db.Integer(), db.ForeignKey('user.id'))
-    role_id = db.Column(db.Integer(), db.ForeignKey('Role.id'))
+    user_id = db.Column(db.Integer(), db.ForeignKey('data_owner.user.id'))
+    role_id = db.Column(db.Integer(), db.ForeignKey('data_owner.Role.id'))
 
 class ColorIdentity(db.Model):
     __tablename__ = 'Color_Identities'
@@ -157,3 +158,17 @@ class Achievement(db.Model):
     anzahl = db.Column(db.Integer)
     deck = db.Column(db.Integer)
     achieved = db.Column(db.Integer)
+
+class DeckVersionHistory(db.Model):
+    __tablename__ = 'deck_version_history'
+    __table_args__ = {'schema': 'data_owner'}
+    id = db.Column(db.Integer, primary_key=True)
+    deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
+    change_type = db.Column(db.String(20), nullable=False)  # 'change', 'patch', or 'rework'
+    previous_version = db.Column(db.Integer, nullable=False)
+    previous_patch = db.Column(db.Integer, nullable=False)
+    previous_change = db.Column(db.Integer, nullable=False)
+    new_version = db.Column(db.Integer, nullable=False)
+    new_patch = db.Column(db.Integer, nullable=False)
+    new_change = db.Column(db.Integer, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, default=sa.func.current_timestamp())

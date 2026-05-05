@@ -8,7 +8,7 @@ from app import db, models, third_party_data
 from app.auth import role_required
 from app.decks import bp
 from app.decks.forms import DeckEditForm
-from app.models import Deck, Player, User, Game, Participant
+from app.models import Deck, Player, User, Game, Participant, DeckVersionHistory
 from app.third_party_data.deckbuilder import load_cards_from_archidekt
 
 
@@ -35,6 +35,19 @@ def deck_edit(deckname):
             return redirect(url_for('main.user', spieler=current_user.username))
         
         elif form.version_changed.data:
+            # Save version history before updating
+            history_entry = DeckVersionHistory(
+                deck_id=deck.id,
+                change_type='change',
+                previous_version=deck.Version,
+                previous_patch=deck.patch,
+                previous_change=deck.change,
+                new_version=deck.Version,
+                new_patch=deck.patch,
+                new_change=deck.change + 1
+            )
+            db.session.add(history_entry)
+            
             deck.change += 1
             deck.Last_Change = func.current_date()
             db.session.commit()
@@ -42,6 +55,19 @@ def deck_edit(deckname):
             return redirect(url_for('main.user', spieler=current_user.username))
         
         elif form.version_patched.data:
+            # Save version history before updating
+            history_entry = DeckVersionHistory(
+                deck_id=deck.id,
+                change_type='patch',
+                previous_version=deck.Version,
+                previous_patch=deck.patch,
+                previous_change=deck.change,
+                new_version=deck.Version,
+                new_patch=deck.patch + 1,
+                new_change=0
+            )
+            db.session.add(history_entry)
+            
             deck.patch += 1
             deck.change = 0
             deck.last_patch = func.current_date()
@@ -50,6 +76,19 @@ def deck_edit(deckname):
             return redirect(url_for('main.user', spieler=current_user.username))
         
         elif form.version_reworked.data:
+            # Save version history before updating
+            history_entry = DeckVersionHistory(
+                deck_id=deck.id,
+                change_type='rework',
+                previous_version=deck.Version,
+                previous_patch=deck.patch,
+                previous_change=deck.change,
+                new_version=deck.Version + 1,
+                new_patch=0,
+                new_change=0
+            )
+            db.session.add(history_entry)
+            
             deck.Version += 1
             deck.patch = 0
             deck.change = 0

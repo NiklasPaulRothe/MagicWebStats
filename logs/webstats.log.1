@@ -1,23 +1,4 @@
-2026-05-05 13:34:59,440 ERROR: Exception on /decks/show/Bad Times make good Lessons [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-psycopg2.errors.UndefinedColumn: column Decks.version does not exist
-LINE 1: ...ta_owner."Decks".cedh AS "data_owner_Decks_cedh", data_owner...
-                                                             ^
-HINT:  Perhaps you meant to reference the column "Decks.Version".
-
-
-The above exception was the direct cause of the following exception:
-
+2026-05-05 13:38:15,273 ERROR: Exception on /decks/edit/Bad Times make good Lessons [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -31,123 +12,88 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
     return current_app.ensure_sync(func)(*args, **kwargs)
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 127, in deck_show
-    deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_sqlalchemy\query.py", line 43, in first_or_404
-    rv = self.first()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\query.py", line 2759, in first
-    return self.limit(1)._iter().first()  # type: ignore
-           ~~~~~~~~~~~~~~~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
-    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
-                                                  ~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-        params,
-        ^^^^^^^
-        execution_options={"_sa_orm_load_options": self.load_options},
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
-    return self._execute_internal(
-           ~~~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-    ...<4 lines>...
-        _add_event=_add_event,
-        ^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
-    result: Result[Any] = compile_state_cls.orm_execute_statement(
-                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self,
-        ^^^^^
-    ...<4 lines>...
-        conn,
-        ^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
-    result = conn.execute(
-        statement, params or {}, execution_options=execution_options
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
-    return meth(
-        self,
-        distilled_parameters,
-        execution_options or NO_OPTIONS,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
-    return connection._execute_clauseelement(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self, distilled_params, execution_options
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
-    ret = self._execute_context(
-        dialect,
-    ...<8 lines>...
-        cache_hit=cache_hit,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
-    return self._exec_single_context(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^
-        dialect, context, statement, parameters
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
-    self._handle_dbapi_exception(
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        e, str_statement, effective_parameters, cursor, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
-    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column Decks.version does not exist
-LINE 1: ...ta_owner."Decks".cedh AS "data_owner_Decks_cedh", data_owner...
-                                                             ^
-HINT:  Perhaps you meant to reference the column "Decks.Version".
-
-[SQL: SELECT data_owner."Decks".id AS "data_owner_Decks_id", data_owner."Decks"."Name" AS "data_owner_Decks_Name", data_owner."Decks"."Active" AS "data_owner_Decks_Active", data_owner."Decks"."Commander" AS "data_owner_Decks_Commander", data_owner."Decks"."Player" AS "data_owner_Decks_Player", data_owner."Decks"."Color_Identity" AS "data_owner_Decks_Color_Identity", data_owner."Decks"."Partner" AS "data_owner_Decks_Partner", data_owner."Decks".elo_rating AS "data_owner_Decks_elo_rating", data_owner."Decks".decklist AS "data_owner_Decks_decklist", data_owner."Decks".decksite AS "data_owner_Decks_decksite", data_owner."Decks".archidekt_id AS "data_owner_Decks_archidekt_id", data_owner."Decks".image_uri AS "data_owner_Decks_image_uri", data_owner."Decks"."Last_Rework" AS "data_owner_Decks_Last_Rework", data_owner."Decks"."Last_Change" AS "data_owner_Decks_Last_Change", data_owner."Decks".last_patch AS "data_owner_Decks_last_patch", data_owner."Decks".cedh AS "data_owner_Decks_cedh", data_owner."Decks".version AS "data_owner_Decks_version", data_owner."Decks".patch AS "data_owner_Decks_patch", data_owner."Decks".change AS "data_owner_Decks_change" 
-FROM data_owner."Decks" 
-WHERE data_owner."Decks"."Name" = %(Name_1)s 
- LIMIT %(param_1)s]
-[parameters: {'Name_1': 'Bad Times make good Lessons', 'param_1': 1}]
-(Background on this error at: https://sqlalche.me/e/20/f405)
-2026-05-05 13:37:08,357 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:37:11,435 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:125]
-2026-05-05 13:37:11,673 ERROR: Exception on /decks/show/Bad Times make good Lessons [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 315, in deck_show
-    deck_version=f"{deck.version}.{deck.patch}.{deck.change}",
-                    ^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 82, in deck_edit
+    current_version = f"{deck.version}.{deck.patch}.{deck.change}"
+                         ^^^^^^^^^^^^
 AttributeError: 'Deck' object has no attribute 'version'. Did you mean: 'Version'?
-2026-05-05 13:37:58,056 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:38:01,145 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:125]
+2026-05-05 13:39:04,631 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:43:07,060 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:43:23,235 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:125]
+2026-05-05 13:44:24,251 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:48:09,462 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:52:17,597 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:53:33,450 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:55:47,191 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:57:05,481 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:59:13,879 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:00:37,845 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:01:17,310 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:07:07,180 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:07:07,866 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:09:07,702 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:09:10,443 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:10:01,736 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:10:04,092 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:11:45,512 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:11:47,521 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:14:31,006 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:14:32,550 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:15:11,109 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:15:13,113 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:18:02,407 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:18:03,593 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:18:29,247 INFO: Aragorn [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:18:44,269 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:22:54,183 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:22:55,567 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:25:03,964 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:25:05,711 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:29:15,942 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:29:20,229 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:30:37,865 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:30:39,571 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:32:13,566 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:32:14,999 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:33:16,050 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:33:19,361 INFO: Etali cEDH [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:33:27,047 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 14:38:16,639 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 14:42:33,063 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 15:00:55,408 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:02:10,439 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:04:15,488 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:08:31,260 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:12:24,745 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:13:38,335 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:15:00,895 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:16:08,731 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:17:10,787 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:20:09,152 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:21:46,840 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:23:02,762 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:25:27,802 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:26:47,156 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:29:30,992 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 15:31:57,618 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 16:05:24,857 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 16:06:53,369 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 16:08:36,626 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 16:46:32,214 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 16:48:56,116 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 18:50:07,148 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 18:56:50,511 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 19:00:00,441 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 19:03:22,664 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 19:08:36,861 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 19:10:54,598 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 19:13:05,633 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 19:13:45,015 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 19:20:07,261 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 19:27:22,889 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 19:27:27,479 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 19:30:42,563 INFO: Dogthras [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 20:26:42,654 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 20:28:21,708 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
+2026-05-05 20:38:31,832 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:00:39,885 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:00:58,216 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
