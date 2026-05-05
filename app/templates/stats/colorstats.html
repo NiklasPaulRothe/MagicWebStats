@@ -1,69 +1,131 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/colorstats.css') }}">
+{% endblock %}
+
 {% block content %}
     <main>
-        <section id="color-stats">
-            <h2>Color Stats</h2>
-            <table id="color-stats-table">
-                <thead>
-                    <tr>
-                        <th data-type="string">Color Identity</th>
-                        <th data-type="number">Games</th>
-                        <th data-type="number">Wins</th>
-                        <th data-type="number">Winrate (in %)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Color stats data will be populated here -->
-                </tbody>
-            </table>
-        </section>
+        <h2 class="page-title">Color Identity Statistics</h2>
+        
+        <div class="stats-container">
+            <div class="stats-section">
+                <h3 class="section-title">Color Performance</h3>
+                
+                <div class="table-wrapper">
+                    <table id="color-stats-table" class="modern-table">
+                        <thead>
+                            <tr>
+                                <th data-type="string" data-key="Name">Color Identity</th>
+                                <th data-type="number" data-key="Games">Games</th>
+                                <th data-type="number" data-key="Wins">Wins</th>
+                                <th data-type="number" data-key="Winrate (in %)">Winrate %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Color stats data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </main>
+    
     <script>
-        function encode(Deck) {
-            return encodeURIComponent(Deck);
-        }
+        let colorData = [];
+        let currentSort = { idx: null, asc: true, type: null };
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Fetch and populate Color Stats table
             fetch('/api/color-data')
                 .then(response => response.json())
-                .then(data => populateTable('color-stats-table', data));
+                .then(data => {
+                    colorData = data;
+                    populateTable('color-stats-table', colorData);
+                });
 
-            // Function to populate tables
+            // Function to populate table
             function populateTable(tableId, data) {
                 const tbody = document.querySelector(`#${tableId} tbody`);
                 const headers = document.querySelectorAll(`#${tableId} thead th`);
                 tbody.innerHTML = '';
+                
                 data.forEach(item => {
                     const row = document.createElement('tr');
                     row.innerHTML = Array.from(headers).map(header => {
-                        const key = header.textContent.trim();
-                        if (key === 'Color Identity') {
+                        const key = header.getAttribute('data-key');
+                        
+                        if (key === 'Name') {
                             const imgs = Array.isArray(item['ColorImgs']) ? item['ColorImgs'] : [];
-                            const icons = imgs.map(src => `<img src="${src}" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:2px;">`).join('');
-                            const name = item['Name'] || '';
-                            return `<td>${icons}<small style="color:#aaa;margin-left:4px;">(${name})</small></td>`;
+                            const icons = imgs.map(src => `<img src="${src}" class="color-icon">`).join('');
+                            const name = item['Name'] && item['Name'][0] ? item['Name'][0] : '';
+                            return `<td>${icons}<span class="color-name">${name}</span></td>`;
                         }
-                        return `<td>${item[key] || ''}</td>`;
+                        
+                        // Get value from item using the data-key
+                        let value = item[key];
+                        
+                        // Handle array values from API
+                        if (Array.isArray(value) && value.length > 0) {
+                            value = value[0];
+                        }
+                        
+                        return `<td>${value !== null && value !== undefined ? value : ''}</td>`;
                     }).join('');
                     tbody.appendChild(row);
                 });
             }
 
-            // Sort table functionality
-            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+            // Function to update sort indicators
+            function updateSortIndicators() {
+                document.querySelectorAll('#color-stats-table th').forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === currentSort.idx) {
+                        th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            }
 
-            const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
-                v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
-            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
-
-            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
-                const table = th.closest('table');
-                const tbody = table.querySelector('tbody');
-                Array.from(tbody.querySelectorAll('tr'))
-                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
-                    .forEach(tr => tbody.appendChild(tr));
-            }));
+            // Add sort functionality to table headers
+            document.querySelectorAll('#color-stats-table th').forEach((th, idx) => {
+                th.addEventListener('click', function() {
+                    const dataType = th.getAttribute('data-type');
+                    
+                    if (currentSort.idx === idx) {
+                        currentSort.asc = !currentSort.asc;
+                    } else {
+                        currentSort = {
+                            idx,
+                            asc: true,
+                            type: dataType
+                        };
+                    }
+                    
+                    // Sort the data
+                    const headers = document.querySelectorAll('#color-stats-table thead th');
+                    const key = headers[currentSort.idx].getAttribute('data-key');
+                    
+                    colorData.sort((a, b) => {
+                        let valA = a[key];
+                        let valB = b[key];
+                        
+                        // Handle array values
+                        if (Array.isArray(valA) && valA.length > 0) valA = valA[0];
+                        if (Array.isArray(valB) && valB.length > 0) valB = valB[0];
+                        
+                        if (currentSort.type === 'number') {
+                            return currentSort.asc ? valA - valB : valB - valA;
+                        } else {
+                            return currentSort.asc
+                                ? valA.toString().localeCompare(valB)
+                                : valB.toString().localeCompare(valA);
+                        }
+                    });
+                    
+                    updateSortIndicators();
+                    populateTable('color-stats-table', colorData);
+                });
+            });
         });
     </script>
 {%  endblock %}

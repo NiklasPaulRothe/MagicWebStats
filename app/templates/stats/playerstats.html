@@ -1,103 +1,249 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playerstats.css') }}">
+{% endblock %}
+
 {% block content %}
     <main>
-            <h2>Player Stats</h2>
-    <div class="deckpage">
-        <div id="player-stats">
-            <table id="player-stats-table">
-                <thead>
-                    <tr>
-                        <th data-type="string">Name</th>
-                        <th data-type="number">Games</th>
-                        <th data-type="number">Early <br>Sol Ring</th>
-                        <th data-type="number">Sol Ring <br>(in %)</th>
-                        <th data-type="number">Wins</th>
-                        <th data-type="number">Winrate <br>(in %)</th>
-                        <th data-type="number">First</th>
-                        <th data-type="number">First <br>(in %)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Player stats data will be populated here -->
-                </tbody>
-            </table>
+        <h2 class="page-title">Player Statistics</h2>
+        
+        <div class="stats-container">
+            <!-- Game Performance Stats -->
+            <div class="stats-section">
+                <h3 class="section-title">Game Performance</h3>
+                
+                <!-- Filter Controls -->
+                <div class="filter-controls">
+                    <label for="min-games-filter">Min. Games:</label>
+                    <input type="number" id="min-games-filter" placeholder="0" min="0">
+                    <button id="apply-games-filter">Apply</button>
+                    <button id="reset-games-filter">Reset</button>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table id="player-stats-table" class="modern-table">
+                        <thead>
+                            <tr>
+                                <th data-type="string" data-key="Name">Player</th>
+                                <th data-type="number" data-key="Games">Games</th>
+                                <th data-type="number" data-key="Early Sol Ring">Early<br>Sol Ring</th>
+                                <th data-type="number" data-key="Sol Ring (in %)">Sol Ring<br>%</th>
+                                <th data-type="number" data-key="Wins">Wins</th>
+                                <th data-type="number" data-key="Winrate (in %)">Winrate<br>%</th>
+                                <th data-type="number" data-key="First">First</th>
+                                <th data-type="number" data-key="First (in %)">First<br>%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Player stats data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Color Usage Stats -->
+            <div class="stats-section">
+                <h3 class="section-title">Color Usage</h3>
+                <div class="table-wrapper">
+                    <table id="color_usage_player" class="modern-table">
+                        <thead>
+                            <tr>
+                                <th data-type="string" data-key="player">Player</th>
+                                <th data-type="integer" data-key="decks">Decks</th>
+                                <th data-type="float" data-key="white">White</th>
+                                <th data-type="float" data-key="blue">Blue</th>
+                                <th data-type="float" data-key="black">Black</th>
+                                <th data-type="float" data-key="red">Red</th>
+                                <th data-type="float" data-key="green">Green</th>
+                                <th data-type="float" data-key="avg_colors">Avg Colors</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for color in color_usage_player %}
+                            <tr>
+                                <td><a href="/player/{{ color.Player }}" class="player-link">{{ color.Player }}</a></td>
+                                <td>{{ color.Decks }}</td>
+                                <td>{{ color.white }}</td>
+                                <td>{{ color.blue }}</td>
+                                <td>{{ color.black }}</td>
+                                <td>{{ color.red }}</td>
+                                <td>{{ color.green }}</td>
+                                <td>{{ color.avg_number_of_colors }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    <div id="player-table">
-            <table id="color_usage_player">
-                <thead>
-                <tr>
-                    <th data-type="string" data-key="player">Name</th>
-                    <th data-type="integer" data-key="decks">Decks</th>
-                    <th data-type="float" data-key="white">White</th>
-                    <th data-type="float" data-key="blue">Blue</th>
-                    <th data-type="float" data-key="black">Black</th>
-                    <th data-type="float" data-key="red">Red</th>
-                    <th data-type="float" data-key="green">Green</th>
-                    <th data-type="float" data-key="avg_colors">Average Colors</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for color in color_usage_player %}
-                    <tr>
-                        <td>{{ color.Player }}</td>
-                        <td>{{ color.Decks }}</td>
-                        <td>{{ color.white }}</td>
-                        <td>{{ color.blue }}</td>
-                        <td>{{ color.black }}</td>
-                        <td>{{ color.red }}</td>
-                        <td>{{ color.green }}</td>
-                        <td>{{ color.avg_number_of_colors }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
     </main>
+    
     <script>
-        function encode(Deck) {
-            return encodeURIComponent(Deck);
+        let originalPlayerData = [];
+        let currentSort = { idx: null, asc: true, type: null };
+        
+        function encode(value) {
+            return encodeURIComponent(value);
         }
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Fetch and populate Player Stats table
             fetch('/api/data')
                 .then(response => response.json())
-                .then(data => populateTable('player-stats-table', data));
+                .then(data => {
+                    originalPlayerData = data;
+                    renderFilteredTable();
+                });
+
+            // Apply filter button
+            document.getElementById('apply-games-filter').addEventListener('click', renderFilteredTable);
+            
+            // Reset filter button
+            document.getElementById('reset-games-filter').addEventListener('click', () => {
+                document.getElementById('min-games-filter').value = '';
+                currentSort = { idx: null, asc: true, type: null };
+                renderFilteredTable();
+            });
+
+            // Function to render filtered and sorted table
+            function renderFilteredTable() {
+                const minGames = parseInt(document.getElementById('min-games-filter').value, 10) || 0;
+                
+                // Filter data
+                let filtered = originalPlayerData.filter(item => {
+                    const games = item['Games'] && item['Games'][0] ? item['Games'][0] : 0;
+                    return games >= minGames;
+                });
+                
+                // Apply sorting if active
+                if (currentSort.idx !== null) {
+                    const headers = document.querySelectorAll('#player-stats-table thead th');
+                    const key = headers[currentSort.idx].getAttribute('data-key');
+                    
+                    filtered.sort((a, b) => {
+                        let valA = a[key];
+                        let valB = b[key];
+                        
+                        // Handle array values
+                        if (Array.isArray(valA) && valA.length > 0) valA = valA[0];
+                        if (Array.isArray(valB) && valB.length > 0) valB = valB[0];
+                        
+                        if (currentSort.type === 'number') {
+                            return currentSort.asc ? valA - valB : valB - valA;
+                        } else {
+                            return currentSort.asc
+                                ? valA.toString().localeCompare(valB)
+                                : valB.toString().localeCompare(valA);
+                        }
+                    });
+                }
+                
+                updateSortIndicators();
+                populateTable('player-stats-table', filtered);
+            }
+
+            // Function to update sort indicators
+            function updateSortIndicators() {
+                document.querySelectorAll('#player-stats-table th').forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === currentSort.idx) {
+                        th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            }
 
             // Function to populate tables
             function populateTable(tableId, data) {
                 const tbody = document.querySelector(`#${tableId} tbody`);
                 const headers = document.querySelectorAll(`#${tableId} thead th`);
                 tbody.innerHTML = ''; // Clear existing table data
+                
                 data.forEach(item => {
                     const row = document.createElement('tr');
                     row.innerHTML = Array.from(headers).map(header => {
-                        if (header.textContent.trim() == 'Name'){
-                            const key = header.textContent.trim();
-                            return `<td><a id="${item[key]}-link" href="/player/${item[key]}">${item[key] || ''}</a></td>`
+                        const key = header.getAttribute('data-key');
+                        
+                        // Handle Player column with link
+                        if (key === 'Name') {
+                            const playerName = item[key] && item[key][0] ? item[key][0] : '';
+                            return `<td><a href="/player/${encode(playerName)}" class="player-link">${playerName}</a></td>`;
                         }
-                        const key = header.textContent.trim();
-                        return `<td>${item[key] || ''}</td>`;
+                        
+                        // Get value from item using the data-key
+                        let value = item[key];
+                        
+                        // Handle array values from API
+                        if (Array.isArray(value) && value.length > 0) {
+                            value = value[0];
+                        }
+                        
+                        return `<td>${value !== null && value !== undefined ? value : ''}</td>`;
                     }).join('');
                     tbody.appendChild(row);
                 });
             }
 
             // Sort table functionality
-            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+            const getCellValue = (tr, idx) => {
+                const cell = tr.children[idx];
+                return cell.innerText || cell.textContent;
+            };
 
-            const comparer = (idx, asc, type) => (a, b) => ((v1, v2) =>
-                v1 !== '' && v2 !== '' && (type === 'number' ? (parseFloat(v1) - parseFloat(v2)) : v1.toString().localeCompare(v2))
-            )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+            // Add sort functionality to player stats table headers
+            document.querySelectorAll('#player-stats-table th').forEach((th, idx) => {
+                th.addEventListener('click', function() {
+                    const dataType = th.getAttribute('data-type');
+                    
+                    if (currentSort.idx === idx) {
+                        currentSort.asc = !currentSort.asc;
+                    } else {
+                        currentSort = {
+                            idx,
+                            asc: true,
+                            type: dataType
+                        };
+                    }
+                    
+                    renderFilteredTable();
+                });
+            });
 
-            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
-                const table = th.closest('table');
-                const tbody = table.querySelector('tbody');
-                Array.from(tbody.querySelectorAll('tr'))
-                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
-                    .forEach(tr => tbody.appendChild(tr));
-            }));
+            // Add sort functionality to color usage table (no filtering)
+            document.querySelectorAll('#color_usage_player th').forEach(th => {
+                th.addEventListener('click', function() {
+                    const table = th.closest('table');
+                    const tbody = table.querySelector('tbody');
+                    const idx = Array.from(th.parentNode.children).indexOf(th);
+                    const type = th.getAttribute('data-type');
+                    
+                    // Remove sort indicators from all headers in this table
+                    table.querySelectorAll('th').forEach(header => {
+                        header.classList.remove('sorted-asc', 'sorted-desc');
+                    });
+                    
+                    // Add sort indicator to clicked header
+                    this.asc = !this.asc;
+                    th.classList.add(this.asc ? 'sorted-asc' : 'sorted-desc');
+                    
+                    // Sort rows
+                    const comparer = (a, b) => {
+                        let v1 = getCellValue(this.asc ? a : b, idx);
+                        let v2 = getCellValue(this.asc ? b : a, idx);
+                        
+                        if (v1 === '' || v2 === '') return v1 === '' ? 1 : -1;
+                        
+                        if (type === 'number' || type === 'integer' || type === 'float') {
+                            return parseFloat(v1) - parseFloat(v2);
+                        }
+                        return v1.toString().localeCompare(v2);
+                    };
+                    
+                    Array.from(tbody.querySelectorAll('tr'))
+                        .sort(comparer)
+                        .forEach(tr => tbody.appendChild(tr));
+                });
+            });
         });
     </script>
 {%  endblock %}

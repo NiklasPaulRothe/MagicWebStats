@@ -1,0 +1,303 @@
+/* ── Player Stats Page Styles ────────────────────────────────────────────── */
+
+.page-title {
+    color: #f4c430;
+    font-size: 32px;
+    font-weight: bold;
+    text-align: center;
+    margin: 20px 0 30px 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.stats-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+.stats-section {
+    background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(244, 196, 48, 0.2);
+    transition: all 0.3s ease;
+    flex: 1;
+    min-width: 0; /* Allow flex items to shrink below content size */
+}
+
+.stats-section:hover {
+    border-color: rgba(244, 196, 48, 0.4);
+    box-shadow: 0 6px 25px rgba(244, 196, 48, 0.15);
+    transform: translateY(-2px);
+}
+
+.section-title {
+    color: #f4c430;
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(244, 196, 48, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+/* Filter Controls */
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.filter-controls label {
+    color: #f4c430;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.filter-controls input[type="number"] {
+    background-color: #1e1e1e;
+    color: antiquewhite;
+    border: 1px solid #f4c430;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100px;
+}
+
+.filter-controls input[type="number"]:focus {
+    outline: none;
+    border-color: #ffd700;
+    box-shadow: 0 0 4px rgba(244, 196, 48, 0.5);
+}
+
+.filter-controls button {
+    background-color: black;
+    color: #f4c430;
+    border: 1px solid #f4c430;
+    padding: 6px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    font-weight: 600;
+}
+
+.filter-controls button:hover {
+    background-color: #f4c430;
+    color: black;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    background-color: #1e1e1e;
+}
+
+/* Modern Table Styles */
+.modern-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.modern-table thead {
+    background: linear-gradient(135deg, #0d0800 0%, #1a1200 100%);
+}
+
+.modern-table th {
+    background-color: transparent;
+    color: #f4c430;
+    padding: 16px 12px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+    border-bottom: 2px solid rgba(244, 196, 48, 0.3);
+    position: relative;
+}
+
+.modern-table th:hover {
+    background-color: rgba(244, 196, 48, 0.1);
+}
+
+/* Sort indicators */
+.modern-table th.sorted-asc::after {
+    content: " ↑";
+    color: #f4c430;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.modern-table th.sorted-desc::after {
+    content: " ↓";
+    color: #f4c430;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.modern-table tbody tr {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(244, 196, 48, 0.1);
+}
+
+.modern-table tbody tr:nth-child(even) {
+    background-color: rgba(40, 44, 52, 0.5);
+}
+
+.modern-table tbody tr:hover {
+    background-color: rgba(244, 196, 48, 0.08);
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(244, 196, 48, 0.15);
+}
+
+.modern-table td {
+    padding: 14px 12px;
+    color: antiquewhite;
+    font-size: 15px;
+    vertical-align: middle;
+}
+
+/* Player Link Styles */
+.player-link {
+    color: #f4c430;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    position: relative;
+    display: inline-block;
+}
+
+.player-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -2px;
+    left: 0;
+    background-color: #f4c430;
+    transition: width 0.3s ease;
+}
+
+.player-link:hover {
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(244, 196, 48, 0.5);
+}
+
+.player-link:hover::after {
+    width: 100%;
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .stats-container {
+        flex-direction: column;
+    }
+    
+    .stats-section {
+        width: 100%;
+    }
+}
+
+@media (max-width: 1200px) {
+    .stats-container {
+        padding: 0 15px;
+    }
+    
+    .modern-table th,
+    .modern-table td {
+        padding: 12px 8px;
+        font-size: 14px;
+    }
+    
+    .section-title {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-title {
+        font-size: 24px;
+        margin: 15px 0 20px 0;
+    }
+    
+    .stats-section {
+        padding: 15px;
+    }
+    
+    .section-title {
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
+    
+    .modern-table th,
+    .modern-table td {
+        padding: 10px 6px;
+        font-size: 13px;
+    }
+    
+    .modern-table th {
+        font-size: 12px;
+    }
+    
+    /* Stack tables vertically on mobile */
+    .table-wrapper {
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .modern-table th,
+    .modern-table td {
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+    
+    .modern-table th br {
+        display: none;
+    }
+    
+    .modern-table th {
+        font-size: 11px;
+        letter-spacing: 0.3px;
+    }
+}
+
+/* Number alignment for better readability */
+.modern-table td:not(:first-child) {
+    text-align: center;
+}
+
+.modern-table th:not(:first-child) {
+    text-align: center;
+}
+
+/* Highlight numeric cells */
+.modern-table tbody td:not(:first-child) {
+    font-variant-numeric: tabular-nums;
+    font-family: 'Segoe UI', 'Roboto', monospace;
+}
+
+/* Loading state (optional) */
+.modern-table tbody:empty::after {
+    content: 'Loading data...';
+    display: block;
+    text-align: center;
+    padding: 40px;
+    color: #f4c430;
+    font-style: italic;
+}

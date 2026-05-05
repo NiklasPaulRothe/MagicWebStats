@@ -12,35 +12,81 @@
 
 {% block content %}
 <main>
-    <h1>Metainformationen</h1>
-    <div class="deckpage">
-        <div id="charts">
-            <canvas id="likelihoodChart" width="300" height="200"></canvas>
-            <canvas id="averageChart" width="300" height="200"></canvas>
-            <canvas id="deckPercentageChart" width="300" height="200"></canvas>
-        </div>
-        <div id="charts">
-            <canvas id="turnsChart" width="300" height="200"></canvas>
-            <canvas id="koturnsChart" width="300" height="200"></canvas>
-            <div class="metadata-box">
-                <div><span class="metainfo">Average Turns:</span> {{ avg_turns }} </div>
-                <span class="metainfo">Median Turns:</span> {{ median_turns }}
+    <h1>Game Statistics Dashboard</h1>
+    
+    <!-- Game Duration and First KO Section - Side by Side -->
+    <div class="dashboard-row">
+        <!-- Game Duration Section -->
+        <section class="dashboard-section dashboard-section-half">
+            <h2 class="section-title">Game Duration</h2>
+            <div class="chart-row">
+                <div class="chart-container-compact">
+                    <canvas id="turnsChart"></canvas>
+                </div>
+                <div class="stats-cards-compact">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Turns</div>
+                        <div class="stat-value">{{ avg_turns }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Median</div>
+                        <div class="stat-value">{{ median_turns }}</div>
+                    </div>
+                </div>
             </div>
+        </section>
 
-            <div class="metadata-box">
-                <div><span class="metainfo">Average First KO:</span> {{ avg_ko_turns }} </div>
-                <span class="metainfo">Median First KO:</span> {{ median_ko_turns }}
+        <!-- First KO Section -->
+        <section class="dashboard-section dashboard-section-half">
+            <h2 class="section-title">First Knockout</h2>
+            <div class="chart-row">
+                <div class="chart-container-compact">
+                    <canvas id="koturnsChart"></canvas>
+                </div>
+                <div class="stats-cards-compact">
+                    <div class="stat-card">
+                        <div class="stat-label">Avg KO</div>
+                        <div class="stat-value">{{ avg_ko_turns }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Median</div>
+                        <div class="stat-value">{{ median_ko_turns }}</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Wincons Section -->
+    <section class="dashboard-section">
+        <h2 class="section-title">Wincons</h2>
+        <div class="chart-row chart-row-center">
+            <div class="chart-container-pie">
+                <canvas id="finalBlowChart"></canvas>
+            </div>
+            <div class="chart-container-pie">
+                <canvas id="firstKoChart"></canvas>
             </div>
         </div>
-<div id="charts">
-        <div id="final-blow-chart-container" class="chart-box">
-            <canvas id="finalBlowChart" width="350" height="350"></canvas>
+    </section>
+
+    <!-- Color Statistics Section -->
+    <section class="dashboard-section">
+        <h2 class="section-title">Color Statistics</h2>
+        <div class="chart-row">
+            <div class="chart-container-medium">
+                <canvas id="likelihoodChart"></canvas>
+            </div>
+            <div class="chart-container-medium">
+                <canvas id="averageChart"></canvas>
+            </div>
+            <div class="chart-container-medium">
+                <canvas id="deckPercentageChart"></canvas>
+            </div>
         </div>
-        <div id="final-blow-chart-container" class="chart-box">
-            <canvas id="firstKoChart" width="350" height="350"></canvas>
-        </div>
-    </div>
-    </div>
+    </section>
+
+    <!-- Hidden data elements -->
     <script type="application/json" id="color-usage-data">
         {{ color_usage | tojson }}
     </script>
