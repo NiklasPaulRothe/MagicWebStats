@@ -10,7 +10,7 @@
 /* Deck header section */
 .deck-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 24px;
     background-color: #1e1e1e;
     padding: 20px;
@@ -18,7 +18,156 @@
     box-shadow: 0 0 12px rgba(244, 196, 48, 0.2);
     width: 100%;
     max-width: 900px;
-    grid-auto-rows: auto;
+}
+
+.commander-image {
+    width: 180px;
+    height: auto;
+    border-radius: 10px;
+    border: 3px solid #f4c430;
+    box-shadow: 0 4px 12px rgba(244, 196, 48, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.commander-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 16px rgba(244, 196, 48, 0.4);
+}
+
+.deck-header-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.deck-stats-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Stats section styling */
+.stats-section {
+    background-color: #252525;
+    border-radius: 6px;
+    padding: 10px 14px;
+    border-left: 2px solid #f4c430;
+}
+
+.stats-section-title {
+    color: #f4c430;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px 12px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-label {
+    font-size: 0.75em;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.stat-value {
+    font-size: 1em;
+    color: antiquewhite;
+    font-weight: 500;
+}
+
+.stat-highlight {
+    color: #f4c430;
+    font-weight: 600;
+}
+
+/* Stats breakdown by player count */
+.deck-stats-breakdown {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.stat-group {
+    background-color: #252525;
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 2px solid #f4c430;
+    flex: 1;
+    min-width: 150px;
+    box-shadow: 0 2px 8px rgba(244, 196, 48, 0.15);
+}
+
+.stat-group h4 {
+    margin: 0 0 12px 0;
+    color: #f4c430;
+    font-size: 1em;
+    font-weight: 600;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f4c430;
+}
+
+.stat-group-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-item-compact {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9em;
+}
+
+.stat-item-compact .stat-label {
+    color: #aaa;
+    font-size: 1em;
+    text-transform: none;
+}
+
+.stat-item-compact .stat-value {
+    color: antiquewhite;
+    font-size: 1em;
+    font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .deck-header {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .commander-image {
+        width: 160px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .deck-stats-breakdown {
+        width: 100%;
+    }
+    
+    .stat-group {
+        min-width: 120px;
+    }
 }
 
 /* Centered, non-intrusive controls above the header block */
@@ -286,13 +435,6 @@
     gap: 30px;
 }
 
-.commander-image {
-    width: 120px;
-    height: auto;
-    border-radius: 8px;
-    border: 2px solid #f4c430;
-}
-
 .deck-header h1 {
     font-size: 2rem;
     color: #f4c430;
@@ -329,27 +471,3 @@
     color: antiquewhite;
 }
 
-.deck-header-text {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.deck-stats-summary p {
-    margin: 4px 0;
-    color: antiquewhite;
-    font-size: 14px;
-}
-
-.deck-stats-breakdown {
-    margin-top: 20px;
-    display: flex;
-    gap: 40px;
-    justify-content: space-between;
-    color: antiquewhite;
-}
-
-.stat-group h4 {
-    margin-bottom: 8px;
-    color: #f4c430;
-}
