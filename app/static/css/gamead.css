@@ -498,3 +498,51 @@ button:disabled {
     font-weight: normal;
     white-space: nowrap;
 }
+
+/* Wrapper for expander and hidden tags - provides positioning context */
+.deck-tag-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Expander badge (the "..." button) */
+.deck-tag-expander {
+    cursor: pointer;
+    background-color: rgba(244, 196, 48, 0.2);
+    border-color: rgba(244, 196, 48, 0.4);
+    transition: background-color 0.2s ease;
+}
+
+.deck-tag-expander:hover {
+    background-color: rgba(244, 196, 48, 0.3);
+    border-color: rgba(244, 196, 48, 0.5);
+}
+
+/* Hidden tags container - positioned absolutely to not affect layout */
+.deck-tags-hidden {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    display: none !important;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+    padding: 6px;
+    background-color: rgba(26, 26, 26, 0.98);
+    border: 1px solid rgba(244, 196, 48, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    min-width: 200px;
+    max-width: 400px;
+}
+
+/* Show hidden tags when hovering over the expander */
+.deck-tag-expander:hover + .deck-tags-hidden {
+    display: flex !important;
+}
+
+/* Keep hidden tags visible when hovering over them */
+.deck-tags-hidden:hover {
+    display: flex !important;
+}

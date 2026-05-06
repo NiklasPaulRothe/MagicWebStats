@@ -128,10 +128,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     const tags = item['Tags'] || [];
                     let tagsHtml = '';
                     if (tags.length > 0) {
-                        const tagBadges = tags.map(tag => 
+                        const visibleTags = tags.slice(0, 2);
+                        const hiddenTags = tags.slice(2);
+                        
+                        const visibleBadges = visibleTags.map(tag => 
                             `<span class="deck-tag">${tag}</span>`
                         ).join('');
-                        tagsHtml = `<div class="deck-tags">${tagBadges}</div>`;
+                        
+                        let expanderHtml = '';
+                        if (hiddenTags.length > 0) {
+                            const hiddenBadges = hiddenTags.map(tag => 
+                                `<span class="deck-tag">${tag}</span>`
+                            ).join('');
+                            expanderHtml = `<span class="deck-tag-wrapper"><span class="deck-tag deck-tag-expander">...</span><div class="deck-tags-hidden">${hiddenBadges}</div></span>`;
+                        }
+                        
+                        tagsHtml = `<div class="deck-tags">${visibleBadges}${expanderHtml}</div>`;
                     }
                     return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a>${tagsHtml}</td>`;
                 }
