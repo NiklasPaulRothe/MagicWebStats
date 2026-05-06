@@ -124,7 +124,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (key === 'Deckname') {
                     Deck = item[key];
                     let URL = encodeURIComponent(Deck);
-                    return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a></td>`;
+                    // Add tags below the deck name if they exist
+                    const tags = item['Tags'] || [];
+                    let tagsHtml = '';
+                    if (tags.length > 0) {
+                        const tagBadges = tags.map(tag => 
+                            `<span class="deck-tag">${tag}</span>`
+                        ).join('');
+                        tagsHtml = `<div class="deck-tags">${tagBadges}</div>`;
+                    }
+                    return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a>${tagsHtml}</td>`;
                 }
                 if (key === 'Commander') {
                     return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`;

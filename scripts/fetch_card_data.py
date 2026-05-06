@@ -1,6 +1,8 @@
 import os
 import time
 
+from pyrchidekt.api import getDeckById
+
 import ijson
 import psycopg2
 import requests

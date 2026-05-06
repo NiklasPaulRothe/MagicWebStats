@@ -156,7 +156,10 @@ def deck_data():
            FROM data_owner.color_components cc
              JOIN data_owner."Colors" c ON c."Name" = cc.color
           WHERE cc.color_identity = "Decks"."Color_Identity"
-            AND c.img IS NOT NULL) AS color_imgs
+            AND c.img IS NOT NULL) AS color_imgs,
+    (SELECT array_agg(dt.tag ORDER BY dt.tag)
+           FROM data_owner.deck_tags dt
+          WHERE dt.deck_id = "Decks".id) AS tags
    FROM data_owner."Decks",
     data_owner."Player"
   WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
@@ -165,7 +168,7 @@ def deck_data():
     list = []
     for entry in results:
         dict = {"Deckname": [], "Spieler": [], "Commander": [], "Farbe": [], "Spiele": [], "Siege": [],
-                "Winrate (in %)": [], "WTurns":[], "WTurnsCount": [], "Decklist": [], "elo": [], "ColorImgs": None}
+                "Winrate (in %)": [], "WTurns":[], "WTurnsCount": [], "Decklist": [], "elo": [], "ColorImgs": None, "Tags": []}
         dict["Deckname"].append(entry[0])
         dict["Spieler"].append(entry[1])
         dict["Commander"].append(entry[2])
@@ -186,6 +189,7 @@ def deck_data():
             colorless = Color.query.filter_by(Name='Colorless').first()
             if colorless and colorless.img:
                 dict["ColorImgs"] = [colorless.img]
+        dict["Tags"] = entry[12] or []
         list.append(dict)
 
     return jsonify(list)
@@ -307,7 +311,10 @@ def userdecks(spieler):
              FROM data_owner.color_components cc
              JOIN data_owner."Colors" c ON c."Name" = cc.color
              WHERE cc.color_identity = "Decks"."Color_Identity"
-               AND c.img IS NOT NULL) AS color_imgs
+               AND c.img IS NOT NULL) AS color_imgs,
+            (SELECT array_agg(dt.tag ORDER BY dt.tag)
+             FROM data_owner.deck_tags dt
+             WHERE dt.deck_id = "Decks".id) AS tags
     FROM "data_owner"."Decks"
     WHERE "Player" = :player AND "Active" = true
     ORDER BY "Name";'''),{'player': spieler})
@@ -315,7 +322,7 @@ def userdecks(spieler):
     list = []
     for entry in results:
         dict = {"Name": [], "Commander": [], "Color Identity": [], "Spiele": [], "Zuletzt gespielt": [], "Siege": [],
-                "Winrate (in %)": [], "Decklist": [], "ColorImgs": None}
+                "Winrate (in %)": [], "Decklist": [], "ColorImgs": None, "Tags": []}
         dict["Name"].append(entry[0])
         dict["Commander"].append(entry[1])
         dict["Color Identity"].append(entry[2])
@@ -336,6 +343,7 @@ def userdecks(spieler):
             colorless = Color.query.filter_by(Name='Colorless').first()
             if colorless and colorless.img:
                 dict["ColorImgs"] = [colorless.img]
+        dict["Tags"] = entry[9] or []
         list.append(dict)
 
     return jsonify(list)

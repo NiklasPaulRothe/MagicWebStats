@@ -93,3 +93,23 @@
     #deck-stats-table th:nth-child(9),
     #deck-stats-table td:nth-child(9) { display: none; }
 }
+
+/* ── Deck tags — subtle, non-intrusive display ───────────────────────────── */
+.deck-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.deck-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 0.7em;
+    background-color: rgba(244, 196, 48, 0.15);
+    border: 1px solid rgba(244, 196, 48, 0.3);
+    border-radius: 3px;
+    color: #b8a040;
+    font-weight: normal;
+    white-space: nowrap;
+}

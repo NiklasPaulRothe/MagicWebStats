@@ -1,99 +1,48 @@
-2026-05-05 13:38:15,273 ERROR: Exception on /decks/edit/Bad Times make good Lessons [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\app\decks\routes.py", line 82, in deck_edit
-    current_version = f"{deck.version}.{deck.patch}.{deck.change}"
-                         ^^^^^^^^^^^^
-AttributeError: 'Deck' object has no attribute 'version'. Did you mean: 'Version'?
-2026-05-05 13:39:04,631 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:43:07,060 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:43:23,235 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:125]
-2026-05-05 13:44:24,251 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:48:09,462 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:52:17,597 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:53:33,450 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:55:47,191 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:57:05,481 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 13:59:13,879 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:00:37,845 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:01:17,310 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:07:07,180 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:07:07,866 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:09:07,702 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:09:10,443 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:10:01,736 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:10:04,092 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:11:45,512 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:11:47,521 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:14:31,006 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:14:32,550 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:15:11,109 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:15:13,113 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:18:02,407 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:18:03,593 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:18:29,247 INFO: Aragorn [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:18:44,269 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:22:54,183 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:22:55,567 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:25:03,964 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:25:05,711 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:29:15,942 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:29:20,229 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:30:37,865 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:30:39,571 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:32:13,566 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:32:14,999 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:33:16,050 INFO: Big Chunky Boy [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:33:19,361 INFO: Etali cEDH [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:33:27,047 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 14:38:16,639 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 14:42:33,063 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 15:00:55,408 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:02:10,439 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:04:15,488 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:08:31,260 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:12:24,745 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:13:38,335 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:15:00,895 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:16:08,731 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:17:10,787 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:20:09,152 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:21:46,840 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:23:02,762 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:25:27,802 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:26:47,156 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:29:30,992 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 15:31:57,618 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 16:05:24,857 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 16:06:53,369 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 16:08:36,626 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 16:46:32,214 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 16:48:56,116 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 18:50:07,148 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 18:56:50,511 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 19:00:00,441 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 19:03:22,664 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 19:08:36,861 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 19:10:54,598 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 19:13:05,633 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 19:13:45,015 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 19:20:07,261 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 19:27:22,889 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 19:27:27,479 INFO: Mordor Armies [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 19:30:42,563 INFO: Dogthras [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 20:26:42,654 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 20:28:21,708 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:129]
-2026-05-05 20:38:31,832 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 21:00:39,885 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 21:00:58,216 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:07:00,954 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:07:07,233 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:168]
+2026-05-05 21:15:29,066 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:15:37,053 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:168]
+2026-05-05 21:20:41,693 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:20:45,070 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:184]
+2026-05-05 21:20:51,014 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:184]
+2026-05-05 21:21:27,487 INFO: testdeck [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:184]
+2026-05-05 21:27:32,037 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:28:10,832 INFO: versiontest [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
+2026-05-05 21:28:15,008 INFO: versiontest [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
+2026-05-05 21:28:51,129 INFO: versiontest [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
+2026-05-05 21:38:59,657 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:41:03,198 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:42:53,333 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:43:08,103 ERROR: Error saving tags for deck 1088: 'dict' object has no attribute 'strip'Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 82, in load_cards_from_archidekt
+    if tag_name and tag_name.strip():  # Only add non-empty tags
+                    ^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'strip'
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:90]
+2026-05-05 21:44:13,015 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:44:25,072 ERROR: Error saving tags for deck 1088: 'dict' object has no attribute 'name'Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 82, in load_cards_from_archidekt
+    if tag.name:  # Only add non-empty tags
+       ^^^^^^^^
+AttributeError: 'dict' object has no attribute 'name'
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:90]
+2026-05-05 21:45:56,994 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:46:04,484 ERROR: Error saving tags for deck 1088: cannot access local variable 'name' where it is not associated with a valueTraceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 84, in load_cards_from_archidekt
+    tag=tag[name].strip()
+            ^^^^
+UnboundLocalError: cannot access local variable 'name' where it is not associated with a value
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:89]
+2026-05-05 21:48:07,892 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:48:15,268 ERROR: Error saving tags for deck 1088: 'dict' object has no attribute 'name'Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py", line 85, in load_cards_from_archidekt
+    tag=tag.name.strip()
+        ^^^^^^^^
+AttributeError: 'dict' object has no attribute 'name'
+ [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:90]
+2026-05-05 21:48:38,855 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 21:48:46,631 INFO: Saved 2 tags for deck 1088 [in D:\PycharmProjects\MagicWebStats\app\third_party_data\deckbuilder.py:88]
+2026-05-05 22:17:13,120 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 22:17:30,224 INFO: 1088 [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
+2026-05-05 22:20:38,783 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 22:20:44,164 INFO: Bad Times make good Lessons [in D:\PycharmProjects\MagicWebStats\app\decks\routes.py:196]
