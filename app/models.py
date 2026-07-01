@@ -115,6 +115,9 @@ class Participant(db.Model):
     loss_without_answer = db.Column(db.Boolean)
     selfmade_win = db.Column(db.Boolean)
     fun_moments = db.Column(db.Boolean)
+    removal_played = db.Column(db.Integer)
+    targeted_by_removal = db.Column(db.Integer)
+    protection_played = db.Column(db.Integer)
 
 class Player(db.Model):
     __tablename__ = 'Player'

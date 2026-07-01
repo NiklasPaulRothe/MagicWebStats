@@ -677,3 +677,20 @@ button:disabled {
 .modal-btn--confirm:hover {
     background-color: #d4a420;
 }
+
+/* ── Interaction fields row (per participant) ────────────────────────────── */
+.interaction-row {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    padding: 10px 12px;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.interaction-row .form-field {
+    flex: 1 1 auto;
+    min-width: 120px;
+}

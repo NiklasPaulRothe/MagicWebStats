@@ -45,6 +45,9 @@ class PlayerForm(Form):
     borrowed = BooleanField('Borrowed', default=False)
     lender = SelectField('Geliehen von', validate_choice=False)
     early_fast_mana = BooleanField('Early Fast Mana', default=False)
+    removal_played = IntegerField('Removal Played', validators=[Optional()])
+    targeted_by_removal = IntegerField('Targeted by Removal', validators=[Optional()])
+    protection_played = IntegerField('Protection Played', validators=[Optional()])
 
 # Main GameAddForm
 class GameAddForm(FlaskForm):
@@ -94,6 +97,9 @@ class ParticipantEditSubForm(Form):
     borrowed = BooleanField('Borrowed', default=False)
     lender = SelectField('Geliehen von', validate_choice=False)
     early_fast_mana = BooleanField('Early Fast Mana', default=False)
+    removal_played = IntegerField('Removal Played', validators=[Optional()])
+    targeted_by_removal = IntegerField('Targeted by Removal', validators=[Optional()])
+    protection_played = IntegerField('Protection Played', validators=[Optional()])
 
 
 class NiklasParticipantForm(Form):

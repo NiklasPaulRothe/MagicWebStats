@@ -44,6 +44,22 @@
                                 <span class="field-hint">Sol Ring oder ähnliches in Turn 1-2</span>
                             </div>
                         </div>
+                        {% if current_user.username == 'Niklas' %}
+                        <div class="interaction-row">
+                            <div class="form-field">
+                                {{ pf.removal_played.label }}
+                                {{ pf.removal_played(size=5) }}
+                            </div>
+                            <div class="form-field">
+                                {{ pf.targeted_by_removal.label }}
+                                {{ pf.targeted_by_removal(size=5) }}
+                            </div>
+                            <div class="form-field">
+                                {{ pf.protection_played.label }}
+                                {{ pf.protection_played(size=5) }}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>

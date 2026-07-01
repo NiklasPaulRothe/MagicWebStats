@@ -248,6 +248,9 @@ def game_edit(game_id):
                 
                 # Update other participant fields
                 participant.early_sol_ring = pf.early_fast_mana.data
+                participant.removal_played = pf.removal_played.data
+                participant.targeted_by_removal = pf.targeted_by_removal.data
+                participant.protection_played = pf.protection_played.data
         
         # Update Niklas's "My Game" fields if applicable
         if niklas_is_participant and niklas_player_id:
@@ -318,7 +321,10 @@ def game_edit(game_id):
             'deck': f"{deck.Name} ({deck.Commander})",
             'borrowed': is_borrowed,
             'lender': lender_name,
-            'early_fast_mana': participant.early_sol_ring
+            'early_fast_mana': participant.early_sol_ring,
+            'removal_played': participant.removal_played,
+            'targeted_by_removal': participant.targeted_by_removal,
+            'protection_played': participant.protection_played
         }
         
         # Append entry to form.participants
@@ -484,12 +490,18 @@ def game_add():
             deck = Deck.query.filter(and_(literal(participant.deck.data).contains(Deck.Name),
                                           Deck.Player == (Player.query.filter_by(Name = owner).first().id))).first().id
 
+            # Grab per-participant interaction values before overwriting the variable
+            p_early_fast_mana = participant.early_fast_mana.data
+            p_removal_played = participant.removal_played.data
+            p_targeted_by_removal = participant.targeted_by_removal.data
+            p_protection_played = participant.protection_played.data
+
             if (player == 1):
                 participant = Participant (
                     game_id = game.id,
                     player_id = player,
                     deck_id = deck,
-                    early_sol_ring = participant.early_fast_mana.data,
+                    early_sol_ring = p_early_fast_mana,
                     mulligans = form.mulligan.data,
                     comments = form.comment.data,
                     landdrops = form.landdrops.data,
@@ -500,14 +512,20 @@ def game_add():
                     unanswered_threats = form.unanswered_threats.data,
                     loss_without_answer = form.loss_without_answer.data,
                     selfmade_win = form.selfmade_win.data,
-                    fun_moments = form.fun_moments.data
+                    fun_moments = form.fun_moments.data,
+                    removal_played = p_removal_played,
+                    targeted_by_removal = p_targeted_by_removal,
+                    protection_played = p_protection_played
                 )
             else:
                 participant = Participant(
                     game_id=game.id,
                     player_id=player,
                     deck_id=deck,
-                    early_sol_ring = participant.early_fast_mana.data
+                    early_sol_ring = p_early_fast_mana,
+                    removal_played = p_removal_played,
+                    targeted_by_removal = p_targeted_by_removal,
+                    protection_played = p_protection_played
                 )
             db.session.add(participant)
             db.session.commit()

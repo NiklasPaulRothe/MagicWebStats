@@ -252,10 +252,29 @@ document.addEventListener('DOMContentLoaded', function () {
     updateButtonStates();
     updateWinnerFirstChoices();
 
+    const showInteraction = document.getElementById('show-interaction') && document.getElementById('show-interaction').value === 'true';
+
     addPlayerButton.addEventListener('click', function () {
         if (currentPlayers < maxPlayers) {
             const playerIndex = currentPlayers;
             currentPlayers++;
+
+            const interactionHtml = showInteraction ? `
+                <div class="interaction-row">
+                    <div class="form-field">
+                        <label for="players-${playerIndex}-removal_played">Removal Played</label>
+                        <input type="number" name="players-${playerIndex}-removal_played" id="players-${playerIndex}-removal_played" size="5">
+                    </div>
+                    <div class="form-field">
+                        <label for="players-${playerIndex}-targeted_by_removal">Targeted by Removal</label>
+                        <input type="number" name="players-${playerIndex}-targeted_by_removal" id="players-${playerIndex}-targeted_by_removal" size="5">
+                    </div>
+                    <div class="form-field">
+                        <label for="players-${playerIndex}-protection_played">Protection Played</label>
+                        <input type="number" name="players-${playerIndex}-protection_played" id="players-${playerIndex}-protection_played" size="5">
+                    </div>
+                </div>
+            ` : '';
 
             const playerWrapper = document.createElement('div');
             playerWrapper.classList.add('field-list-item', 'player-fields');
@@ -291,6 +310,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <span class="field-hint">Sol Ring, Jeweled Lotus, etc. on turn 1–2</span>
                     </div>
                 </div>
+                ${interactionHtml}
                 <div class="remove-btn-row">
                     <button type="button" class="remove-player">Remove</button>
                 </div>

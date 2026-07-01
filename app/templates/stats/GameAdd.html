@@ -10,6 +10,7 @@
         <input type="hidden" id="max-players" value="{{ form.players.max_entries }}">
         <input type="hidden" id="min-players" value="{{ form.players.min_entries }}">
         <input type="hidden" id="initial-player-count" value="{{ form.players|length }}">
+        <input type="hidden" id="show-interaction" value="{{ 'true' if current_user.username == 'Niklas' else 'false' }}">
 
         <section class="form-section" id="section-players">
             <h2 class="section-header">Players</h2>
@@ -51,6 +52,22 @@
                                 <span class="field-hint">Sol Ring oder ähnliches in Turn 1-2</span>
                             </div>
                         </div>
+                        {% if current_user.username == 'Niklas' %}
+                        <div class="interaction-row">
+                            <div class="form-field">
+                                {{ player_form.removal_played.label }}
+                                {{ player_form.removal_played(size=5) }}
+                            </div>
+                            <div class="form-field">
+                                {{ player_form.targeted_by_removal.label }}
+                                {{ player_form.targeted_by_removal(size=5) }}
+                            </div>
+                            <div class="form-field">
+                                {{ player_form.protection_played.label }}
+                                {{ player_form.protection_played(size=5) }}
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="remove-btn-row">
                             <button type="button" class="remove-player">Remove</button>
                         </div>
