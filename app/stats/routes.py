@@ -292,9 +292,16 @@ def game_edit(game_id):
     
     # Populate form.participants with each participant's data
     for participant, player, deck in participants_query:
-        # Get active decks for this player
-        player_decks = Deck.query.filter_by(Player=player.id, Active=True).all()
-        deck_choices = [(d.Name, f"{d.Name} ({d.Commander})") for d in player_decks]
+        # Get active decks for the deck owner (lender if borrowed, player otherwise)
+        deck_owner_id = deck.Player
+        player_decks = Deck.query.filter_by(Player=deck_owner_id, Active=True).all()
+        # Use "Name (Commander)" format as value to match JS-built options
+        deck_choices = [(f"{d.Name} ({d.Commander})", f"{d.Name} ({d.Commander})") for d in player_decks]
+        
+        # Ensure the current deck is in choices even if it's been deactivated
+        current_deck_value = f"{deck.Name} ({deck.Commander})"
+        if not any(c[0] == current_deck_value for c in deck_choices):
+            deck_choices.insert(0, (current_deck_value, current_deck_value))
         
         # Determine if deck was borrowed (deck owner != player)
         is_borrowed = deck.Player != player.id
@@ -304,10 +311,11 @@ def game_edit(game_id):
             lender_name = lender.Name if lender else None
         
         # Create entry data dict
+        # Use "DeckName (Commander)" format to match the JS-built select options
         entry_data = {
             'player_id': participant.player_id,
             'player_name': player.Name,
-            'deck': deck.Name,
+            'deck': f"{deck.Name} ({deck.Commander})",
             'borrowed': is_borrowed,
             'lender': lender_name,
             'early_fast_mana': participant.early_sol_ring
@@ -362,7 +370,7 @@ def player_add():
         db.session.add(player)
         db.session.commit()
         flash('Player added!')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('stats.game_hub'))
     return render_template('stats/PlayerAdd.html', form=form)
 
 @bp.route('/DeckAdd', methods=['GET', 'POST'])
@@ -403,7 +411,7 @@ def deck_add():
         db.session.add(deck)
         db.session.commit()
         flash('Deck added!')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('stats.game_hub'))
     else:
         print(form.errors)
     return render_template('stats/DeckAdd.html', form=form, ci_data=ci_data)
@@ -415,6 +423,7 @@ def game_add():
     form = GameAddForm()
     player = get_player()
     decks = get_decks()
+    ci_data = get_ci()
     form.winner.choices = player
     form.first.choices = player
 
@@ -428,13 +437,13 @@ def game_add():
     if form.add_player.data:
         form.players.append_entry()
         return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
-                               game_condition_suggestions=game_condition_suggestions)
+                               game_condition_suggestions=game_condition_suggestions, ci_data=ci_data)
 
     # Handle remove player action
     if form.remove_player.data and len(form.players) > form.players.min_entries:
         form.players.pop_entry()
         return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
-                               game_condition_suggestions=game_condition_suggestions)
+                               game_condition_suggestions=game_condition_suggestions, ci_data=ci_data)
 
     if not form.validate_on_submit():
         print(form.errors)
@@ -503,11 +512,11 @@ def game_add():
             db.session.add(participant)
             db.session.commit()
         flash('Game added successfully!')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('stats.game_hub'))
 
     # Render the form normally
     return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
-                           game_condition_suggestions=game_condition_suggestions)
+                           game_condition_suggestions=game_condition_suggestions, ci_data=ci_data)
 
 @bp.route('/PlayerStats')
 @login_required

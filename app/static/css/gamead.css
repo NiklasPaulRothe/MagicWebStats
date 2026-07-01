@@ -546,3 +546,134 @@ button:disabled {
 .deck-tags-hidden:hover {
     display: flex !important;
 }
+
+/* ── Quick-add buttons row ───────────────────────────────────────────────── */
+.quick-add-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.quick-add-btn {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid #f4c430;
+    background-color: transparent;
+    color: #f4c430;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s ease;
+}
+
+.quick-add-btn:hover {
+    background-color: #f4c430;
+    color: #1e1e1e;
+}
+
+/* ── Modal overlay ───────────────────────────────────────────────────────── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #1a1a1a;
+    border: 1px solid #f4c430;
+    border-radius: 8px;
+    padding: 24px 28px;
+    min-width: 340px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.modal-content h3 {
+    color: #f4c430;
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f4c430;
+}
+
+.modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.modal-field--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-field label {
+    font-size: 0.85em;
+    color: #ccc;
+}
+
+.modal-field input[type="text"],
+.modal-field select {
+    padding: 6px 10px;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: antiquewhite;
+    font-size: 0.9em;
+}
+
+.modal-field input[type="text"]:focus,
+.modal-field select:focus {
+    border-color: #f4c430;
+    outline: none;
+}
+
+.modal-error {
+    color: #ff6b6b;
+    font-size: 0.85em;
+    min-height: 1.2em;
+    margin-bottom: 12px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid #444;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+}
+
+.modal-btn--cancel {
+    background-color: transparent;
+    color: #aaa;
+    border-color: #444;
+}
+
+.modal-btn--cancel:hover {
+    background-color: #333;
+    color: #fff;
+}
+
+.modal-btn--confirm {
+    background-color: #f4c430;
+    color: #1e1e1e;
+    border-color: #f4c430;
+    font-weight: bold;
+}
+
+.modal-btn--confirm:hover {
+    background-color: #d4a420;
+}

@@ -349,17 +349,27 @@
                 const lenderSelect = playerField.querySelector(`select[name="participants-${index}-lender"]`);
                 const deckSelect = playerField.querySelector(`select[name="participants-${index}-deck"]`);
                 
-                // Store the original deck value
+                // Store the original deck value before any JS manipulation
                 const originalDeckValue = deckSelect ? deckSelect.value : '';
                 
-                // Populate lender dropdown with all players
+                // Store the original lender value from the server-rendered select
+                const originalLenderValue = lenderSelect ? lenderSelect.value : '';
+                
+                // Populate lender dropdown with all players, preserving original selection
                 if (lenderSelect) {
                     lenderSelect.innerHTML = '';
                     playerData.forEach(player => {
                         const option = new Option(player, player);
                         lenderSelect.add(option);
                     });
+                    // Restore the saved lender value
+                    if (originalLenderValue) {
+                        lenderSelect.value = originalLenderValue;
+                    }
                 }
+                
+                // Track whether this is the initial load (to use original values)
+                let isInitialLoad = true;
                 
                 // Function to update deck list based on borrowed status
                 function updateDeckList() {
@@ -369,19 +379,32 @@
                     // Filter decks for the selected owner
                     const filteredDecks = deckData.filter(deck => deck[2] === selectedName);
                     
-                    // Store current value before rebuilding
-                    const currentValue = deckSelect ? deckSelect.value : '';
+                    // On initial load, use the server-provided value; otherwise use current select value
+                    const valueToRestore = isInitialLoad ? originalDeckValue : (deckSelect ? deckSelect.value : '');
                     
                     // Build the deck widget
                     buildDeckWidgetEdit(index, filteredDecks);
                     
-                    // Try to restore the original value if it's still valid
-                    if (deckSelect && currentValue) {
-                        const stillValid = filteredDecks.some(d => `${d[0]} (${d[1]})` === currentValue);
+                    // Restore the deck value if it's still valid in the filtered list
+                    if (deckSelect && valueToRestore) {
+                        const stillValid = filteredDecks.some(d => `${d[0]} (${d[1]})` === valueToRestore);
                         if (stillValid) {
-                            deckSelect.value = currentValue;
+                            deckSelect.value = valueToRestore;
+                            // Also update the custom widget display
+                            const wrapper = deckSelect.closest('.deck-select-wrapper');
+                            if (wrapper) {
+                                const triggerName = wrapper.querySelector('.deck-trigger .deck-option__name');
+                                const triggerCmd = wrapper.querySelector('.deck-trigger .deck-option__commander');
+                                const matchingDeck = filteredDecks.find(d => `${d[0]} (${d[1]})` === valueToRestore);
+                                if (matchingDeck && triggerName && triggerCmd) {
+                                    triggerName.textContent = matchingDeck[0];
+                                    triggerCmd.textContent = matchingDeck[1];
+                                }
+                            }
                         }
                     }
+                    
+                    isInitialLoad = false;
                 }
                 
                 // Function to update lender state

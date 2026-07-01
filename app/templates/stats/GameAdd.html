@@ -13,6 +13,10 @@
 
         <section class="form-section" id="section-players">
             <h2 class="section-header">Players</h2>
+            <div class="quick-add-buttons">
+                <button type="button" id="open-add-player-modal" class="quick-add-btn">+ New Player</button>
+                <button type="button" id="open-add-deck-modal" class="quick-add-btn">+ New Deck</button>
+            </div>
             <div id="players-fields">
                 {% for player_form in form.players %}
                     <div class="field-list-item player-fields">
@@ -207,5 +211,277 @@
     <!-- JSON data for JS -->
     <script id="player-data" type="application/json">{{ player | tojson }}</script>
     <script id="deck-data" type="application/json">{{ decks | tojson }}</script>
+    <script id="ci-data" type="application/json">{{ ci_data | tojson }}</script>
     <script src="{{ url_for('static', filename='js/GameAdd.js') }}"></script>
+
+    <!-- Quick-Add Player Modal -->
+    <div class="modal-overlay" id="add-player-modal" style="display:none">
+        <div class="modal-content">
+            <h3>Add Player</h3>
+            <div class="modal-field">
+                <label for="new-player-name">Name</label>
+                <input type="text" id="new-player-name" maxlength="64">
+            </div>
+            <div class="modal-error" id="add-player-error"></div>
+            <div class="modal-actions">
+                <button type="button" id="add-player-cancel" class="modal-btn modal-btn--cancel">Cancel</button>
+                <button type="button" id="add-player-confirm" class="modal-btn modal-btn--confirm">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick-Add Deck Modal -->
+    <div class="modal-overlay" id="add-deck-modal" style="display:none">
+        <div class="modal-content">
+            <h3>Add Deck</h3>
+            <div class="modal-field">
+                <label for="new-deck-name">Name</label>
+                <input type="text" id="new-deck-name">
+            </div>
+            <div class="modal-field">
+                <label for="new-deck-commander">Commander</label>
+                <input type="text" id="new-deck-commander">
+            </div>
+            <div class="modal-field">
+                <label for="new-deck-partner">Partner (optional)</label>
+                <input type="text" id="new-deck-partner">
+            </div>
+            <div class="modal-field">
+                <label for="new-deck-player">Player</label>
+                <select id="new-deck-player"></select>
+            </div>
+            <div class="modal-field">
+                <label for="new-deck-ci">Color Identity</label>
+                <select id="new-deck-ci"></select>
+            </div>
+            <div class="modal-field modal-field--inline">
+                <input type="checkbox" id="new-deck-cedh">
+                <label for="new-deck-cedh">cEDH</label>
+            </div>
+            <div class="modal-error" id="add-deck-error"></div>
+            <div class="modal-actions">
+                <button type="button" id="add-deck-cancel" class="modal-btn modal-btn--cancel">Cancel</button>
+                <button type="button" id="add-deck-confirm" class="modal-btn modal-btn--confirm">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        // Use the shared mutable arrays from GameAdd.js
+        // These are populated during DOMContentLoaded in GameAdd.js
+        // We use a small delay to ensure DOMContentLoaded has fired
+        let players, decks;
+        
+        function ensureData() {
+            players = window.__gameAddPlayers;
+            decks = window.__gameAddDecks;
+        }
+        
+        const ciData = JSON.parse(document.getElementById('ci-data').textContent);
+
+        // ─── Add Player Modal ────────────────────────────────────────────────
+        const playerModal = document.getElementById('add-player-modal');
+        const playerNameInput = document.getElementById('new-player-name');
+        const playerError = document.getElementById('add-player-error');
+
+        document.getElementById('open-add-player-modal').addEventListener('click', () => {
+            playerNameInput.value = '';
+            playerError.textContent = '';
+            playerModal.style.display = 'flex';
+            playerNameInput.focus();
+        });
+
+        document.getElementById('add-player-cancel').addEventListener('click', () => {
+            playerModal.style.display = 'none';
+        });
+
+        playerModal.addEventListener('click', (e) => {
+            if (e.target === playerModal) playerModal.style.display = 'none';
+        });
+
+        playerNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('add-player-confirm').click();
+            }
+        });
+
+        document.getElementById('add-player-confirm').addEventListener('click', async () => {
+            ensureData();
+            const name = playerNameInput.value.trim();
+            if (!name) {
+                playerError.textContent = 'Name is required';
+                return;
+            }
+            playerError.textContent = '';
+            try {
+                const resp = await fetch('/api/quick-add-player', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name})
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    playerError.textContent = data.error || 'Error adding player';
+                    return;
+                }
+                // Add to the shared players array (mutate in place so GameAdd.js sees it too)
+                players.push(data.name);
+                players.sort();
+
+                // Update all existing player dropdowns and winner/first selects
+                refreshPlayerDropdowns();
+
+                playerModal.style.display = 'none';
+            } catch (err) {
+                playerError.textContent = 'Network error';
+            }
+        });
+
+        function refreshPlayerDropdowns() {
+            ensureData();
+            // Update each player row's player dropdown and lender dropdown
+            const playerFields = document.querySelectorAll('.player-fields');
+            playerFields.forEach((field, idx) => {
+                const playerSel = document.getElementById('players-' + idx + '-player');
+                const lenderSel = document.getElementById('players-' + idx + '-lender');
+                if (playerSel) {
+                    const currentVal = playerSel.value;
+                    playerSel.innerHTML = '';
+                    players.forEach(p => playerSel.add(new Option(p, p)));
+                    if (players.includes(currentVal)) playerSel.value = currentVal;
+                }
+                if (lenderSel) {
+                    const currentVal = lenderSel.value;
+                    lenderSel.innerHTML = '';
+                    players.forEach(p => lenderSel.add(new Option(p, p)));
+                    if (players.includes(currentVal)) lenderSel.value = currentVal;
+                }
+            });
+
+            // Update winner/first to reflect current participants
+            if (window.__updateWinnerFirstChoices) {
+                window.__updateWinnerFirstChoices();
+            }
+
+            // Also update the deck modal player select
+            const deckPlayerSel = document.getElementById('new-deck-player');
+            if (deckPlayerSel) {
+                deckPlayerSel.innerHTML = '';
+                players.forEach(p => deckPlayerSel.add(new Option(p, p)));
+            }
+        }
+
+        // ─── Add Deck Modal ──────────────────────────────────────────────────
+        const deckModal = document.getElementById('add-deck-modal');
+        const deckError = document.getElementById('add-deck-error');
+        const deckPlayerSel = document.getElementById('new-deck-player');
+        const deckCiSel = document.getElementById('new-deck-ci');
+
+        // Populate CI select immediately (ciData is available from JSON block)
+        ciData.forEach(ci => deckCiSel.add(new Option(ci.name, ci.name)));
+
+        // Populate player select on demand (players array may not be ready yet)
+        function populateDeckModalSelects() {
+            ensureData();
+            if (!players) return;
+            deckPlayerSel.innerHTML = '';
+            players.forEach(p => deckPlayerSel.add(new Option(p, p)));
+        }
+
+        document.getElementById('open-add-deck-modal').addEventListener('click', () => {
+            populateDeckModalSelects();
+            document.getElementById('new-deck-name').value = '';
+            document.getElementById('new-deck-commander').value = '';
+            document.getElementById('new-deck-partner').value = '';
+            document.getElementById('new-deck-cedh').checked = false;
+            deckError.textContent = '';
+            deckModal.style.display = 'flex';
+            document.getElementById('new-deck-name').focus();
+        });
+
+        document.getElementById('add-deck-cancel').addEventListener('click', () => {
+            deckModal.style.display = 'none';
+        });
+
+        deckModal.addEventListener('click', (e) => {
+            if (e.target === deckModal) deckModal.style.display = 'none';
+        });
+
+        document.getElementById('add-deck-confirm').addEventListener('click', async () => {
+            ensureData();
+            const name = document.getElementById('new-deck-name').value.trim();
+            const commander = document.getElementById('new-deck-commander').value.trim();
+            const partner = document.getElementById('new-deck-partner').value.trim();
+            const player = deckPlayerSel.value;
+            const colorIdentity = deckCiSel.value;
+            const cedh = document.getElementById('new-deck-cedh').checked;
+
+            if (!name || !commander || !player || !colorIdentity) {
+                deckError.textContent = 'Name, Commander, Player, and Color Identity are required';
+                return;
+            }
+            deckError.textContent = '';
+
+            try {
+                const resp = await fetch('/api/quick-add-deck', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, commander, partner, player, color_identity: colorIdentity, cedh})
+                });
+                const respData = await resp.json();
+                if (!resp.ok) {
+                    deckError.textContent = respData.error || 'Error adding deck';
+                    return;
+                }
+
+                // Add to the shared decks array (mutate in place): [name, commander, player_name]
+                decks.push([respData.name, respData.commander, respData.player]);
+
+                // Refresh deck widgets for all player rows without losing selections
+                refreshDeckWidgets();
+
+                deckModal.style.display = 'none';
+            } catch (err) {
+                deckError.textContent = 'Network error';
+            }
+        });
+
+        function refreshDeckWidgets() {
+            ensureData();
+            // Re-trigger deck list for each player row
+            const playerFields = document.querySelectorAll('.player-fields');
+            playerFields.forEach((field, idx) => {
+                const deckSelect = document.getElementById('players-' + idx + '-deck');
+                if (deckSelect) {
+                    // Save current selection
+                    const currentVal = deckSelect.value;
+                    // Rebuild deck list using the shared decks array
+                    add_deck_list(idx, decks);
+                    // Restore if still valid
+                    if (currentVal) {
+                        const options = Array.from(deckSelect.options);
+                        if (options.some(o => o.value === currentVal)) {
+                            deckSelect.value = currentVal;
+                            // Update custom widget display
+                            const wrapper = deckSelect.closest('.deck-select-wrapper');
+                            if (wrapper) {
+                                const triggerName = wrapper.querySelector('.deck-trigger .deck-option__name');
+                                const triggerCmd = wrapper.querySelector('.deck-trigger .deck-option__commander');
+                                if (triggerName && triggerCmd) {
+                                    const parts = currentVal.match(/^(.+?) \((.+)\)$/);
+                                    if (parts) {
+                                        triggerName.textContent = parts[1];
+                                        triggerCmd.textContent = parts[2];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    })();
+    </script>
 {% endblock %}

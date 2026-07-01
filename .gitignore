@@ -19,3 +19,4 @@ logs/
 files/
 logs/webstats.log
 .kiro/
+migrations/

@@ -169,6 +169,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const decks = JSON.parse(document.getElementById('deck-data').textContent);
     let currentPlayers = parseInt(document.getElementById('initial-player-count').value);
 
+    // Expose mutable references so inline scripts can update them
+    window.__gameAddPlayers = players;
+    window.__gameAddDecks = decks;
+
+    const winnerSelect = document.querySelector('select[name="winner"]');
+    const firstSelect = document.querySelector('select[name="first"]');
+
+    /**
+     * Updates the Winner and First dropdowns to only show players
+     * that are currently selected as participants.
+     */
+    function updateWinnerFirstChoices() {
+        const participantNames = [];
+        document.querySelectorAll('.player-fields').forEach((field, idx) => {
+            const sel = document.getElementById('players-' + idx + '-player');
+            if (sel && sel.value) {
+                participantNames.push(sel.value);
+            }
+        });
+
+        [winnerSelect, firstSelect].forEach(sel => {
+            if (!sel) return;
+            const currentVal = sel.value;
+            sel.innerHTML = '';
+            participantNames.forEach(p => sel.add(new Option(p, p)));
+            if (participantNames.includes(currentVal)) {
+                sel.value = currentVal;
+            }
+        });
+    }
+
+    // Expose for inline script usage
+    window.__updateWinnerFirstChoices = updateWinnerFirstChoices;
+
     function setupPlayerListeners(playerIndex) {
         add_player_list(playerIndex, players);
         add_deck_list(playerIndex, decks);
@@ -191,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.getElementById(`players-${playerIndex}-player`).addEventListener("change", () => {
             add_deck_list(playerIndex, decks);
+            updateWinnerFirstChoices();
         });
 
         document.getElementById(`players-${playerIndex}-lender`).addEventListener("change", () => {
@@ -215,6 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setupPlayerListeners(i);
     }
     updateButtonStates();
+    updateWinnerFirstChoices();
 
     addPlayerButton.addEventListener('click', function () {
         if (currentPlayers < maxPlayers) {
@@ -262,12 +298,14 @@ document.addEventListener('DOMContentLoaded', function () {
             playersContainer.appendChild(playerWrapper);
             setupPlayerListeners(playerIndex);
             updateButtonStates();
+            updateWinnerFirstChoices();
 
             playerWrapper.querySelector('.remove-player').addEventListener('click', function () {
                 if (currentPlayers > minPlayers) {
                     playerWrapper.remove();
                     currentPlayers--;
                     updateButtonStates();
+                    updateWinnerFirstChoices();
                 }
             });
         }
@@ -279,6 +317,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 button.parentElement.parentElement.remove();
                 currentPlayers--;
                 updateButtonStates();
+                updateWinnerFirstChoices();
             }
         });
     });

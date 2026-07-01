@@ -1,11 +1,12 @@
 from app import db
 from app.api import bp
-from flask import jsonify
+from flask import jsonify, request
 from flask_login import current_user, login_required
-from sqlalchemy import text
+from sqlalchemy import text, func
 import sqlalchemy as sa
 
-from app.models import Player, User, Color, ColorComponent
+from app.auth import role_required
+from app.models import Player, User, Color, ColorComponent, Deck, Card, ColorIdentity
 
 
 @bp.route('/data')
@@ -347,3 +348,102 @@ def userdecks(spieler):
         list.append(dict)
 
     return jsonify(list)
+
+
+@bp.route('/quick-add-player', methods=['POST'])
+@role_required('admin')
+@login_required
+def quick_add_player():
+    """Add a new player via AJAX. Returns the new player name on success."""
+    data = request.get_json()
+    if not data or not data.get('name'):
+        return jsonify({'error': 'Name is required'}), 400
+
+    name = data['name'].strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+
+    # Check if player already exists
+    existing = db.session.scalar(sa.select(Player).where(Player.Name == name))
+    if existing:
+        return jsonify({'error': 'Ein Spieler mit diesem Namen existiert bereits.'}), 409
+
+    player = Player(Name=name)
+    db.session.add(player)
+    db.session.commit()
+
+    return jsonify({'name': player.Name}), 201
+
+
+@bp.route('/quick-add-deck', methods=['POST'])
+@role_required('admin')
+@login_required
+def quick_add_deck():
+    """Add a new deck via AJAX. Returns deck info on success."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request body is required'}), 400
+
+    name = (data.get('name') or '').strip()
+    commander = (data.get('commander') or '').strip()
+    player_name = (data.get('player') or '').strip()
+    color_identity = (data.get('color_identity') or '').strip()
+    partner = (data.get('partner') or '').strip() or None
+    cedh = bool(data.get('cedh', False))
+
+    # Validate required fields
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    if not commander:
+        return jsonify({'error': 'Commander is required'}), 400
+    if not player_name:
+        return jsonify({'error': 'Player is required'}), 400
+    if not color_identity:
+        return jsonify({'error': 'Color Identity is required'}), 400
+
+    # Check deck name uniqueness
+    existing_deck = db.session.scalar(sa.select(Deck).where(Deck.Name == name))
+    if existing_deck:
+        return jsonify({'error': 'Es gibt schon ein Deck mit diesem Namen.'}), 409
+
+    # Validate commander exists in card database
+    card = db.session.scalar(sa.select(Card).where(Card.Name == commander))
+    if not card:
+        return jsonify({'error': 'Der Commander existiert nicht in der Datenbank.'}), 400
+
+    # Validate player exists
+    player = db.session.scalar(sa.select(Player).where(Player.Name == player_name))
+    if not player:
+        return jsonify({'error': 'Spieler existiert nicht.'}), 400
+
+    # Validate color identity exists
+    ci = db.session.scalar(sa.select(ColorIdentity).where(ColorIdentity.Name == color_identity))
+    if not ci:
+        return jsonify({'error': 'Color Identity existiert nicht.'}), 400
+
+    # Get commander image
+    img = card.image_uri
+
+    deck = Deck(
+        Name=name,
+        Commander=commander,
+        Player=player.id,
+        Color_Identity=color_identity,
+        Partner=partner,
+        image_uri=img,
+        cedh=cedh,
+        Version=1,
+        patch=0,
+        change=0,
+        Last_Rework=func.current_date(),
+        last_patch=func.current_date(),
+        Last_Change=func.current_date()
+    )
+    db.session.add(deck)
+    db.session.commit()
+
+    return jsonify({
+        'name': deck.Name,
+        'commander': deck.Commander,
+        'player': player_name
+    }), 201
