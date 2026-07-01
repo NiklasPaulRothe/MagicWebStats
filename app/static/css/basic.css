@@ -173,7 +173,7 @@ input[type="number"] {
     padding: 12px;
     border-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    min-width: 90px;
+    min-width: 140px;
     max-height: 300px;
     overflow-y: auto;
     font-size: 14px;
@@ -181,9 +181,13 @@ input[type="number"] {
 }
 
 .filter-dropdown label {
+    display: flex;
     align-items: center;
-    margin: 4px 0;
+    gap: 6px;
+    margin: 0;
+    padding: 4px 6px;
     cursor: pointer;
+    border-radius: 3px;
 }
 
 .filter-dropdown input[type="checkbox"] {
@@ -194,8 +198,29 @@ input[type="number"] {
 
 .filter-dropdown label:hover {
     background-color: #2a2a2a;
-    padding: 2px 4px;
+}
+
+.filter-toggle-all {
+    width: 100%;
+    padding: 5px 10px;
+    border: 1px solid #f4c430;
     border-radius: 3px;
+    background-color: transparent;
+    color: #f4c430;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-toggle-all:hover {
+    background-color: #f4c430;
+    color: #1e1e1e;
+}
+
+.filter-separator {
+    border: none;
+    border-top: 1px solid #333;
+    margin: 8px 0;
 }
 
 /* ── Forms ───────────────────────────────────────────────────────────────── */

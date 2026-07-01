@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('reset-filters').addEventListener('click', () => {
         document.getElementById('min-spiele-filter').value = '';
         document.querySelectorAll('#spieler-filter-dropdown input[type="checkbox"]').forEach(cb => cb.checked = true);
+        const toggleBtn = document.querySelector('#spieler-filter-dropdown .filter-toggle-all');
+        if (toggleBtn) toggleBtn.textContent = 'Deselect All';
         currentSort = { idx: null, asc: true, type: null };
         renderFilteredAndSortedTable();
     });
@@ -38,23 +40,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function populateSpielerFilter(filterId, data) {
         const dropdown = document.getElementById(filterId);
+        dropdown.innerHTML = '';
         const uniquePlayers = [];
 
         data.forEach(item => {
             const playerName = item.Spieler[0];
             if (!uniquePlayers.includes(playerName)) {
                 uniquePlayers.push(playerName);
-                const label = document.createElement('label');
-                label.innerHTML = `<input type="checkbox" value="${playerName}" checked> ${playerName}`;
-                dropdown.appendChild(label);
-                dropdown.appendChild(document.createElement('br'));
-                dropdown.appendChild(document.createElement('br'));
             }
         });
 
+        uniquePlayers.sort();
+
+        // Toggle All button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'filter-toggle-all';
+        toggleBtn.textContent = 'Deselect All';
+        dropdown.appendChild(toggleBtn);
+
+        const separator = document.createElement('hr');
+        separator.className = 'filter-separator';
+        dropdown.appendChild(separator);
+
+        // Player checkboxes
+        uniquePlayers.forEach(playerName => {
+            const label = document.createElement('label');
+            label.className = 'filter-option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = playerName;
+            checkbox.checked = true;
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(' ' + playerName));
+            dropdown.appendChild(label);
+        });
+
+        // Toggle All logic
+        toggleBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+            toggleBtn.textContent = allChecked ? 'Select All' : 'Deselect All';
+            renderFilteredAndSortedTable();
+        });
+
+        // Update toggle button text when individual checkboxes change
         dropdown.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener('click', function (e) {
-                e.stopPropagation(); // ✅ prevent sort on dropdown interaction
+                e.stopPropagation();
+                const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                const noneChecked = Array.from(checkboxes).every(cb => !cb.checked);
+                if (allChecked) {
+                    toggleBtn.textContent = 'Deselect All';
+                } else {
+                    toggleBtn.textContent = 'Select All';
+                }
                 renderFilteredAndSortedTable();
             });
         });
