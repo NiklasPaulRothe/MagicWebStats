@@ -37,7 +37,8 @@ def data():
           AND "Games".cedh = False)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
                    FROM data_owner."Participants"
                    LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-                  WHERE "Participants".player_id = "Player".id), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "winrate (in%)",
+                  WHERE "Participants".player_id = "Player".id
+                  AND "Games".cedh = False), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "winrate (in%)",
     ( SELECT count(*) AS count
            FROM data_owner."Games"
           WHERE "Games"."First_Player" = "Player".id
@@ -47,7 +48,9 @@ def data():
           WHERE "Games"."First_Player" = "Player".id
           AND "Games".cedh = False)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
            FROM data_owner."Participants"
-          WHERE "Participants".player_id = "Player".id), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "first (in%)"
+           LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+          WHERE "Participants".player_id = "Player".id
+          AND "Games".cedh = False), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "first (in%)"
    FROM data_owner."Player"
    WHERE "Player"."Name" != 'Precons';'''))
 
