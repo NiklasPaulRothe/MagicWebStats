@@ -8,8 +8,22 @@ from app import db, models, third_party_data
 from app.auth import role_required
 from app.decks import bp
 from app.decks.forms import DeckEditForm
-from app.models import Deck, Player, User, Game, Participant, DeckVersionHistory
+from app.models import Deck, Player, User, Game, Participant, DeckVersionHistory, AuditLog
 from app.third_party_data.deckbuilder import load_cards_from_archidekt
+from flask_login import current_user as _current_user
+
+
+def _audit(action, entity_type, entity_id=None, details=None):
+    """Write an entry to the audit log."""
+    entry = AuditLog(
+        user_id=_current_user.id,
+        username=_current_user.username,
+        action=action,
+        entity_type=entity_type,
+        entity_id=str(entity_id) if entity_id else None,
+        details=details
+    )
+    db.session.add(entry)
 
 
 @bp.route('/edit/<deckname>', methods=['GET', 'POST'])
@@ -30,6 +44,8 @@ def deck_edit(deckname):
     if request.method == 'POST':
         if form.archive_button.data:
             deck.Active = False
+            db.session.commit()
+            _audit('deck_archive', 'Deck', deck.id, f'Archived deck: {deck.Name}')
             db.session.commit()
             flash(f'Deck "{deck.Name}" wurde archiviert')
             return redirect(url_for('main.user', spieler=current_user.username))
@@ -55,6 +71,8 @@ def deck_edit(deckname):
             deck.change += 1
             deck.Last_Change = func.current_date()
             db.session.commit()
+            _audit('deck_version', 'Deck', deck.id, f'Version change: {deck.Name} → {deck.Version}.{deck.patch}.{deck.change}')
+            db.session.commit()
             flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
             return redirect(url_for('main.user', spieler=current_user.username))
         
@@ -79,6 +97,8 @@ def deck_edit(deckname):
             deck.patch += 1
             deck.change = 0
             deck.last_patch = func.current_date()
+            db.session.commit()
+            _audit('deck_version', 'Deck', deck.id, f'Version patch: {deck.Name} → {deck.Version}.{deck.patch}.{deck.change}')
             db.session.commit()
             flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
             return redirect(url_for('main.user', spieler=current_user.username))
@@ -106,6 +126,8 @@ def deck_edit(deckname):
             deck.change = 0
             deck.Last_Rework = func.current_date()
             db.session.commit()
+            _audit('deck_version', 'Deck', deck.id, f'Version rework: {deck.Name} → {deck.Version}.{deck.patch}.{deck.change}')
+            db.session.commit()
             flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
             return redirect(url_for('main.user', spieler=current_user.username))
 
@@ -127,6 +149,8 @@ def deck_edit(deckname):
                 except:
                     flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
                     db.session.rollback()
+            _audit('deck_edit', 'Deck', deck.id, f'Edited deck: {deck.Name}')
+            db.session.commit()
             return redirect(url_for('main.user', spieler=current_user.username))
     
     form.name.default = deck.Name

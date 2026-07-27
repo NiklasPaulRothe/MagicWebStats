@@ -6,7 +6,20 @@ from sqlalchemy import text, func
 import sqlalchemy as sa
 
 from app.auth import role_required
-from app.models import Player, User, Color, ColorComponent, Deck, Card, ColorIdentity
+from app.models import Player, User, Color, ColorComponent, Deck, Card, ColorIdentity, AuditLog
+
+
+def _audit(action, entity_type, entity_id=None, details=None):
+    """Write an entry to the audit log."""
+    entry = AuditLog(
+        user_id=current_user.id,
+        username=current_user.username,
+        action=action,
+        entity_type=entity_type,
+        entity_id=str(entity_id) if entity_id else None,
+        details=details
+    )
+    db.session.add(entry)
 
 
 @bp.route('/data')
@@ -374,6 +387,8 @@ def quick_add_player():
     player = Player(Name=name)
     db.session.add(player)
     db.session.commit()
+    _audit('player_add', 'Player', player.id, f'Quick-added player: {player.Name}')
+    db.session.commit()
 
     return jsonify({'name': player.Name}), 201
 
@@ -443,6 +458,8 @@ def quick_add_deck():
         Last_Change=func.current_date()
     )
     db.session.add(deck)
+    db.session.commit()
+    _audit('deck_add', 'Deck', deck.id, f'Quick-added deck: {deck.Name} ({deck.Commander}) for {player_name}')
     db.session.commit()
 
     return jsonify({

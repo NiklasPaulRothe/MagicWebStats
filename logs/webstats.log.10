@@ -1,25 +1,4 @@
-2026-05-05 11:10:50,780 ERROR: Exception on /index [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
-Traceback (most recent call last):
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-psycopg2.OperationalError: server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-
-
-The above exception was the direct cause of the following exception:
-
+2026-05-05 12:55:29,457 ERROR: Exception on /manage/games [GET] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
 Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
     response = self.full_dispatch_request()
@@ -30,153 +9,138 @@ Traceback (most recent call last):
   File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 284, in decorated_view
-    elif not current_user.is_authenticated:
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 318, in __get__
-    obj = instance._get_current_object()
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\werkzeug\local.py", line 526, in _get_current_object
-    return get_name(local())
-                    ~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 25, in <lambda>
-    current_user = LocalProxy(lambda: _get_user())
-                                      ~~~~~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 370, in _get_user
-    current_app.login_manager._load_user()
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\login_manager.py", line 364, in _load_user
-    user = self._user_callback(user_id)
-  File "D:\PycharmProjects\MagicWebStats\app\models.py", line 13, in load_user
-    return db.session.get(User, int(id))
-           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 1058, in get
-    return self._proxied.get(
-           ~~~~~~~~~~~~~~~~~^
-        entity,
-        ^^^^^^^
-    ...<6 lines>...
-        bind_arguments=bind_arguments,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\auth\__init__.py", line 16, in decorated_view
+    return func(*args, **kwargs)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\stats\routes.py", line 125, in game_hub
+    return render_template('stats/game_hub.html', pagination=pagination, game_rows=game_rows)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 150, in render_template
+    return _render(app, template, context)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\templating.py", line 131, in _render
+    rv = template.render(context)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 1295, in render
+    self.environment.handle_exception()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\PycharmProjects\MagicWebStats\app\templates\stats\game_hub.html", line 1, in top-level template code
+    {% extends "base.html" %}
+  File "D:\PycharmProjects\MagicWebStats\app\templates\base.html", line 39, in top-level template code
+    {% block content %}{% endblock %}
+    ^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\templates\stats\game_hub.html", line 51, in block 'content'
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\jinja2\utils.py", line 92, in from_obj
+    if hasattr(obj, "jinja_pass_arg"):
+       ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+jinja2.exceptions.UndefinedError: 'csrf_token' is undefined
+2026-05-05 12:59:18,300 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:01:16,402 ERROR: Exception on /game-add [POST] [in D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py:875]
+Traceback (most recent call last):
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\auth\__init__.py", line 16, in decorated_view
+    return func(*args, **kwargs)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\app\stats\routes.py", line 439, in game_add
+    db.session.commit()
+    ~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\scoping.py", line 599, in commit
+    return self._proxied.commit()
+           ~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2032, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1313, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1288, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4345, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4480, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4441, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
     )
     ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3694, in get
-    return self._get_impl(
-           ~~~~~~~~~~~~~~^
-        entity,
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 76, in save_obj
+    for table, mapper in base_mapper._sorted_tables.items():
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 1338, in __get__
+    obj.__dict__[self.__name__] = result = self.fget(obj)
+                                           ~~~~~~~~~^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\mapper.py", line 4064, in _sorted_tables
+    sorted_ = sql_util.sort_tables(
+        table_to_mapper,
+        skip_fn=skip,
+        extra_dependencies=extra_dependencies,
+    )
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\ddl.py", line 1318, in sort_tables
+    for (t, fkcs) in sort_tables_and_constraints(
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        tables,
         ^^^^^^^
-    ...<7 lines>...
-        bind_arguments=bind_arguments,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3873, in _get_impl
-    return db_load_fn(
-        self,
-    ...<5 lines>...
-        bind_arguments=bind_arguments,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\loading.py", line 695, in load_on_pk_identity
-    session.execute(
-    ~~~~~~~~~~~~~~~^
-        q,
-        ^^
     ...<2 lines>...
-        bind_arguments=bind_arguments,
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
-    return self._execute_internal(
-           ~~~~~~~~~~~~~~~~~~~~~~^
-        statement,
-        ^^^^^^^^^^
-    ...<4 lines>...
-        _add_event=_add_event,
+        _warn_for_cycles=True,
         ^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
-    result: Result[Any] = compile_state_cls.orm_execute_statement(
-                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self,
-        ^^^^^
-    ...<4 lines>...
-        conn,
-        ^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\ddl.py", line 1388, in sort_tables_and_constraints
+    filtered = filter_fn(fkc)
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\ddl.py", line 1308, in _skip_fn
+    if fixed_skip_fn(fk):
+       ~~~~~~~~~~~~~^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\mapper.py", line 4047, in skip
+    dep = table_to_mapper.get(fk.column.table)
+                              ^^^^^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 1226, in __get__
+    obj.__dict__[self.__name__] = result = self.fget(obj)
+                                           ~~~~~~~~~^^^^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\schema.py", line 3199, in column
+    return self._resolve_column()
+           ~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\schema.py", line 3222, in _resolve_column
+    raise exc.NoReferencedTableError(
+    ...<5 lines>...
     )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
-    result = conn.execute(
-        statement, params or {}, execution_options=execution_options
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
-    return meth(
-        self,
-        distilled_parameters,
-        execution_options or NO_OPTIONS,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 526, in _execute_on_connection
-    return connection._execute_clauseelement(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        self, distilled_params, execution_options
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
-    ret = self._execute_context(
-        dialect,
-    ...<8 lines>...
-        cache_hit=cache_hit,
-    )
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
-    return self._exec_single_context(
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^
-        dialect, context, statement, parameters
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
-    self._handle_dbapi_exception(
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        e, str_statement, effective_parameters, cursor, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
-    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
-    self.dialect.do_execute(
-    ~~~~~~~~~~~~~~~~~~~~~~~^
-        cursor, str_statement, effective_parameters, context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "D:\PycharmProjects\MagicWebStats\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 951, in do_execute
-    cursor.execute(statement, parameters)
-    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-
-[SQL: SELECT data_owner."user".id AS data_owner_user_id, data_owner."user".username AS data_owner_user_username, data_owner."user".email AS data_owner_user_email, data_owner."user".password_hash AS data_owner_user_password_hash, data_owner."user".spieler AS data_owner_user_spieler, data_owner."user".active AS data_owner_user_active, data_owner."user".role AS data_owner_user_role 
-FROM data_owner."user" 
-WHERE data_owner."user".id = %(pk_1)s]
-[parameters: {'pk_1': 1}]
-(Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-05-05 12:16:54,068 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:17:27,570 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:25:27,652 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:25:29,181 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:25:29,181 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:25:30,365 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:25:30,365 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:25:30,365 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:26:35,943 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:33:44,063 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:38:44,638 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:39:36,414 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:53:06,351 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
-2026-05-05 12:54:20,021 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+sqlalchemy.exc.NoReferencedTableError: Foreign key associated with column 'Games.added_by' could not find table 'data_owner.User' with which to generate a foreign key to target column 'id'
+2026-05-05 13:02:16,427 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:12:58,600 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]
+2026-05-05 13:17:04,334 INFO: Webstats startup [in D:\PycharmProjects\MagicWebStats\app\__init__.py:71]

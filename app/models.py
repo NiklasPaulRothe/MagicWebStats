@@ -187,3 +187,16 @@ class DeckTag(db.Model):
     deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
     tag = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=sa.func.current_timestamp())
+
+
+class AuditLog(db.Model):
+    __tablename__ = 'audit_log'
+    __table_args__ = {'schema': 'data_owner'}
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=sa.func.current_timestamp())
+    user_id = db.Column(db.Integer, db.ForeignKey('data_owner.user.id'), nullable=False)
+    username = db.Column(db.String, nullable=False)
+    action = db.Column(db.String, nullable=False)  # e.g. 'game_add', 'deck_edit', 'player_add'
+    entity_type = db.Column(db.String, nullable=False)  # e.g. 'Game', 'Deck', 'Player'
+    entity_id = db.Column(db.String)  # ID of the affected entity
+    details = db.Column(db.String)  # Human-readable description

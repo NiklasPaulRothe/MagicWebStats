@@ -11,6 +11,9 @@
             <a href="{{ url_for('stats.player_add') }}" class="btn primary">Add Player</a>
             <a href="{{ url_for('stats.deck_add') }}" class="btn primary">Add Deck</a>
             <a href="{{ url_for('stats.game_add') }}" class="btn primary">Add Game</a>
+            {% if current_user.id == 1 %}
+            <a href="{{ url_for('stats.audit_log') }}" class="btn">Audit Log</a>
+            {% endif %}
         </div>
     </section>
 

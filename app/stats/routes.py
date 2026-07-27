@@ -11,8 +11,22 @@ import sqlalchemy as sa
 from sqlalchemy import desc
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm, GameEditForm, ParticipantEditSubForm
-from app.models import Player, Deck, Game, Participant, ColorIdentity, Card, ColorComponent, Color, User
+from app.models import Player, Deck, Game, Participant, ColorIdentity, Card, ColorComponent, Color, User, AuditLog
 from app.viewmodels import ColorUsage, ColorUsagePlayer
+
+
+def _audit(action, entity_type, entity_id=None, details=None):
+    """Write an entry to the audit log."""
+    entry = AuditLog(
+        user_id=current_user.id,
+        username=current_user.username,
+        action=action,
+        entity_type=entity_type,
+        entity_id=str(entity_id) if entity_id else None,
+        details=details
+    )
+    db.session.add(entry)
+
 
 
 @dataclass
@@ -135,11 +149,16 @@ def game_delete(game_id):
     # Assert ownership
     _assert_game_owner(game)
     
+    # Store info before deletion
+    game_date = game.Date
+    
     # Delete all participants for this game
     db.session.execute(sa.delete(Participant).where(Participant.game_id == game_id))
     
     # Delete the game itself
     db.session.delete(game)
+    db.session.commit()
+    _audit('game_delete', 'Game', game_id, f'Deleted game on {game_date}')
     db.session.commit()
     
     # Flash success and redirect to hub
@@ -273,6 +292,8 @@ def game_edit(game_id):
         
         # Commit all changes
         db.session.commit()
+        _audit('game_edit', 'Game', game.id, f'Edited game on {game.Date}')
+        db.session.commit()
         
         # Flash success and redirect to hub
         flash('Game updated successfully!')
@@ -375,6 +396,8 @@ def player_add():
         player = Player(Name = form.name.data)
         db.session.add(player)
         db.session.commit()
+        _audit('player_add', 'Player', player.id, f'Added player: {player.Name}')
+        db.session.commit()
         flash('Player added!')
         return redirect(url_for('stats.game_hub'))
     return render_template('stats/PlayerAdd.html', form=form)
@@ -415,6 +438,8 @@ def deck_add():
             Last_Change = func.current_date()
         )
         db.session.add(deck)
+        db.session.commit()
+        _audit('deck_add', 'Deck', deck.id, f'Added deck: {deck.Name} ({deck.Commander}) for {form.player.data}')
         db.session.commit()
         flash('Deck added!')
         return redirect(url_for('stats.game_hub'))
@@ -529,6 +554,8 @@ def game_add():
                 )
             db.session.add(participant)
             db.session.commit()
+        _audit('game_add', 'Game', game.id, f'Added game on {game.Date}')
+        db.session.commit()
         flash('Game added successfully!')
         return redirect(url_for('stats.game_hub'))
 
@@ -551,3 +578,38 @@ def colorstats():
 @login_required
 def deckstats():
     return render_template('stats/deckstats.html')
+
+
+@bp.route('/tracking-sheets')
+@login_required
+def tracking_sheets():
+    return render_template('stats/tracking_sheets.html')
+
+
+@bp.route('/tracking-sheets/standard')
+@login_required
+def tracking_sheet_standard():
+    return render_template('stats/tracking_sheet_standard.html')
+
+
+@bp.route('/tracking-sheets/personal')
+@login_required
+def tracking_sheet_personal():
+    return render_template('stats/tracking_sheet_personal.html')
+
+
+@bp.route('/audit-log')
+@login_required
+def audit_log():
+    # Only user with id 1 (Niklas) can view the audit log
+    if current_user.id != 1:
+        abort(403)
+    
+    page = request.args.get('page', 1, type=int)
+    query = (
+        sa.select(AuditLog)
+        .order_by(AuditLog.timestamp.desc())
+    )
+    pagination = db.paginate(query, page=page, per_page=50, error_out=False)
+    
+    return render_template('stats/audit_log.html', pagination=pagination, entries=pagination.items)

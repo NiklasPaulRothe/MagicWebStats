@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">{% endblock %}
+
+{% block content %}
+<h1>Audit Log</h1>
+
+<section class="form-section">
+    {% if entries %}
+    <table class="deck-games-table">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Type</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td>{{ entry.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ entry.username }}</td>
+                <td>{{ entry.action }}</td>
+                <td>{{ entry.entity_type }}</td>
+                <td>{{ entry.details or '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+        {% if pagination.has_prev %}
+            <a href="{{ url_for('stats.audit_log', page=pagination.prev_num) }}">&laquo; Prev</a>
+        {% endif %}
+        <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        {% if pagination.has_next %}
+            <a href="{{ url_for('stats.audit_log', page=pagination.next_num) }}">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p>No log entries yet.</p>
+    {% endif %}
+</section>
+{% endblock %}
