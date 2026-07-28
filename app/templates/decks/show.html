@@ -28,6 +28,30 @@
         <button type="button" id="btn-mode-achievements" class="btn small">Achievements</button>
     </div>
 
+    {% if show_private_avgs %}
+    <div class="deck-header-controls" style="margin-top:8px;">
+        <button type="button" class="btn small primary" id="perf-filter-all">All Games</button>
+        {% if last_rework_date %}
+        <button type="button" class="btn small" id="perf-filter-rework">Since Rework</button>
+        {% endif %}
+        {% if last_patch_date %}
+        <button type="button" class="btn small" id="perf-filter-patch">Since Patch</button>
+        {% endif %}
+        <span id="perf-filter-info" style="font-size:0.8em; color:#aaa;"></span>
+    </div>
+    {% elif last_rework_date or last_patch_date %}
+    <div class="deck-header-controls" style="margin-top:8px;">
+        <button type="button" class="btn small primary" id="perf-filter-all">All Games</button>
+        {% if last_rework_date %}
+        <button type="button" class="btn small" id="perf-filter-rework">Since Rework</button>
+        {% endif %}
+        {% if last_patch_date %}
+        <button type="button" class="btn small" id="perf-filter-patch">Since Patch</button>
+        {% endif %}
+        <span id="perf-filter-info" style="font-size:0.8em; color:#aaa;"></span>
+    </div>
+    {% endif %}
+
     <section class="deck-header">
         <div class="commander-section">
             {% if is_owner %}
@@ -57,15 +81,15 @@
                     <div class="stats-grid">
                         <div class="stat-item">
                             <span class="stat-label">Games Played</span>
-                            <span class="stat-value">{{ deck_stats.games }}</span>
+                            <span class="stat-value" data-perf="games">{{ deck_stats.games }}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Wins</span>
-                            <span class="stat-value">{{ deck_stats.wins }}</span>
+                            <span class="stat-value" data-perf="wins">{{ deck_stats.wins }}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Winrate</span>
-                            <span class="stat-value stat-highlight">{{ deck_stats.winrate }}%</span>
+                            <span class="stat-value stat-highlight" data-perf="winrate">{{ deck_stats.winrate }}%</span>
                         </div>
                     </div>
                 </div>
@@ -76,15 +100,15 @@
                     <div class="stats-grid">
                         <div class="stat-item">
                             <span class="stat-label">Average</span>
-                            <span class="stat-value">{{ deck_stats.avg_turns }}</span>
+                            <span class="stat-value" data-perf="avg_turns">{{ deck_stats.avg_turns }}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Median</span>
-                            <span class="stat-value">{{ deck_stats.median_turns }}</span>
+                            <span class="stat-value" data-perf="median_turns">{{ deck_stats.median_turns }}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Range</span>
-                            <span class="stat-value">{{ deck_stats.min_turns }} – {{ deck_stats.max_turns }}</span>
+                            <span class="stat-value" data-perf="range">{{ deck_stats.min_turns }} – {{ deck_stats.max_turns }}</span>
                         </div>
                     </div>
                 </div>
@@ -98,23 +122,23 @@
                     <div class="stats-grid">
                         <div class="stat-item">
                             <span class="stat-label">Games</span>
-                            <span class="stat-value">{{ deck_stats_by_size[size].games }}</span>
+                            <span class="stat-value" data-perf="size_{{ size }}_games">{{ deck_stats_by_size[size].games }}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Wins</span>
-                            <span class="stat-value">{{ deck_stats_by_size[size].wins }}</span>
+                            <span class="stat-value" data-perf="size_{{ size }}_wins">{{ deck_stats_by_size[size].wins }}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Winrate</span>
-                            <span class="stat-value stat-highlight">{{ deck_stats_by_size[size].winrate }}%</span>
+                            <span class="stat-value stat-highlight" data-perf="size_{{ size }}_winrate">{{ deck_stats_by_size[size].winrate }}%</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Avg Turns</span>
-                            <span class="stat-value">{{ deck_stats_by_size[size].avg_turns }}</span>
+                            <span class="stat-value" data-perf="size_{{ size }}_avg_turns">{{ deck_stats_by_size[size].avg_turns }}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Median</span>
-                            <span class="stat-value">{{ deck_stats_by_size[size].median_turns }}</span>
+                            <span class="stat-value" data-perf="size_{{ size }}_median_turns">{{ deck_stats_by_size[size].median_turns }}</span>
                         </div>
                     </div>
                 </div>
@@ -192,47 +216,272 @@
     </section>
 
     {% if show_private_avgs %}
+    <!-- Unified filter script is after the participant averages section -->
+    {% endif %}
+
+    {% if show_private_avgs %}
     <section class="deck-participant-averages" aria-label="Participant Averages" style="width:100%; margin-top:12px;">
       <div class="deck-header">
         <div class="deck-header-text">
           <div class="deck-stats-summary">
-            <h3 style="margin-top:0;">Participant Averages</h3>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+              <h3 style="margin:0;">Participant Averages</h3>
+              <button type="button" class="btn small primary" id="avg-filter-all">All Games</button>
+              {% if last_rework_date %}
+              <button type="button" class="btn small" id="avg-filter-rework">Since Rework</button>
+              {% endif %}
+              {% if last_patch_date %}
+              <button type="button" class="btn small" id="avg-filter-patch">Since Patch</button>
+              {% endif %}
+              <span id="avg-filter-info" style="font-size:0.8em; color:#aaa;"></span>
+            </div>
             
+            <div id="participant-avgs-content">
             <!-- Group 1: Game Performance -->
             <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Game Performance</h4>
             <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
-              <div><strong>Enough Mana:</strong> {{ participant_avgs.enough_mana }}</div>
-              <div><strong>Enough Gas:</strong> {{ participant_avgs.enough_gas }}</div>
-              <div><strong>Deck Plan:</strong> {{ participant_avgs.deckplan }}</div>
-              <div><strong>Unanswered Threats:</strong> {{ participant_avgs.unanswered_threats }}</div>
+              <div><strong>Enough Mana:</strong> <span data-avg="enough_mana">{{ participant_avgs.enough_mana }}</span></div>
+              <div><strong>Enough Gas:</strong> <span data-avg="enough_gas">{{ participant_avgs.enough_gas }}</span></div>
+              <div><strong>Deck Plan:</strong> <span data-avg="deckplan">{{ participant_avgs.deckplan }}</span></div>
+              <div><strong>Unanswered Threats:</strong> <span data-avg="unanswered_threats">{{ participant_avgs.unanswered_threats }}</span></div>
             </div>
             
             <!-- Group 2: Mulligan & Landdrops -->
             <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Mulligan & Landdrops</h4>
             <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
-              <div><strong>Mulligans:</strong> {{ participant_avgs.mulligans }}</div>
-              <div><strong>Landdrops:</strong> {{ participant_avgs.landdrops }}</div>
-              <div><strong>All Landdrops:</strong> {{ participant_avgs.all_landdrops }}</div>
-              <div><strong>Lands:</strong> {{ participant_avgs.lands }}</div>
+              <div><strong>Mulligans:</strong> <span data-avg="mulligans">{{ participant_avgs.mulligans }}</span></div>
+              <div><strong>Landdrops:</strong> <span data-avg="landdrops">{{ participant_avgs.landdrops }}</span></div>
+              <div><strong>All Landdrops:</strong> <span data-avg="all_landdrops">{{ participant_avgs.all_landdrops }}</span></div>
+              <div><strong>Lands:</strong> <span data-avg="lands">{{ participant_avgs.lands }}</span></div>
             </div>
             
             <!-- Group 3: Win/Loss Analysis -->
             <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Win/Loss Analysis</h4>
             <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
-              <div><strong>Lockout Loss Without Answer:</strong> {{ participant_avgs.lockout_loss_without_answer }}</div>
-              <div><strong>Selbsterspielter Sieg:</strong> {{ participant_avgs.selbsterspielter_sieg }}</div>
+              <div><strong>Lockout Loss Without Answer:</strong> <span data-avg="lockout_loss_without_answer">{{ participant_avgs.lockout_loss_without_answer }}</span></div>
+              <div><strong>Selbsterspielter Sieg:</strong> <span data-avg="selbsterspielter_sieg">{{ participant_avgs.selbsterspielter_sieg }}</span></div>
             </div>
             
             <!-- Group 4: Fun -->
             <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Fun</h4>
             <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start;">
-              <div><strong>Fun Moments:</strong> {{ participant_avgs.fun_moments }}</div>
+              <div><strong>Fun Moments:</strong> <span data-avg="fun_moments">{{ participant_avgs.fun_moments }}</span></div>
+            </div>
             </div>
             
           </div>
         </div>
       </div>
     </section>
+
+    <script>
+    (function() {
+        const deckname = {{ deckname | tojson }};
+        const lastRework = {{ last_rework_date | tojson }};
+        const lastPatch = {{ last_patch_date | tojson }};
+
+        // Performance buttons
+        const perfBtnAll = document.getElementById('perf-filter-all');
+        const perfBtnRework = document.getElementById('perf-filter-rework');
+        const perfBtnPatch = document.getElementById('perf-filter-patch');
+        const perfInfo = document.getElementById('perf-filter-info');
+
+        // Averages buttons
+        const avgBtnAll = document.getElementById('avg-filter-all');
+        const avgBtnRework = document.getElementById('avg-filter-rework');
+        const avgBtnPatch = document.getElementById('avg-filter-patch');
+        const avgInfo = document.getElementById('avg-filter-info');
+
+        const allButtons = [perfBtnAll, perfBtnRework, perfBtnPatch, avgBtnAll, avgBtnRework, avgBtnPatch].filter(Boolean);
+
+        function setActive(since) {
+            allButtons.forEach(b => b.classList.remove('primary'));
+            if (since === null) {
+                perfBtnAll?.classList.add('primary');
+                avgBtnAll?.classList.add('primary');
+            } else if (since === lastRework) {
+                perfBtnRework?.classList.add('primary');
+                avgBtnRework?.classList.add('primary');
+            } else if (since === lastPatch) {
+                perfBtnPatch?.classList.add('primary');
+                avgBtnPatch?.classList.add('primary');
+            }
+        }
+
+        // ─── Performance data ────────────────────────────────────────────
+        function updatePerf(data) {
+            if (data.empty) {
+                if (perfInfo) perfInfo.textContent = data.message || 'No data';
+                return;
+            }
+            if (perfInfo) perfInfo.textContent = '';
+
+            const simple = ['games', 'wins', 'avg_turns', 'median_turns'];
+            simple.forEach(key => {
+                const el = document.querySelector(`[data-perf="${key}"]`);
+                if (el) el.textContent = data[key] !== undefined ? data[key] : '–';
+            });
+
+            const wrEl = document.querySelector('[data-perf="winrate"]');
+            if (wrEl) wrEl.textContent = data.winrate !== undefined ? data.winrate + '%' : '–';
+
+            const rangeEl = document.querySelector('[data-perf="range"]');
+            if (rangeEl) {
+                if (data.min_turns && data.max_turns) {
+                    rangeEl.textContent = data.min_turns + ' \u2013 ' + data.max_turns;
+                } else {
+                    rangeEl.textContent = '–';
+                }
+            }
+
+            [3, 4, 5].forEach(size => {
+                const s = data.by_size && data.by_size[String(size)];
+                if (!s) return;
+                const gEl = document.querySelector(`[data-perf="size_${size}_games"]`);
+                const wEl = document.querySelector(`[data-perf="size_${size}_wins"]`);
+                const wrEl2 = document.querySelector(`[data-perf="size_${size}_winrate"]`);
+                const atEl = document.querySelector(`[data-perf="size_${size}_avg_turns"]`);
+                const mtEl = document.querySelector(`[data-perf="size_${size}_median_turns"]`);
+                if (gEl) gEl.textContent = s.games;
+                if (wEl) wEl.textContent = s.wins;
+                if (wrEl2) wrEl2.textContent = typeof s.winrate === 'number' ? s.winrate + '%' : s.winrate;
+                if (atEl) atEl.textContent = s.avg_turns;
+                if (mtEl) mtEl.textContent = s.median_turns;
+            });
+        }
+
+        async function loadPerf(since) {
+            let url = `/api/deck-performance/${encodeURIComponent(deckname)}`;
+            if (since) url += `?since=${since}`;
+            if (perfInfo) perfInfo.textContent = 'Loading...';
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                updatePerf(data);
+            } catch (e) {
+                if (perfInfo) perfInfo.textContent = 'Error';
+            }
+        }
+
+        // ─── Averages data ───────────────────────────────────────────────
+        function updateAvg(data) {
+            if (data.empty) {
+                if (avgInfo) avgInfo.textContent = data.message || 'No data';
+                return;
+            }
+            if (avgInfo) avgInfo.textContent = `(${data.games_count} games)`;
+            document.querySelectorAll('[data-avg]').forEach(el => {
+                const key = el.getAttribute('data-avg');
+                el.textContent = data[key] !== undefined ? data[key] : '–';
+            });
+        }
+
+        async function loadAvg(since) {
+            let url = `/api/deck-participant-averages/${encodeURIComponent(deckname)}`;
+            if (since) url += `?since=${since}`;
+            if (avgInfo) avgInfo.textContent = 'Loading...';
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                updateAvg(data);
+            } catch (e) {
+                if (avgInfo) avgInfo.textContent = 'Error';
+            }
+        }
+
+        // ─── Unified click handler ───────────────────────────────────────
+        function applyFilter(since) {
+            setActive(since);
+            loadPerf(since);
+            loadAvg(since);
+        }
+
+        // Performance buttons
+        perfBtnAll?.addEventListener('click', () => applyFilter(null));
+        perfBtnRework?.addEventListener('click', () => applyFilter(lastRework));
+        perfBtnPatch?.addEventListener('click', () => applyFilter(lastPatch));
+
+        // Averages buttons
+        avgBtnAll?.addEventListener('click', () => applyFilter(null));
+        avgBtnRework?.addEventListener('click', () => applyFilter(lastRework));
+        avgBtnPatch?.addEventListener('click', () => applyFilter(lastPatch));
+    })();
+    </script>
+    {% endif %}
+
+    {% if not show_private_avgs and (last_rework_date or last_patch_date) %}
+    <script>
+    (function() {
+        const deckname = {{ deckname | tojson }};
+        const lastRework = {{ last_rework_date | tojson }};
+        const lastPatch = {{ last_patch_date | tojson }};
+
+        const btnAll = document.getElementById('perf-filter-all');
+        const btnRework = document.getElementById('perf-filter-rework');
+        const btnPatch = document.getElementById('perf-filter-patch');
+        const info = document.getElementById('perf-filter-info');
+        const buttons = [btnAll, btnRework, btnPatch].filter(Boolean);
+
+        function setActive(btn) {
+            buttons.forEach(b => b.classList.remove('primary'));
+            btn.classList.add('primary');
+        }
+
+        function updatePerf(data) {
+            if (data.empty) {
+                if (info) info.textContent = data.message || 'No data';
+                return;
+            }
+            if (info) info.textContent = '';
+
+            ['games', 'wins', 'avg_turns', 'median_turns'].forEach(key => {
+                const el = document.querySelector(`[data-perf="${key}"]`);
+                if (el) el.textContent = data[key] !== undefined ? data[key] : '\u2013';
+            });
+
+            const wrEl = document.querySelector('[data-perf="winrate"]');
+            if (wrEl) wrEl.textContent = data.winrate !== undefined ? data.winrate + '%' : '\u2013';
+
+            const rangeEl = document.querySelector('[data-perf="range"]');
+            if (rangeEl) {
+                rangeEl.textContent = (data.min_turns && data.max_turns)
+                    ? data.min_turns + ' \u2013 ' + data.max_turns : '\u2013';
+            }
+
+            [3, 4, 5].forEach(size => {
+                const s = data.by_size && data.by_size[String(size)];
+                if (!s) return;
+                const gEl = document.querySelector(`[data-perf="size_${size}_games"]`);
+                const wEl = document.querySelector(`[data-perf="size_${size}_wins"]`);
+                const wrEl2 = document.querySelector(`[data-perf="size_${size}_winrate"]`);
+                const atEl = document.querySelector(`[data-perf="size_${size}_avg_turns"]`);
+                const mtEl = document.querySelector(`[data-perf="size_${size}_median_turns"]`);
+                if (gEl) gEl.textContent = s.games;
+                if (wEl) wEl.textContent = s.wins;
+                if (wrEl2) wrEl2.textContent = typeof s.winrate === 'number' ? s.winrate + '%' : s.winrate;
+                if (atEl) atEl.textContent = s.avg_turns;
+                if (mtEl) mtEl.textContent = s.median_turns;
+            });
+        }
+
+        async function loadPerf(since) {
+            let url = `/api/deck-performance/${encodeURIComponent(deckname)}`;
+            if (since) url += `?since=${since}`;
+            if (info) info.textContent = 'Loading...';
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                updatePerf(data);
+            } catch (e) {
+                if (info) info.textContent = 'Error';
+            }
+        }
+
+        btnAll?.addEventListener('click', () => { setActive(btnAll); loadPerf(null); });
+        btnRework?.addEventListener('click', () => { setActive(btnRework); loadPerf(lastRework); });
+        btnPatch?.addEventListener('click', () => { setActive(btnPatch); loadPerf(lastPatch); });
+    })();
+    </script>
     {% endif %}
 
     {% if show_private_comments and private_comments %}

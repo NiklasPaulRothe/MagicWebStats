@@ -510,7 +510,9 @@ def deck_show(deckname):
         show_private_avgs=show_private_avgs,
         participant_avgs=participant_avgs,
         show_private_comments=show_private_comments,
-        private_comments=private_comments
+        private_comments=private_comments,
+        last_rework_date=deck.Last_Rework.isoformat() if deck.Last_Rework else None,
+        last_patch_date=deck.last_patch.isoformat() if deck.last_patch else None
     )
 
 
