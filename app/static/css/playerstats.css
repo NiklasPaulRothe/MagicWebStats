@@ -301,3 +301,10 @@
     color: #f4c430;
     font-style: italic;
 }
+
+/* Year filter buttons — active state */
+#year-filter-buttons button.active {
+    background-color: #f4c430;
+    color: #1e1e1e;
+    border-color: #f4c430;
+}

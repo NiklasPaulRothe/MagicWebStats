@@ -698,3 +698,98 @@ def deck_performance(deckname):
         }
 
     return jsonify(result)
+
+
+@bp.route('/data/years')
+@login_required
+def data_years():
+    """Return a list of distinct years that have game data."""
+    results = db.session.execute(text('''
+        SELECT DISTINCT EXTRACT(YEAR FROM "Date")::integer AS year
+        FROM data_owner."Games"
+        WHERE "Date" IS NOT NULL
+        ORDER BY year DESC;
+    ''')).all()
+    return jsonify([row[0] for row in results])
+
+
+@bp.route('/data/<int:year>')
+@login_required
+def data_by_year(year):
+    """Return player stats for a specific calendar year."""
+    results = db.session.execute(text('''
+    SELECT "Name" AS name,
+    ( SELECT count(*) AS count
+           FROM data_owner."Participants"
+        LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+          WHERE "Participants".player_id = "Player".id
+          AND "Games".cedh = False
+          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS games,
+    ( SELECT count(*) AS count
+           FROM data_owner."Participants"
+        LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+          WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true
+          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS "early_sol_ring",
+    ( SELECT COALESCE((( SELECT count(*)::double precision AS count
+                   FROM data_owner."Participants"
+                LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+                  WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true
+                  AND EXTRACT(YEAR FROM "Games"."Date") = :year)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
+                   FROM data_owner."Participants"
+                     LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+                  WHERE "Participants".player_id = "Player".id
+                  AND "Games".cedh = False
+                  AND EXTRACT(YEAR FROM "Games"."Date") = :year), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "Sol Ring (in%)",
+    ( SELECT count(*) AS count
+           FROM data_owner."Games"
+          WHERE "Games"."Winner" = "Player".id
+          AND "Games".cedh = False
+          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS winner,
+    ( SELECT COALESCE((( SELECT count(*)::double precision AS count
+                   FROM data_owner."Games"
+                  WHERE "Games"."Winner" = "Player".id
+          AND "Games".cedh = False
+          AND EXTRACT(YEAR FROM "Games"."Date") = :year)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
+                   FROM data_owner."Participants"
+                   LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+                  WHERE "Participants".player_id = "Player".id
+                  AND "Games".cedh = False
+                  AND EXTRACT(YEAR FROM "Games"."Date") = :year), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "winrate (in%)",
+    ( SELECT count(*) AS count
+           FROM data_owner."Games"
+          WHERE "Games"."First_Player" = "Player".id
+          AND "Games".cedh = False
+          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS first,
+    (SELECT COALESCE((( SELECT count(*)::double precision AS count
+           FROM data_owner."Games"
+          WHERE "Games"."First_Player" = "Player".id
+          AND "Games".cedh = False
+          AND EXTRACT(YEAR FROM "Games"."Date") = :year)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
+           FROM data_owner."Participants"
+           LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
+          WHERE "Participants".player_id = "Player".id
+          AND "Games".cedh = False
+          AND EXTRACT(YEAR FROM "Games"."Date") = :year), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "first (in%)"
+   FROM data_owner."Player"
+   WHERE "Player"."Name" != 'Precons'
+   AND EXISTS (
+       SELECT 1 FROM data_owner."Participants" p2
+       JOIN data_owner."Games" g2 ON g2.id = p2.game_id
+       WHERE p2.player_id = "Player".id
+       AND EXTRACT(YEAR FROM g2."Date") = :year
+   );'''), {'year': year})
+
+    list = []
+    for entry in results:
+        dict = {"Name": [], "Games": [], "Early Sol Ring": [], "Sol Ring (in %)": [], "Wins": [], "Winrate (in %)": [],
+                "First": [], "First (in %)": []}
+        dict["Name"].append(entry[0])
+        dict["Games"].append(entry[1])
+        dict["Early Sol Ring"].append(entry[2])
+        dict["Sol Ring (in %)"].append(float(entry[3]))
+        dict["Wins"].append(entry[4])
+        dict["Winrate (in %)"].append(float(entry[5]))
+        dict["First"].append(entry[6])
+        dict["First (in %)"].append(float(entry[7]))
+        list.append(dict)
+    return jsonify(list)

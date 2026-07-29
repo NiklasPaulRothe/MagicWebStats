@@ -13,6 +13,11 @@
             <div class="stats-section">
                 <h3 class="section-title">Game Performance</h3>
                 
+                <!-- Year Filter Buttons -->
+                <div class="filter-controls" id="year-filter-buttons">
+                    <button class="active" data-year="all">Overall</button>
+                </div>
+
                 <!-- Filter Controls -->
                 <div class="filter-controls">
                     <label for="min-games-filter">Min. Games:</label>
@@ -82,19 +87,54 @@
     <script>
         let originalPlayerData = [];
         let currentSort = { idx: null, asc: true, type: null };
+        let activeYear = 'all';
         
         function encode(value) {
             return encodeURIComponent(value);
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Fetch and populate Player Stats table
+            const yearContainer = document.getElementById('year-filter-buttons');
+
+            // Fetch available years and create buttons
+            fetch('/api/data/years')
+                .then(response => response.json())
+                .then(years => {
+                    years.forEach(year => {
+                        const btn = document.createElement('button');
+                        btn.setAttribute('data-year', year);
+                        btn.textContent = year;
+                        yearContainer.appendChild(btn);
+                    });
+                    attachYearListeners();
+                });
+
+            // Fetch overall data initially
             fetch('/api/data')
                 .then(response => response.json())
                 .then(data => {
                     originalPlayerData = data;
                     renderFilteredTable();
                 });
+
+            function attachYearListeners() {
+                yearContainer.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const year = this.getAttribute('data-year');
+                        yearContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        activeYear = year;
+
+                        const url = year === 'all' ? '/api/data' : `/api/data/${year}`;
+                        fetch(url)
+                            .then(response => response.json())
+                            .then(data => {
+                                originalPlayerData = data;
+                                renderFilteredTable();
+                            });
+                    });
+                });
+            }
 
             // Apply filter button
             document.getElementById('apply-games-filter').addEventListener('click', renderFilteredTable);
