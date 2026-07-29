@@ -1,5 +1,6 @@
 import statistics
 from collections import Counter
+from datetime import date, timedelta
 
 from app import db
 from app.main import bp
@@ -7,7 +8,7 @@ from flask import render_template
 from flask_login import login_required, current_user
 import sqlalchemy as sa
 
-from app.models import User, Player
+from app.models import User, Player, Game, Participant
 from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
@@ -16,7 +17,21 @@ from app.viewmodels import ColorUsage, ColorUsagePlayer
 @login_required
 def index():
     color_usage = ColorUsage.query.all()
-    color_usage_player = ColorUsagePlayer.query.all()
+    
+    # Only include players who have played at least one game in the last year
+    one_year_ago = date.today() - timedelta(days=365)
+    active_player_names = set(
+        row[0] for row in db.session.query(Player.Name)
+        .join(Participant, Participant.player_id == Player.id)
+        .join(Game, Game.id == Participant.game_id)
+        .filter(Game.Date >= one_year_ago)
+        .distinct()
+        .all()
+    )
+    color_usage_player = [
+        cup for cup in ColorUsagePlayer.query.all()
+        if cup.Player in active_player_names
+    ]
 
     color_usage_data = [
         {
@@ -28,7 +43,6 @@ def index():
     ]
 
     # === Turn Chart Data ===
-    from app.models import Game
     games = Game.query.with_entities(Game.turns).filter(
         Game.turns.isnot(None),
         Game.cedh != True

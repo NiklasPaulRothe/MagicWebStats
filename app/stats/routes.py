@@ -566,7 +566,21 @@ def game_add():
 @bp.route('/PlayerStats')
 @login_required
 def playerstats():
-    color_usage_player = ColorUsagePlayer.query.all()
+    from datetime import date, timedelta
+    from app.models import Player, Game, Participant
+    one_year_ago = date.today() - timedelta(days=365)
+    active_player_names = set(
+        row[0] for row in db.session.query(Player.Name)
+        .join(Participant, Participant.player_id == Player.id)
+        .join(Game, Game.id == Participant.game_id)
+        .filter(Game.Date >= one_year_ago)
+        .distinct()
+        .all()
+    )
+    color_usage_player = [
+        cup for cup in ColorUsagePlayer.query.all()
+        if cup.Player in active_player_names
+    ]
     return render_template('stats/playerstats.html', color_usage_player=color_usage_player)
 
 @bp.route('/ColorStats')

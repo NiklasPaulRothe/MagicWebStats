@@ -65,7 +65,13 @@ def data():
           WHERE "Participants".player_id = "Player".id
           AND "Games".cedh = False), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "first (in%)"
    FROM data_owner."Player"
-   WHERE "Player"."Name" != 'Precons';'''))
+   WHERE "Player"."Name" != 'Precons'
+   AND EXISTS (
+       SELECT 1 FROM data_owner."Participants" p2
+       JOIN data_owner."Games" g2 ON g2.id = p2.game_id
+       WHERE p2.player_id = "Player".id
+       AND g2."Date" >= CURRENT_DATE - INTERVAL '1 year'
+   );'''))
 
     list = []
     for entry in results:
