@@ -132,23 +132,112 @@ class ColorComponent(db.Model):
     color = db.Column(db.String, db.ForeignKey('data_owner.Colors.Name'), primary_key=True)
 
 class Card(db.Model):
-    __tablename__ = 'card_data'
+    __tablename__ = 'cards'
     __table_args__ = {'schema': 'data_owner'}
-    Name = db.Column(db.String)
+
     id = db.Column(db.String, primary_key=True)
-    image_uri = db.Column(db.String)
-    back_image_uri = db.Column(db.String)
-    commander_legal = db.Column(db.Boolean, nullable=False, default=False)
-    cmc = db.Column(db.Integer)
-    card_text = db.Column(db.String)
-    back_card_text = db.Column(db.String)
+    oracle_id = db.Column(db.String, nullable=False, index=True)
+    name = db.Column(db.String, nullable=False, index=True)
+    mana_cost = db.Column(db.String, nullable=True)
+    cmc = db.Column(db.Float, nullable=False, default=0)
+    type_line = db.Column(db.String, nullable=False)
+    oracle_text = db.Column(db.Text, nullable=True)
+    layout = db.Column(db.String, nullable=False)
+    set_code = db.Column(db.String, nullable=False)
+    set_name = db.Column(db.String, nullable=False)
+    rarity = db.Column(db.String, nullable=False)
+    released_at = db.Column(db.Date, nullable=True)
+
+    faces = db.relationship('CardFace', backref='card',
+                            order_by='CardFace.face_index',
+                            cascade='all, delete-orphan')
+    colors = db.relationship('CardColor', backref='card',
+                             cascade='all, delete-orphan')
+    color_identity = db.relationship('CardColorIdentity', backref='card',
+                                     cascade='all, delete-orphan')
+    keywords = db.relationship('CardKeyword', backref='card',
+                               cascade='all, delete-orphan')
+    legalities = db.relationship('CardLegality', backref='card',
+                                 cascade='all, delete-orphan')
+
+    @property
+    def oracle_tags(self):
+        return OracleTag.query.filter_by(oracle_id=self.oracle_id).all()
+
+
+class CardFace(db.Model):
+    __tablename__ = 'card_faces'
+    __table_args__ = (
+        db.UniqueConstraint('card_id', 'face_index', name='uq_card_face'),
+        {'schema': 'data_owner'}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
+                        ondelete='CASCADE'), nullable=False)
+    face_index = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String, nullable=False)
+    mana_cost = db.Column(db.String, nullable=True)
+    type_line = db.Column(db.String, nullable=True)
+    oracle_text = db.Column(db.Text, nullable=True)
+    image_uri = db.Column(db.String, nullable=True)
+
+
+class CardColor(db.Model):
+    __tablename__ = 'card_colors'
+    __table_args__ = {'schema': 'data_owner'}
+
+    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
+                        ondelete='CASCADE'), primary_key=True)
+    color = db.Column(db.String(1), primary_key=True)
+
+
+class CardColorIdentity(db.Model):
+    __tablename__ = 'card_color_identity'
+    __table_args__ = {'schema': 'data_owner'}
+
+    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
+                        ondelete='CASCADE'), primary_key=True)
+    color = db.Column(db.String(1), primary_key=True)
+
+
+class CardKeyword(db.Model):
+    __tablename__ = 'card_keywords'
+    __table_args__ = {'schema': 'data_owner'}
+
+    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
+                        ondelete='CASCADE'), primary_key=True)
+    keyword = db.Column(db.String, primary_key=True)
+
+
+class CardLegality(db.Model):
+    __tablename__ = 'card_legalities'
+    __table_args__ = {'schema': 'data_owner'}
+
+    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
+                        ondelete='CASCADE'), primary_key=True)
+    format = db.Column(db.String, primary_key=True)
+    status = db.Column(db.String, nullable=False)
+
+
+class OracleTag(db.Model):
+    __tablename__ = 'oracle_tags'
+    __table_args__ = (
+        db.UniqueConstraint('oracle_id', 'tag', name='uq_oracle_tag'),
+        {'schema': 'data_owner'}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    oracle_id = db.Column(db.String, nullable=False, index=True)
+    tag = db.Column(db.String, nullable=False)
+
 
 class DeckComponent(db.Model):
     __tablename__ = 'deck_component'
     __table_args__ = {'schema': 'data_owner'}
     id = db.Column(db.Integer, primary_key=True)
     deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'))
-    card_id = db.Column(db.String, db.ForeignKey('data_owner.card_data.id'))
+    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id'))
     count = db.Column(db.Integer)
     name = db.Column(db.String)
 

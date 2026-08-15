@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/autocomplete.css') }}">
 <style>
 /* ── Custom color identity picker ────────────────────────────────────────── */
 .ci-picker {
@@ -148,6 +149,7 @@
         <p>{{ form.submit() }}</p>
     </form>
 
+    <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
     <script id="ci-data" type="application/json">{{ ci_data | tojson }}</script>
     <script>
     (function () {
@@ -199,5 +201,18 @@
         // Close on outside click
         document.addEventListener('click', () => dropdown.classList.remove('open'));
     })();
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var commanderInput = document.getElementById('commander');
+        if (commanderInput) {
+            initAutocomplete(commanderInput);
+        }
+
+        var partnerInput = document.getElementById('partner');
+        if (partnerInput) {
+            initAutocomplete(partnerInput);
+        }
+    });
     </script>
 {% endblock %}

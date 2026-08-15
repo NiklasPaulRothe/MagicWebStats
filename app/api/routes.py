@@ -431,7 +431,7 @@ def quick_add_deck():
         return jsonify({'error': 'Es gibt schon ein Deck mit diesem Namen.'}), 409
 
     # Validate commander exists in card database
-    card = db.session.scalar(sa.select(Card).where(Card.Name == commander))
+    card = db.session.scalar(sa.select(Card).where(Card.name == commander))
     if not card:
         return jsonify({'error': 'Der Commander existiert nicht in der Datenbank.'}), 400
 
@@ -445,8 +445,9 @@ def quick_add_deck():
     if not ci:
         return jsonify({'error': 'Color Identity existiert nicht.'}), 400
 
-    # Get commander image
-    img = card.image_uri
+    # Get commander image from front face
+    front_face = next((f for f in card.faces if f.face_index == 0), None)
+    img = front_face.image_uri if front_face else None
 
     deck = Deck(
         Name=name,
@@ -793,3 +794,18 @@ def data_by_year(year):
         dict["First (in %)"].append(float(entry[7]))
         list.append(dict)
     return jsonify(list)
+
+
+@bp.route('/cards/autocomplete')
+@login_required
+def cards_autocomplete():
+    q = request.args.get('q', '')
+    if len(q) < 2:
+        return jsonify([])
+    results = db.session.execute(
+        sa.select(sa.distinct(Card.name))
+        .where(Card.name.ilike(f'%{q}%'))
+        .order_by(Card.name)
+        .limit(10)
+    ).scalars().all()
+    return jsonify(results)
