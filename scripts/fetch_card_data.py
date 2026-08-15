@@ -77,15 +77,25 @@ if __name__ == '__main__':
 
     try:
         # Get the download link for the bulk data
-        bulk_data = requests.get("https://api.scryfall.com/bulk-data").json()
+        headers = {'User-Agent': 'MagicWebStats/1.0', 'Accept': 'application/json'}
+        bulk_response = requests.get("https://api.scryfall.com/bulk-data", headers=headers)
+        bulk_response.raise_for_status()
+        bulk_data = bulk_response.json()
+
+        if 'data' not in bulk_data:
+            raise Exception(f'Unexpected Scryfall response: {bulk_data}')
+
         download_link = ''
         for entry in bulk_data['data']:
             if entry['type'] == 'default_cards':
                 download_link = entry['download_uri']
 
+        if not download_link:
+            raise Exception('Could not find default_cards download link in Scryfall bulk data')
+
         # Stream the bulk data directly into ijson — no file download needed
         print(f'Streaming card data from: {download_link}')
-        response = requests.get(download_link, stream=True)
+        response = requests.get(download_link, stream=True, headers=headers)
         response.raise_for_status()
 
         conn = psycopg2.connect(os.environ.get('DATABASE_URL', '').replace(
