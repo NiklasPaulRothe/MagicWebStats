@@ -1,0 +1,54 @@
+/* autocomplete.css — styles for the card name autocomplete dropdown */
+/* Used on DeckAdd form for commander and partner input fields */
+
+/* ── Wrapper — positioning context for the dropdown ──────────────────────── */
+.autocomplete-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* ── Dropdown list — hidden until suggestions are available ───────────────── */
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background-color: #1e1e1e;
+    border: 1px solid #f4c430;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    z-index: 300;
+    max-height: 240px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
+}
+
+/* ── Individual suggestion items ─────────────────────────────────────────── */
+.autocomplete-dropdown li {
+    padding: 8px 10px;
+    color: antiquewhite;
+    font-size: 0.9em;
+    cursor: pointer;
+    border-bottom: 1px solid #2e2e2e;
+    transition: background-color 0.15s ease;
+}
+
+.autocomplete-dropdown li:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-dropdown li:hover {
+    background-color: #2a2a2a;
+}
+
+/* ── Active/highlighted item (keyboard navigation) ───────────────────────── */
+.autocomplete-dropdown li.autocomplete-active {
+    background-color: rgba(244, 196, 48, 0.15);
+    color: #f4c430;
+    outline: none;
+}

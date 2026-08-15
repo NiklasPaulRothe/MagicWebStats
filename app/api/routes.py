@@ -794,3 +794,18 @@ def data_by_year(year):
         dict["First (in %)"].append(float(entry[7]))
         list.append(dict)
     return jsonify(list)
+
+
+@bp.route('/cards/autocomplete')
+@login_required
+def cards_autocomplete():
+    q = request.args.get('q', '')
+    if len(q) < 2:
+        return jsonify([])
+    results = db.session.execute(
+        sa.select(sa.distinct(Card.name))
+        .where(Card.name.ilike(f'%{q}%'))
+        .order_by(Card.name)
+        .limit(10)
+    ).scalars().all()
+    return jsonify(results)
