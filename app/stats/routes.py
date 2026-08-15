@@ -420,7 +420,12 @@ def deck_add():
             partner = form.partner.data
 
         # Commander image for main deck
-        img = Card.query.filter_by(Name=form.commander.data).first().image_uri
+        card = Card.query.filter_by(name=form.commander.data).first()
+        img = None
+        if card:
+            front_face = next((f for f in card.faces if f.face_index == 0), None)
+            if front_face:
+                img = front_face.image_uri
 
         deck = Deck(
             Name = form.name.data,

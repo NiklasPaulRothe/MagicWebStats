@@ -34,7 +34,7 @@ class DeckAddForm(FlaskForm):
             raise ValidationError('Es gibt schon ein Deck mit diesem Namen.')
 
     def validate_commander(self, commander):
-        commander = db.session.scalar(sa.select(Card).where(Card.Name == commander.data))
+        commander = db.session.scalar(sa.select(Card).where(Card.name == commander.data))
         if commander is None:
             raise ValidationError('Der Commander existiert nicht.')
 

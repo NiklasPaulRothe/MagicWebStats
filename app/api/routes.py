@@ -431,7 +431,7 @@ def quick_add_deck():
         return jsonify({'error': 'Es gibt schon ein Deck mit diesem Namen.'}), 409
 
     # Validate commander exists in card database
-    card = db.session.scalar(sa.select(Card).where(Card.Name == commander))
+    card = db.session.scalar(sa.select(Card).where(Card.name == commander))
     if not card:
         return jsonify({'error': 'Der Commander existiert nicht in der Datenbank.'}), 400
 
@@ -445,8 +445,9 @@ def quick_add_deck():
     if not ci:
         return jsonify({'error': 'Color Identity existiert nicht.'}), 400
 
-    # Get commander image
-    img = card.image_uri
+    # Get commander image from front face
+    front_face = next((f for f in card.faces if f.face_index == 0), None)
+    img = front_face.image_uri if front_face else None
 
     deck = Deck(
         Name=name,

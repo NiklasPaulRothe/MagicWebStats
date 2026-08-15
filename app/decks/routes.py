@@ -170,10 +170,13 @@ def choose_commander_image(deckname):
         flash("Deck not found", "error")
         return redirect(url_for('main.index'))
 
-    # Get all cards that match the commander's name (could be different versions)
-    cards = models.Card.query.filter_by(Name=deck.Commander).all()
-
-    images = [card.image_uri for card in cards if card.image_uri]
+    # Query the new cards table, get front face images
+    cards = models.Card.query.filter_by(name=deck.Commander).all()
+    images = []
+    for card in cards:
+        front_face = next((f for f in card.faces if f.face_index == 0), None)
+        if front_face and front_face.image_uri:
+            images.append(front_face.image_uri)
 
     return render_template('decks/choose_image.html', deckname=deckname, commander=deck.Commander, images=images)
 

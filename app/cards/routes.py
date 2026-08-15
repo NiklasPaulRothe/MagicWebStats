@@ -11,8 +11,11 @@ from app.models import DeckComponent, Card, Deck, Player
 @login_required
 def card_meta():
 
-    names = db.session.query(DeckComponent.name).distinct().all()
-    entries = DeckComponent.query.all()
+    # Only include DeckComponents that have a valid card reference
+    names = db.session.query(DeckComponent.name).filter(
+        DeckComponent.card_id.isnot(None)
+    ).distinct().all()
+    entries = DeckComponent.query.filter(DeckComponent.card_id.isnot(None)).all()
     deck_list = []
     decks = Deck.query.filter(and_(Deck.decksite.contains('archidekt'),Deck.Active == True)).all()
     deck_count = 0
