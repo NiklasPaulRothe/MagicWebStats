@@ -532,7 +532,7 @@
             </thead>
             <tbody>
             {% for game in games %}
-                <tr>
+                <tr class="{{ 'game-win' if game.is_win else '' }}">
                     <td>{{ game.Datum }}</td>
                     <td>
                         <div class="opponent-row">

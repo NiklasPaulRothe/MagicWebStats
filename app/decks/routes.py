@@ -304,7 +304,8 @@ def deck_show(deckname):
             "Winner": winner_name,
             "Turns": turn_count,
             "Final_Blow": final_blow,
-            "participant_data": participant_data
+            "participant_data": participant_data,
+            "is_win": game_data.Winner == deck.Player
         })
 
         # Collect full win turn stats

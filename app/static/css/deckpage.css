@@ -469,6 +469,16 @@
     align-items: flex-start;
 }
 
+/* Green glow for games the deck won */
+.deck-games-table tr.game-win {
+    box-shadow: inset 0 0 12px rgba(76, 175, 80, 0.3), 0 0 8px rgba(76, 175, 80, 0.2);
+    background-color: rgba(76, 175, 80, 0.08);
+}
+
+.deck-games-table tr.game-win td {
+    border-bottom-color: rgba(76, 175, 80, 0.3);
+}
+
 .opponent-card {
     display: flex;
     flex-direction: column;
