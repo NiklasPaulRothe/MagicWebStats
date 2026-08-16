@@ -220,8 +220,6 @@ def version_history(deckname):
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def deck_show(deckname):
-    current_app.logger.info(deckname)
-
     deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
     user = models.User.query.filter_by(username=current_user.username).one()
     is_owner = (deck.Player == user.spieler)

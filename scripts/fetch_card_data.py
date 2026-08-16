@@ -1,6 +1,7 @@
 import gzip
 import json
 import os
+import statistics
 import sys
 import time
 from typing import Iterator
@@ -195,6 +196,110 @@ def _execute_oracle_tags_batch(cur, batch: list) -> None:
     )
 
 
+def expected_score(rating, opponent_rating):
+    """Pairwise expected score (standard Elo formula)."""
+    return 1 / (1 + 10 ** ((opponent_rating - rating) / 400))
+
+
+def expected_multiplayer_score(deck_id, deck_ratings):
+    """Average pairwise expected score against all opponents."""
+    opponents = {did: r for did, r in deck_ratings.items() if did != deck_id}
+    my_rating = deck_ratings[deck_id]
+    pairwise_sum = sum(expected_score(my_rating, opp_r) for opp_r in opponents.values())
+    return pairwise_sum / len(opponents)
+
+
+def get_game_k_factor(participants_games_played):
+    """Single K-factor for the game based on median experience."""
+    median_games = statistics.median(participants_games_played)
+    if median_games <= 10:
+        return 60
+    elif median_games <= 30:
+        return 40
+    else:
+        return 24
+
+
+def calculate_elo_ratings(conn):
+    """Recalculate Elo ratings for all decks from scratch."""
+    cur = conn.cursor()
+
+    # Load all decks (id, player_id)
+    cur.execute('SELECT id, "Player" FROM data_owner."Decks"')
+    decks = cur.fetchall()
+    elo_ratings = {row[0]: {'elo_rating': 1500, 'games_played': 0} for row in decks}
+    deck_player_map = {row[0]: row[1] for row in decks}
+
+    # Load all games ordered by date/id for chronological processing
+    cur.execute('SELECT id, "Winner" FROM data_owner."Games" ORDER BY "Date", id')
+    games = cur.fetchall()
+
+    # Load all participants grouped by game
+    cur.execute('SELECT game_id, player_id, deck_id FROM data_owner."Participants"')
+    all_participants = cur.fetchall()
+    participants_by_game = {}
+    for game_id, player_id, deck_id in all_participants:
+        participants_by_game.setdefault(game_id, []).append((player_id, deck_id))
+
+    for game_id, winner_player_id in games:
+        participants = participants_by_game.get(game_id, [])
+        if len(participants) < 3 or len(participants) > 5:
+            continue
+
+        # Build ratings for valid participants (deck belongs to player, or player 24)
+        deck_ratings = {}
+        valid_participants = []
+        for player_id, deck_id in participants:
+            deck_owner = deck_player_map.get(deck_id)
+            if deck_owner != player_id and deck_owner != 24:
+                continue
+            if deck_id in elo_ratings:
+                deck_ratings[deck_id] = elo_ratings[deck_id]['elo_rating']
+                valid_participants.append((player_id, deck_id))
+
+        if len(deck_ratings) < 2:
+            continue
+
+        # Normalize expected scores
+        raw_expected = {
+            did: expected_multiplayer_score(did, deck_ratings)
+            for did in deck_ratings
+        }
+        total_expected = sum(raw_expected.values())
+        normalized_expected = {
+            did: raw / total_expected
+            for did, raw in raw_expected.items()
+        }
+
+        # Single K-factor for zero-sum guarantee
+        games_played_list = [elo_ratings[did]['games_played'] for _, did in valid_participants]
+        k = get_game_k_factor(games_played_list)
+
+        # Apply updates
+        for player_id, deck_id in valid_participants:
+            actual_score = 1.0 if winner_player_id == player_id else 0.0
+            rating = elo_ratings[deck_id]['elo_rating']
+            new_rating = rating + k * (actual_score - normalized_expected[deck_id])
+            elo_ratings[deck_id]['elo_rating'] = new_rating
+            elo_ratings[deck_id]['games_played'] += 1
+
+    # Write results back to the database
+    for deck_id, values in elo_ratings.items():
+        if values['games_played'] >= 5:
+            elo = values['elo_rating']
+        else:
+            elo = 0
+        cur.execute(
+            'UPDATE data_owner."Decks" SET elo_rating = %s WHERE id = %s',
+            (elo, deck_id)
+        )
+
+    conn.commit()
+    cur.close()
+    updated = sum(1 for v in elo_ratings.values() if v['games_played'] >= 5)
+    print(f"  Updated {updated} decks with Elo ratings ({len(games)} games processed)")
+
+
 if __name__ == '__main__':
     print('Fetching Card Data...')
     load_dotenv()
@@ -203,55 +308,55 @@ if __name__ == '__main__':
         'postgres://', 'postgresql://'))
 
     # =========================================================================
-    # Phase 1: Archidekt deck tags (COMMENTED OUT FOR TESTING)
+    # Phase 1: Archidekt deck tags
     # =========================================================================
-    # print('Fetching deck tags from Archidekt...')
-    # try:
-    #     cur = conn.cursor()
-    #     cur.execute("""
-    #         SELECT id, "Name", archidekt_id 
-    #         FROM data_owner."Decks" 
-    #         WHERE archidekt_id IS NOT NULL AND archidekt_id != ''
-    #     """)
-    #     decks_with_archidekt = cur.fetchall()
-    #
-    #     print(f'Found {len(decks_with_archidekt)} decks with Archidekt links')
-    #
-    #     for deck_id, deck_name, archidekt_id in decks_with_archidekt:
-    #         try:
-    #             print(f'Fetching tags for deck: {deck_name} (ID: {deck_id})')
-    #             deck = pyrchidekt.api.getDeckById(archidekt_id.strip())
-    #             deck_tags = getattr(deck, 'deck_tags', [])
-    #
-    #             cur.execute("DELETE FROM data_owner.deck_tags WHERE deck_id = %s", (deck_id,))
-    #
-    #             if deck_tags:
-    #                 for tag in deck_tags:
-    #                     tag_name = tag['name'].strip()
-    #                     if tag_name:
-    #                         cur.execute("""
-    #                             INSERT INTO data_owner.deck_tags (deck_id, tag)
-    #                             VALUES (%s, %s)
-    #                             ON CONFLICT (deck_id, tag) DO NOTHING
-    #                         """, (deck_id, tag_name))
-    #                 print(f'  Saved {len(deck_tags)} tags')
-    #             else:
-    #                 print(f'  No tags found')
-    #
-    #             conn.commit()
-    #             time.sleep(1)
-    #
-    #         except Exception as e:
-    #             print(f'  Error fetching tags for deck {deck_name}: {str(e)}')
-    #             conn.rollback()
-    #             continue
-    #
-    #     print('Deck tags fetching completed!')
-    #     cur.close()
-    #
-    # except Exception as e:
-    #     print(f'Archidekt tags phase failed: {str(e)}')
-    #     # Continue to Phase 2 regardless (Req 12.4)
+    print('Fetching deck tags from Archidekt...')
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, "Name", archidekt_id 
+            FROM data_owner."Decks" 
+            WHERE archidekt_id IS NOT NULL AND archidekt_id != ''
+        """)
+        decks_with_archidekt = cur.fetchall()
+
+        print(f'Found {len(decks_with_archidekt)} decks with Archidekt links')
+
+        for deck_id, deck_name, archidekt_id in decks_with_archidekt:
+            try:
+                print(f'Fetching tags for deck: {deck_name} (ID: {deck_id})')
+                deck = pyrchidekt.api.getDeckById(archidekt_id.strip())
+                deck_tags = getattr(deck, 'deck_tags', [])
+
+                cur.execute("DELETE FROM data_owner.deck_tags WHERE deck_id = %s", (deck_id,))
+
+                if deck_tags:
+                    for tag in deck_tags:
+                        tag_name = tag['name'].strip()
+                        if tag_name:
+                            cur.execute("""
+                                INSERT INTO data_owner.deck_tags (deck_id, tag)
+                                VALUES (%s, %s)
+                                ON CONFLICT (deck_id, tag) DO NOTHING
+                            """, (deck_id, tag_name))
+                    print(f'  Saved {len(deck_tags)} tags')
+                else:
+                    print(f'  No tags found')
+
+                conn.commit()
+                time.sleep(1)
+
+            except Exception as e:
+                print(f'  Error fetching tags for deck {deck_name}: {str(e)}')
+                conn.rollback()
+                continue
+
+        print('Deck tags fetching completed!')
+        cur.close()
+
+    except Exception as e:
+        print(f'Archidekt tags phase failed: {str(e)}')
+        # Continue to Phase 2 regardless
 
     # =========================================================================
     # Phase 2: Scryfall card data (new JSONL streaming + batched inserts)
@@ -428,6 +533,16 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Oracle tags failed (non-fatal): {e}")
         # Card data already committed, so we continue (Req 6.6)
+
+    # =========================================================================
+    # Phase 4: Elo rating recalculation
+    # =========================================================================
+    print('Recalculating Elo ratings...')
+    try:
+        calculate_elo_ratings(conn)
+        print('Elo ratings updated.')
+    except Exception as e:
+        print(f"Elo calculation failed (non-fatal): {e}")
 
     conn.close()
     print('All done!')

@@ -18,5 +18,6 @@ app/logs/
 logs/
 files/
 logs/webstats.log
+backups/
 .kiro/
 migrations/

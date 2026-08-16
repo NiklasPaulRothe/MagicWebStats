@@ -62,7 +62,7 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
                 db.session.add(component)
         except:
             name = card.card.oracle_card.name
-            current_app.logger.info(f'{name} couldn''t be found' + traceback.format_exc())
+            print(f'{name} could not be found: {traceback.format_exc()}')
             continue
     
     # Handle deck tags
@@ -85,9 +85,9 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
                     tag=tag['name'].strip()
                 )
                 db.session.add(deck_tag)
-            current_app.logger.info(f'Saved {len(deck_tags)} tags for deck {deck_id}')
+            print(f'Saved {len(deck_tags)} tags for deck {deck_id}')
     except Exception as e:
-        current_app.logger.error(f'Error saving tags for deck {deck_id}: {str(e)}' + traceback.format_exc())
+        print(f'Error saving tags for deck {deck_id}: {str(e)}' + traceback.format_exc())
     
     try:
         db.session.commit()
