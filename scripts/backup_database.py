@@ -1,7 +1,7 @@
 """
 Full database backup script.
 
-Exports all tables in the data_owner schema to JSON files,
+Exports all tables in the magic_stats_owner schema to JSON files,
 stored in a timestamped folder under backups/.
 
 Usage:
@@ -28,7 +28,7 @@ def json_serializer(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
-def get_all_tables(cur, schema="data_owner"):
+def get_all_tables(cur, schema="magic_stats_owner"):
     """Get all table names in the given schema."""
     cur.execute("""
         SELECT table_name
@@ -59,7 +59,7 @@ def main():
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
 
-    schema = "data_owner"
+    schema = "magic_stats_owner"
     tables = get_all_tables(cur, schema)
     print(f"Found {len(tables)} tables in schema '{schema}'")
 

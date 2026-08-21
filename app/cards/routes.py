@@ -4,42 +4,30 @@ from sqlalchemy import and_
 
 from app import db
 from app.cards import bp
-from app.models import DeckComponent, Card, Deck, Player
+from app.models import Deck, Player
+from app.services.stats_service import get_card_usage_counts
+
+# --- CSRF Audit (Requirement 16.1) ---
+# This module has no POST endpoints. No CSRF concerns.
+# ---
 
 
 @bp.route('/cardmeta', methods=['GET'])
 @login_required
 def card_meta():
+    cards = get_card_usage_counts()
 
-    # Only include DeckComponents that have a valid card reference
-    names = db.session.query(DeckComponent.name).filter(
-        DeckComponent.card_id.isnot(None)
-    ).distinct().all()
-    entries = DeckComponent.query.filter(DeckComponent.card_id.isnot(None)).all()
-    deck_list = []
-    decks = Deck.query.filter(and_(Deck.decksite.contains('archidekt'),Deck.Active == True)).all()
-    deck_count = 0
-    active_decks = []
-    for deck in decks:
-        deck_count +=1
-        player = Player.query.filter_by(id=deck.Player).first()
-        active_decks.append(deck.id)
-        deck_list.append({
-            'Name': deck.Name,
-            'Commander': deck.Commander,
-            'Player': player.Name
-        })
-    cards =[]
-    for name in names:
-        count = 0
-        for entry in entries:
-            if entry.name == name[0] and entry.deck_id in active_decks:
-                count += entry.count
-        if count > 0:
-            cards.append({
-                "Name": name[0],
-                "Count": count
-            })
-
+    # Deck list for the sidebar: active decks with Archidekt-sourced decklists
+    rows = (
+        db.session.query(Deck.name, Deck.commander, Player.name)
+        .join(Player, Player.id == Deck.player_id)
+        .filter(and_(Deck.decksite.contains('archidekt'), Deck.active == True))  # noqa: E712
+        .all()
+    )
+    deck_list = [
+        {'name': name, 'commander': commander, 'player': player_name}
+        for name, commander, player_name in rows
+    ]
+    deck_count = len(deck_list)
 
     return render_template('cards/show.html', cards=cards, decks=deck_list, count=deck_count)

@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, current_app
 from functools import wraps
 from flask import abort
 from flask_login import current_user
@@ -6,6 +6,7 @@ from flask_login import current_user
 bp = Blueprint('auth', __name__)
 
 from app.auth import routes
+
 
 def role_required(*roles):
     def wrapper(func):
@@ -16,3 +17,8 @@ def role_required(*roles):
             return func(*args, **kwargs)
         return decorated_view
     return wrapper
+
+
+def has_personal_stats_access(user) -> bool:
+    """Check if the given user has access to personal stats fields."""
+    return user.is_authenticated and user.username == current_app.config['PERSONAL_STATS_USERNAME']

@@ -1,3 +1,4 @@
+import logging
 import statistics
 from collections import Counter
 from datetime import date, timedelta
@@ -8,8 +9,20 @@ from flask import render_template
 from flask_login import login_required, current_user
 import sqlalchemy as sa
 
+logger = logging.getLogger(__name__)
+
 from app.models import User, Player, Game, Participant
 from app.viewmodels import ColorUsage, ColorUsagePlayer
+
+
+@bp.route('/healthz')
+def healthz():
+    """Deployment health check. No auth required."""
+    try:
+        db.session.execute(sa.text('SELECT 1'))
+        return {'status': 'healthy'}, 200
+    except Exception:
+        return {'status': 'unhealthy'}, 503
 
 
 @bp.route('/')
@@ -21,10 +34,10 @@ def index():
     # Only include players who have played at least one game in the last year
     one_year_ago = date.today() - timedelta(days=365)
     active_player_names = set(
-        row[0] for row in db.session.query(Player.Name)
+        row[0] for row in db.session.query(Player.name)
         .join(Participant, Participant.player_id == Player.id)
         .join(Game, Game.id == Participant.game_id)
-        .filter(Game.Date >= one_year_ago)
+        .filter(Game.date >= one_year_ago)
         .distinct()
         .all()
     )
@@ -109,11 +122,11 @@ def index():
 @bp.route('/user/<spieler>')
 @login_required
 def user(spieler):
-    print(spieler)
+    logger.debug("Loading user profile: %s", spieler)
     user = db.first_or_404(sa.select(User).where(User.username == spieler))
     owner = (user.id == current_user.id)
     username = user.username
-    spieler = db.session.scalar(sa.select(Player).where(Player.id == user.spieler))
+    spieler = db.session.scalar(sa.select(Player).where(Player.id == user.player_id))
     return render_template(
         'user.html',
         spieler=spieler,
@@ -123,13 +136,13 @@ def user(spieler):
 @bp.route('/player/<spieler>')
 @login_required
 def player(spieler):
-    player = db.session.scalar(sa.select(Player).where(Player.Name == spieler))
+    player = db.session.scalar(sa.select(Player).where(Player.name == spieler))
     username = None
     try:
-        user = db.session.scalar(sa.select(User).where(User.spieler == player.id))
+        user = db.session.scalar(sa.select(User).where(User.player_id == player.id))
         owner = (user.id == current_user.id)
         username = user.username
-    except:
+    except Exception:
         owner = False
     return render_template(
         'user.html',

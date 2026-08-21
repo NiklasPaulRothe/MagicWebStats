@@ -69,7 +69,7 @@ def should_skip_card(card: dict) -> bool:
 def upsert_card(cur, card: dict) -> None:
     """INSERT ... ON CONFLICT UPDATE for the cards table."""
     cur.execute("""
-        INSERT INTO data_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
+        INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             oracle_id = EXCLUDED.oracle_id,
@@ -106,7 +106,7 @@ def insert_card_faces(cur, card_id: str, card: dict) -> None:
         for idx, face in enumerate(card['card_faces']):
             image_uri = face.get('image_uris', {}).get('large') if 'image_uris' in face else None
             cur.execute("""
-                INSERT INTO data_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri)
+                INSERT INTO magic_stats_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
                 card_id,
@@ -121,7 +121,7 @@ def insert_card_faces(cur, card_id: str, card: dict) -> None:
         # Single-face card: insert one row with face_index = 0, using top-level data
         image_uri = card.get('image_uris', {}).get('large') if 'image_uris' in card else None
         cur.execute("""
-            INSERT INTO data_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri)
+            INSERT INTO magic_stats_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (
             card_id,
@@ -139,21 +139,21 @@ def insert_card_metadata(cur, card_id: str, card: dict) -> None:
     # Insert colors (one row per color, empty array = zero rows)
     for color in card.get('colors', []):
         cur.execute("""
-            INSERT INTO data_owner.card_colors (card_id, color)
+            INSERT INTO magic_stats_owner.card_colors (card_id, color)
             VALUES (%s, %s)
         """, (card_id, color))
 
     # Insert color identity (one row per color)
     for color in card.get('color_identity', []):
         cur.execute("""
-            INSERT INTO data_owner.card_color_identity (card_id, color)
+            INSERT INTO magic_stats_owner.card_color_identity (card_id, color)
             VALUES (%s, %s)
         """, (card_id, color))
 
     # Insert keywords (one row per keyword)
     for keyword in card.get('keywords', []):
         cur.execute("""
-            INSERT INTO data_owner.card_keywords (card_id, keyword)
+            INSERT INTO magic_stats_owner.card_keywords (card_id, keyword)
             VALUES (%s, %s)
         """, (card_id, keyword))
 
@@ -161,14 +161,14 @@ def insert_card_metadata(cur, card_id: str, card: dict) -> None:
     legalities = card.get('legalities', {})
     for format_name, status in legalities.items():
         cur.execute("""
-            INSERT INTO data_owner.card_legalities (card_id, format, status)
+            INSERT INTO magic_stats_owner.card_legalities (card_id, format, status)
             VALUES (%s, %s, %s)
         """, (card_id, format_name, status))
 
 
 def process_oracle_tags(cur, tags_url: str) -> None:
     """Download oracle tags JSONL, truncate oracle_tags table, batch insert."""
-    cur.execute("TRUNCATE data_owner.oracle_tags")
+    cur.execute("TRUNCATE magic_stats_owner.oracle_tags")
 
     batch = []
     for tag_obj in stream_jsonl_gz(tags_url):
@@ -191,7 +191,7 @@ def _execute_oracle_tags_batch(cur, batch: list) -> None:
     from psycopg2.extras import execute_values
     execute_values(
         cur,
-        "INSERT INTO data_owner.oracle_tags (oracle_id, tag) VALUES %s",
+        "INSERT INTO magic_stats_owner.oracle_tags (oracle_id, tag) VALUES %s",
         batch
     )
 
@@ -225,17 +225,17 @@ def calculate_elo_ratings(conn):
     cur = conn.cursor()
 
     # Load all decks (id, player_id)
-    cur.execute('SELECT id, "Player" FROM data_owner."Decks"')
+    cur.execute('SELECT id, player_id FROM magic_stats_owner.decks')
     decks = cur.fetchall()
     elo_ratings = {row[0]: {'elo_rating': 1500, 'games_played': 0} for row in decks}
     deck_player_map = {row[0]: row[1] for row in decks}
 
     # Load all games ordered by date/id for chronological processing
-    cur.execute('SELECT id, "Winner" FROM data_owner."Games" ORDER BY "Date", id')
+    cur.execute('SELECT id, winner_id FROM magic_stats_owner.games ORDER BY date, id')
     games = cur.fetchall()
 
     # Load all participants grouped by game
-    cur.execute('SELECT game_id, player_id, deck_id FROM data_owner."Participants"')
+    cur.execute('SELECT game_id, player_id, deck_id FROM magic_stats_owner.participants')
     all_participants = cur.fetchall()
     participants_by_game = {}
     for game_id, player_id, deck_id in all_participants:
@@ -290,7 +290,7 @@ def calculate_elo_ratings(conn):
         else:
             elo = 0
         cur.execute(
-            'UPDATE data_owner."Decks" SET elo_rating = %s WHERE id = %s',
+            'UPDATE magic_stats_owner.decks SET elo_rating = %s WHERE id = %s',
             (elo, deck_id)
         )
 
@@ -314,8 +314,8 @@ if __name__ == '__main__':
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, "Name", archidekt_id 
-            FROM data_owner."Decks" 
+            SELECT id, name, archidekt_id 
+            FROM magic_stats_owner.decks 
             WHERE archidekt_id IS NOT NULL AND archidekt_id != ''
         """)
         decks_with_archidekt = cur.fetchall()
@@ -328,14 +328,14 @@ if __name__ == '__main__':
                 deck = pyrchidekt.api.getDeckById(archidekt_id.strip())
                 deck_tags = getattr(deck, 'deck_tags', [])
 
-                cur.execute("DELETE FROM data_owner.deck_tags WHERE deck_id = %s", (deck_id,))
+                cur.execute("DELETE FROM magic_stats_owner.deck_tags WHERE deck_id = %s", (deck_id,))
 
                 if deck_tags:
                     for tag in deck_tags:
                         tag_name = tag['name'].strip()
                         if tag_name:
                             cur.execute("""
-                                INSERT INTO data_owner.deck_tags (deck_id, tag)
+                                INSERT INTO magic_stats_owner.deck_tags (deck_id, tag)
                                 VALUES (%s, %s)
                                 ON CONFLICT (deck_id, tag) DO NOTHING
                             """, (deck_id, tag_name))
@@ -440,14 +440,14 @@ if __name__ == '__main__':
             # Flush batch when full
             if len(cards_batch) >= BATCH_SIZE:
                 id_tuple = tuple(card_ids_in_batch)
-                cur.execute("DELETE FROM data_owner.card_faces WHERE card_id IN %s", (id_tuple,))
-                cur.execute("DELETE FROM data_owner.card_colors WHERE card_id IN %s", (id_tuple,))
-                cur.execute("DELETE FROM data_owner.card_color_identity WHERE card_id IN %s", (id_tuple,))
-                cur.execute("DELETE FROM data_owner.card_keywords WHERE card_id IN %s", (id_tuple,))
-                cur.execute("DELETE FROM data_owner.card_legalities WHERE card_id IN %s", (id_tuple,))
+                cur.execute("DELETE FROM magic_stats_owner.card_faces WHERE card_id IN %s", (id_tuple,))
+                cur.execute("DELETE FROM magic_stats_owner.card_colors WHERE card_id IN %s", (id_tuple,))
+                cur.execute("DELETE FROM magic_stats_owner.card_color_identity WHERE card_id IN %s", (id_tuple,))
+                cur.execute("DELETE FROM magic_stats_owner.card_keywords WHERE card_id IN %s", (id_tuple,))
+                cur.execute("DELETE FROM magic_stats_owner.card_legalities WHERE card_id IN %s", (id_tuple,))
 
                 execute_values(cur, """
-                    INSERT INTO data_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
+                    INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
                     VALUES %s
                     ON CONFLICT (id) DO UPDATE SET
                         oracle_id = EXCLUDED.oracle_id, name = EXCLUDED.name, mana_cost = EXCLUDED.mana_cost,
@@ -457,15 +457,15 @@ if __name__ == '__main__':
                 """, cards_batch)
 
                 if faces_batch:
-                    execute_values(cur, "INSERT INTO data_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri) VALUES %s", faces_batch)
+                    execute_values(cur, "INSERT INTO magic_stats_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri) VALUES %s", faces_batch)
                 if colors_batch:
-                    execute_values(cur, "INSERT INTO data_owner.card_colors (card_id, color) VALUES %s", colors_batch)
+                    execute_values(cur, "INSERT INTO magic_stats_owner.card_colors (card_id, color) VALUES %s", colors_batch)
                 if color_identity_batch:
-                    execute_values(cur, "INSERT INTO data_owner.card_color_identity (card_id, color) VALUES %s", color_identity_batch)
+                    execute_values(cur, "INSERT INTO magic_stats_owner.card_color_identity (card_id, color) VALUES %s", color_identity_batch)
                 if keywords_batch:
-                    execute_values(cur, "INSERT INTO data_owner.card_keywords (card_id, keyword) VALUES %s", keywords_batch)
+                    execute_values(cur, "INSERT INTO magic_stats_owner.card_keywords (card_id, keyword) VALUES %s", keywords_batch)
                 if legalities_batch:
-                    execute_values(cur, "INSERT INTO data_owner.card_legalities (card_id, format, status) VALUES %s", legalities_batch)
+                    execute_values(cur, "INSERT INTO magic_stats_owner.card_legalities (card_id, format, status) VALUES %s", legalities_batch)
 
                 conn.commit()
                 cards_batch, faces_batch, colors_batch = [], [], []
@@ -479,14 +479,14 @@ if __name__ == '__main__':
         # Final flush for remaining cards
         if cards_batch:
             id_tuple = tuple(card_ids_in_batch)
-            cur.execute("DELETE FROM data_owner.card_faces WHERE card_id IN %s", (id_tuple,))
-            cur.execute("DELETE FROM data_owner.card_colors WHERE card_id IN %s", (id_tuple,))
-            cur.execute("DELETE FROM data_owner.card_color_identity WHERE card_id IN %s", (id_tuple,))
-            cur.execute("DELETE FROM data_owner.card_keywords WHERE card_id IN %s", (id_tuple,))
-            cur.execute("DELETE FROM data_owner.card_legalities WHERE card_id IN %s", (id_tuple,))
+            cur.execute("DELETE FROM magic_stats_owner.card_faces WHERE card_id IN %s", (id_tuple,))
+            cur.execute("DELETE FROM magic_stats_owner.card_colors WHERE card_id IN %s", (id_tuple,))
+            cur.execute("DELETE FROM magic_stats_owner.card_color_identity WHERE card_id IN %s", (id_tuple,))
+            cur.execute("DELETE FROM magic_stats_owner.card_keywords WHERE card_id IN %s", (id_tuple,))
+            cur.execute("DELETE FROM magic_stats_owner.card_legalities WHERE card_id IN %s", (id_tuple,))
 
             execute_values(cur, """
-                INSERT INTO data_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
+                INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
                 VALUES %s
                 ON CONFLICT (id) DO UPDATE SET
                     oracle_id = EXCLUDED.oracle_id, name = EXCLUDED.name, mana_cost = EXCLUDED.mana_cost,
@@ -496,15 +496,15 @@ if __name__ == '__main__':
             """, cards_batch)
 
             if faces_batch:
-                execute_values(cur, "INSERT INTO data_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri) VALUES %s", faces_batch)
+                execute_values(cur, "INSERT INTO magic_stats_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri) VALUES %s", faces_batch)
             if colors_batch:
-                execute_values(cur, "INSERT INTO data_owner.card_colors (card_id, color) VALUES %s", colors_batch)
+                execute_values(cur, "INSERT INTO magic_stats_owner.card_colors (card_id, color) VALUES %s", colors_batch)
             if color_identity_batch:
-                execute_values(cur, "INSERT INTO data_owner.card_color_identity (card_id, color) VALUES %s", color_identity_batch)
+                execute_values(cur, "INSERT INTO magic_stats_owner.card_color_identity (card_id, color) VALUES %s", color_identity_batch)
             if keywords_batch:
-                execute_values(cur, "INSERT INTO data_owner.card_keywords (card_id, keyword) VALUES %s", keywords_batch)
+                execute_values(cur, "INSERT INTO magic_stats_owner.card_keywords (card_id, keyword) VALUES %s", keywords_batch)
             if legalities_batch:
-                execute_values(cur, "INSERT INTO data_owner.card_legalities (card_id, format, status) VALUES %s", legalities_batch)
+                execute_values(cur, "INSERT INTO magic_stats_owner.card_legalities (card_id, format, status) VALUES %s", legalities_batch)
 
             conn.commit()
 

@@ -22,9 +22,9 @@
                 <tbody>
                 {% for deck in decks %}
                 <tr>
-                    <td>{{ deck.Name }}</td>
-                    <td>{{ deck.Commander }}</td>
-                    <td>{{ deck.Player }}</td>
+                    <td>{{ deck.name }}</td>
+                    <td>{{ deck.commander }}</td>
+                    <td>{{ deck.player }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -44,8 +44,8 @@
                 <tbody>
                 {% for card in cards %}
                 <tr>
-                    <td>{{ card.Name }}</td>
-                    <td>{{ card.Count }}</td>
+                    <td>{{ card.name }}</td>
+                    <td>{{ card.count }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>

@@ -10,7 +10,7 @@
         <input type="hidden" id="max-players" value="{{ form.players.max_entries }}">
         <input type="hidden" id="min-players" value="{{ form.players.min_entries }}">
         <input type="hidden" id="initial-player-count" value="{{ form.players|length }}">
-        <input type="hidden" id="show-interaction" value="{{ 'true' if current_user.username == 'Niklas' else 'false' }}">
+        <input type="hidden" id="show-interaction" value="{{ 'true' if show_my_game else 'false' }}">
 
         <section class="form-section" id="section-players">
             <h2 class="section-header">Players</h2>
@@ -52,7 +52,7 @@
                                 <span class="field-hint">Sol Ring oder ähnliches in Turn 1-2</span>
                             </div>
                         </div>
-                        {% if current_user.username == 'Niklas' %}
+                        {% if show_my_game %}
                         <div class="interaction-row">
                             <div class="form-field">
                                 {{ player_form.removal_played.label }}
@@ -156,7 +156,7 @@
             </div>
         </section>
 
-        {% if current_user.username == 'Niklas' %}
+        {% if show_my_game %}
         <section class="form-section" id="section-my-game">
             <h2 class="section-header">My Game</h2>
 
@@ -285,6 +285,9 @@
 
     <script>
     (function() {
+        // Read CSRF token from meta tag for AJAX POST requests
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
         // Use the shared mutable arrays from GameAdd.js
         // These are populated during DOMContentLoaded in GameAdd.js
         // We use a small delay to ensure DOMContentLoaded has fired
@@ -335,7 +338,7 @@
             try {
                 const resp = await fetch('/api/quick-add-player', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
                     body: JSON.stringify({name})
                 });
                 const data = await resp.json();
@@ -444,7 +447,7 @@
             try {
                 const resp = await fetch('/api/quick-add-deck', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
                     body: JSON.stringify({name, commander, partner, player, color_identity: colorIdentity, cedh})
                 });
                 const respData = await resp.json();

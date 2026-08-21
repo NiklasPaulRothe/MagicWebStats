@@ -1,375 +1,78 @@
 from app import db
 from app.api import bp
+from app.api import queries
+from app.api.formatters import format_deck_data, format_player_stats, format_user_deck, format_user_deck_archive
 from flask import jsonify, request
 from flask_login import current_user, login_required
-from sqlalchemy import text, func
+from sqlalchemy import func
 import sqlalchemy as sa
 
 from app.auth import role_required
 from app.models import Player, User, Color, ColorComponent, Deck, Card, ColorIdentity, AuditLog
+from app.services.audit import write_audit_log
+from app.services.color_service import resolve_color_images
 
-
-def _audit(action, entity_type, entity_id=None, details=None):
-    """Write an entry to the audit log."""
-    entry = AuditLog(
-        user_id=current_user.id,
-        username=current_user.username,
-        action=action,
-        entity_type=entity_type,
-        entity_id=str(entity_id) if entity_id else None,
-        details=details
-    )
-    db.session.add(entry)
+# --- CSRF Audit (Requirement 16.1) ---
+# All POST endpoints in this module are protected by Flask-WTF CSRFProtect (init'd in app/__init__.py).
+# - quick_add_player: JSON API, receives CSRF token via X-CSRFToken header from JavaScript (GameAdd.html)
+# - quick_add_deck: JSON API, receives CSRF token via X-CSRFToken header from JavaScript (GameAdd.html)
+# CSRFProtect automatically validates the X-CSRFToken header for AJAX POST requests.
+# No exemptions are needed.
+# ---
 
 
 @bp.route('/data')
 @login_required
 def data():
-    results = db.session.execute(text(''' SELECT "Name" AS name,
-    ( SELECT count(*) AS count
-           FROM data_owner."Participants"
-        LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-          WHERE "Participants".player_id = "Player".id
-          AND "Games".cedh = False) AS games,
-    ( SELECT count(*) AS count
-           FROM data_owner."Participants"
-          WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true) AS "early_sol_ring",
-    ( SELECT COALESCE((( SELECT count(*)::double precision AS count
-                   FROM data_owner."Participants"
-                  WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
-                   FROM data_owner."Participants"
-                     LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-                  WHERE "Participants".player_id = "Player".id AND "Games"."Date" > '2024-04-19'::date), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "Sol Ring (in%)",
-    ( SELECT count(*) AS count
-           FROM data_owner."Games"
-          WHERE "Games"."Winner" = "Player".id
-          AND "Games".cedh = False) AS winner,
-    ( SELECT COALESCE((( SELECT count(*)::double precision AS count
-                   FROM data_owner."Games"
-                  WHERE "Games"."Winner" = "Player".id
-          AND "Games".cedh = False)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
-                   FROM data_owner."Participants"
-                   LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-                  WHERE "Participants".player_id = "Player".id
-                  AND "Games".cedh = False), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "winrate (in%)",
-    ( SELECT count(*) AS count
-           FROM data_owner."Games"
-          WHERE "Games"."First_Player" = "Player".id
-          AND "Games".cedh = False) AS first,
-    (SELECT COALESCE((( SELECT count(*)::double precision AS count
-           FROM data_owner."Games"
-          WHERE "Games"."First_Player" = "Player".id
-          AND "Games".cedh = False)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
-           FROM data_owner."Participants"
-           LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-          WHERE "Participants".player_id = "Player".id
-          AND "Games".cedh = False), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "first (in%)"
-   FROM data_owner."Player"
-   WHERE "Player"."Name" != 'Precons'
-   AND EXISTS (
-       SELECT 1 FROM data_owner."Participants" p2
-       JOIN data_owner."Games" g2 ON g2.id = p2.game_id
-       WHERE p2.player_id = "Player".id
-       AND g2."Date" >= CURRENT_DATE - INTERVAL '1 year'
-   );'''))
-
-    list = []
-    for entry in results:
-        dict = {"Name": [], "Games": [], "Early Sol Ring": [], "Sol Ring (in %)": [], "Wins": [], "Winrate (in %)": [],
-                "First": [], "First (in %)": []}
-        dict["Name"].append(entry[0])
-        dict["Games"].append(entry[1])
-        dict["Early Sol Ring"].append(entry[2])
-        dict["Sol Ring (in %)"].append(float(entry[3]))
-        dict["Wins"].append(entry[4])
-        dict["Winrate (in %)"].append(float(entry[5]))
-        dict["First"].append(entry[6])
-        dict["First (in %)"].append(float(entry[7]))
-        list.append(dict)
-    return jsonify(list)
+    results = queries.get_player_stats(db.session)
+    return jsonify([format_player_stats(r) for r in results])
 
 @bp.route('/color-data')
 @login_required
 def color_data():
-    results = db.session.execute(text('''  SELECT "Name" AS name,
-    ( SELECT count(*) AS count
-           FROM data_owner."Participants"
-             LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-             LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"
-          AND "Decks".cedh = False) AS games,
-    ( SELECT count(*) AS count
-           FROM data_owner."Participants"
-             LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-             LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Decks"."Color_Identity" = "Color_Identities"."Name"
-          AND "Decks".cedh = False) AS wins,
-    ((( SELECT count(*) AS count
-           FROM data_owner."Participants"
-             LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-             LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Decks"."Color_Identity" = "Color_Identities"."Name"
-          AND "Decks".cedh = False))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
-           FROM data_owner."Participants"
-             LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-             LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"
-          AND "Decks".cedh = False), 0)::double precision)::numeric(10,2) AS "winrate (in%)"
-   FROM data_owner."Color_Identities"
-  WHERE NULLIF(( SELECT count(*) AS count
-           FROM data_owner."Participants"
-             LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-             LEFT JOIN data_owner."Decks" ON "Decks".id = "Participants".deck_id
-          WHERE "Decks"."Color_Identity" = "Color_Identities"."Name"
-          AND "Decks".cedh = False), 0)::numeric(10,2) IS NOT NULL;'''))
-
-    list = []
-    colorless = Color.query.filter_by(Name='Colorless').first()
-    colorless_img = colorless.img if colorless and colorless.img else None
-    for entry in results:
-        identity_name = entry[0]
-        components = ColorComponent.query.filter_by(color_identity=identity_name).all()
-        imgs = []
-        for comp in components:
-            color = Color.query.filter_by(Name=comp.color).first()
-            if color and color.img:
-                imgs.append(color.img)
-        if not imgs and colorless_img:
-            imgs = [colorless_img]
-        dict = {"Name": [], "Games": [], "Wins": [], "Winrate (in %)": [], "ColorImgs": imgs}
-        dict["Name"].append(entry[0])
-        dict["Games"].append(entry[1])
-        dict["Wins"].append(entry[2])
-        dict["Winrate (in %)"].append(float(entry[3]))
-        list.append(dict)
-    return jsonify(list)
+    results = queries.get_color_data(db.session)
+    response = []
+    for r in results:
+        imgs = resolve_color_images(r['name'])
+        response.append({
+            "Name": [r['name']],
+            "Games": [r['games']],
+            "Wins": [r['wins']],
+            "Winrate (in %)": [r['winrate_pct']],
+            "ColorImgs": imgs,
+        })
+    return jsonify(response)
 
 @bp.route('/deck-data')
 @login_required
 def deck_data():
-    results = db.session.execute(text('''SELECT "Decks"."Name" AS deckname,
-    "Player"."Name" AS spieler,
-    "Decks"."Commander" || COALESCE(' + '::text || "Decks"."Partner", ''::text) AS commander,
-    "Decks"."Color_Identity" AS farbe,
-    ( SELECT count(*) AS count
-           FROM data_owner."Participants"
-          WHERE "Participants".deck_id = "Decks".id) AS spiele,
-    ( SELECT count(*) AS count
-           FROM data_owner."Games"
-             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id) AS siege,
-    ((( SELECT count(*) AS count
-           FROM data_owner."Games"
-             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
-           FROM data_owner."Participants"
-          WHERE "Participants".deck_id = "Decks".id), 0)::double precision)::numeric(10,2) AS "winrate (in%)",
-    (SELECT round(avg(turns), 2) AS count
-           FROM data_owner."Games"
-             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id),
-    (SELECT count(*) AS count
-           FROM data_owner."Games"
-             LEFT JOIN data_owner."Participants" ON "Participants".game_id = "Games".id
-          WHERE "Games"."Winner" = "Participants".player_id AND "Participants".deck_id = "Decks".id
-            AND "Games".turns IS NOT NULL),
-    "Decks".decklist AS decklist,
-    "Decks".elo_rating AS elo,
-    (SELECT array_agg(c.img ORDER BY c."Name")
-           FROM data_owner.color_components cc
-             JOIN data_owner."Colors" c ON c."Name" = cc.color
-          WHERE cc.color_identity = "Decks"."Color_Identity"
-            AND c.img IS NOT NULL) AS color_imgs,
-    (SELECT array_agg(dt.tag ORDER BY dt.tag)
-           FROM data_owner.deck_tags dt
-          WHERE dt.deck_id = "Decks".id) AS tags
-   FROM data_owner."Decks",
-    data_owner."Player"
-  WHERE "Decks"."Player" = "Player".id AND "Decks"."Active" = true
-  ORDER BY "Decks"."Commander";'''))
-
-    list = []
-    for entry in results:
-        dict = {"Deckname": [], "Spieler": [], "Commander": [], "Farbe": [], "Spiele": [], "Siege": [],
-                "Winrate (in %)": [], "WTurns":[], "WTurnsCount": [], "Decklist": [], "elo": [], "ColorImgs": None, "Tags": []}
-        dict["Deckname"].append(entry[0])
-        dict["Spieler"].append(entry[1])
-        dict["Commander"].append(entry[2])
-        dict["Farbe"].append(entry[3])
-        dict["Spiele"].append(entry[4])
-        dict["Siege"].append(entry[5])
-        if (entry[6] is not None):
-            dict["Winrate (in %)"].append(float(entry[6]))
-        else:
-            dict["Winrate (in %)"].append("-")
-        dict["WTurns"].append(entry[7])
-        dict["WTurnsCount"].append(entry[8])
-        dict["Decklist"].append(entry[9])
-        dict["elo"].append(entry[10])
-        dict["ColorImgs"] = entry[11] or []
-        # Fallback to colorless symbol if no color images
-        if not dict["ColorImgs"]:
-            colorless = Color.query.filter_by(Name='Colorless').first()
-            if colorless and colorless.img:
-                dict["ColorImgs"] = [colorless.img]
-        dict["Tags"] = entry[12] or []
-        list.append(dict)
-
-    return jsonify(list)
+    results = queries.get_deck_data(db.session)
+    response = []
+    for r in results:
+        # Colorless fallback: query layer returns empty list for decks with no color images
+        if not r['color_imgs']:
+            r['color_imgs'] = resolve_color_images(r['color_identity'])
+        response.append(format_deck_data(r))
+    return jsonify(response)
 
 @bp.route('/userdecks/archive/<spieler>')
 @login_required
 def userdecks_archive(spieler):
-    results = db.session.execute(text('''
-    SELECT  "Decks".id,
-            "Name", 
-            "Commander", 
-            "Color_Identity", 
-            (   SELECT count(*) AS count 
-                FROM "data_owner"."Participants"
-                WHERE "Participants".deck_id = "Decks".id 
-                AND "Participants".player_id = :player
-            ),
-            (   SELECT count(*) AS count
-                FROM "data_owner"."Games"
-                LEFT JOIN "data_owner"."Participants"   
-                ON "Participants".game_id = "Games".id
-                WHERE "Games"."Winner" = "Participants".player_id 
-                AND "Participants".deck_id = "Decks".id  
-                AND "Participants".player_id = :player  
-            ),
-            (   
-                (
-                    (   SELECT count(*) AS count
-                        FROM "data_owner"."Games"
-                        LEFT JOIN "data_owner"."Participants"   
-                        ON "Participants".game_id = "Games".id
-                        WHERE "Games"."Winner" = "Participants".player_id 
-                        AND "Participants".deck_id = "Decks".id  
-                        AND "Participants".player_id = :player))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
-                        FROM "data_owner"."Participants"
-                        WHERE "Participants".deck_id = "Decks".id 
-                        AND "Participants".player_id = :player
-                    ),  
-                    0
-                )::double precision
-            )::numeric(10,2),
-            decklist,
-            (SELECT array_agg(c.img ORDER BY c."Name")
-             FROM data_owner.color_components cc
-             JOIN data_owner."Colors" c ON c."Name" = cc.color
-             WHERE cc.color_identity = "Decks"."Color_Identity"
-               AND c.img IS NOT NULL) AS color_imgs
-    FROM "data_owner"."Decks"
-    WHERE "Player" = :player AND "Active" = false
-    ORDER BY "Name";'''), {'player': spieler})
-
-    list = []
-    for entry in results:
-        color_imgs = entry[8] or []
-        if not color_imgs:
-            colorless = Color.query.filter_by(Name='Colorless').first()
-            if colorless and colorless.img:
-                color_imgs = [colorless.img]
-        winrate = float(entry[6]) if entry[6] is not None else None
-        deck = {
-            "id": entry[0],
-            "Name": entry[1],
-            "Commander": entry[2],
-            "ColorImgs": color_imgs,
-            "Spiele": entry[4],
-            "Siege": entry[5],
-            "Winrate (in %)": winrate,
-            "Decklist": entry[7],
-        }
-        list.append(deck)
-
-    return jsonify(list)
+    results = queries.get_user_decks_archive(db.session, spieler)
+    for r in results:
+        if not r['color_imgs']:
+            r['color_imgs'] = resolve_color_images(r['color_identity'])
+    return jsonify([format_user_deck_archive(r) for r in results])
 
 
 @bp.route('/userdecks/<spieler>')
 @login_required
 def userdecks(spieler):
-    results = db.session.execute(text('''
-    SELECT  "Name", 
-            "Commander", 
-            "Color_Identity", 
-            (   SELECT count(*) AS count 
-                FROM "data_owner"."Participants"
-                WHERE "Participants".deck_id = "Decks".id 
-                AND "Participants".player_id = :player
-            ),
-            (   SELECT max("Games"."Date") AS max
-                FROM "data_owner"."Games"
-                LEFT JOIN "data_owner"."Participants"   
-                ON "Games".id = "Participants".game_id
-                WHERE "Participants".deck_id = "Decks".id
-            ),
-            (   SELECT count(*) AS count
-                FROM "data_owner"."Games"
-                LEFT JOIN "data_owner"."Participants"   
-                ON "Participants".game_id = "Games".id
-                WHERE "Games"."Winner" = "Participants".player_id 
-                AND "Participants".deck_id = "Decks".id  
-                AND "Participants".player_id = :player  
-            ),
-            (   
-                (
-                    (   SELECT count(*) AS count
-                        FROM "data_owner"."Games"
-                        LEFT JOIN "data_owner"."Participants"   
-                        ON "Participants".game_id = "Games".id
-                        WHERE "Games"."Winner" = "Participants".player_id 
-                        AND "Participants".deck_id = "Decks".id  
-                        AND "Participants".player_id = :player))::double precision * 100::double precision / NULLIF(( SELECT count(*) AS count
-                        FROM "data_owner"."Participants"
-                        WHERE "Participants".deck_id = "Decks".id 
-                        AND "Participants".player_id = :player
-                    ),  
-                    0
-                )::double precision
-            )::numeric(10,2),
-            decklist,
-            (SELECT array_agg(c.img ORDER BY c."Name")
-             FROM data_owner.color_components cc
-             JOIN data_owner."Colors" c ON c."Name" = cc.color
-             WHERE cc.color_identity = "Decks"."Color_Identity"
-               AND c.img IS NOT NULL) AS color_imgs,
-            (SELECT array_agg(dt.tag ORDER BY dt.tag)
-             FROM data_owner.deck_tags dt
-             WHERE dt.deck_id = "Decks".id) AS tags
-    FROM "data_owner"."Decks"
-    WHERE "Player" = :player AND "Active" = true
-    ORDER BY "Name";'''),{'player': spieler})
-
-    list = []
-    for entry in results:
-        dict = {"Name": [], "Commander": [], "Color Identity": [], "Spiele": [], "Zuletzt gespielt": [], "Siege": [],
-                "Winrate (in %)": [], "Decklist": [], "ColorImgs": None, "Tags": []}
-        dict["Name"].append(entry[0])
-        dict["Commander"].append(entry[1])
-        dict["Color Identity"].append(entry[2])
-        dict["Spiele"].append(entry[3])
-        if(entry[4] is not None):
-            dict["Zuletzt gespielt"].append(str(entry[4].day) + "." + str(entry[4].month) + "." + str(entry[4].year))
-        else:
-            dict["Zuletzt gespielt"].append("-")
-        dict["Siege"].append(entry[5])
-        if (entry[6] is not None):
-            dict["Winrate (in %)"].append(float(entry[6]))
-        else:
-            dict["Winrate (in %)"].append("-")
-        dict["Decklist"].append(entry[7])
-        dict["ColorImgs"] = entry[8] or []
-        # Fallback to colorless symbol if no color images
-        if not dict["ColorImgs"]:
-            colorless = Color.query.filter_by(Name='Colorless').first()
-            if colorless and colorless.img:
-                dict["ColorImgs"] = [colorless.img]
-        dict["Tags"] = entry[9] or []
-        list.append(dict)
-
-    return jsonify(list)
+    results = queries.get_user_decks(db.session, spieler)
+    for r in results:
+        if not r['color_imgs']:
+            r['color_imgs'] = resolve_color_images(r['color_identity'])
+    return jsonify([format_user_deck(r) for r in results])
 
 
 @bp.route('/quick-add-player', methods=['POST'])
@@ -386,17 +89,16 @@ def quick_add_player():
         return jsonify({'error': 'Name is required'}), 400
 
     # Check if player already exists
-    existing = db.session.scalar(sa.select(Player).where(Player.Name == name))
+    existing = db.session.scalar(sa.select(Player).where(Player.name == name))
     if existing:
         return jsonify({'error': 'Ein Spieler mit diesem Namen existiert bereits.'}), 409
 
-    player = Player(Name=name)
+    player = Player(name=name)
     db.session.add(player)
-    db.session.commit()
-    _audit('player_add', 'Player', player.id, f'Quick-added player: {player.Name}')
+    write_audit_log('player_add', 'Player', player.id, f'Quick-added player: {player.name}')
     db.session.commit()
 
-    return jsonify({'name': player.Name}), 201
+    return jsonify({'name': player.name}), 201
 
 
 @bp.route('/quick-add-deck', methods=['POST'])
@@ -426,7 +128,7 @@ def quick_add_deck():
         return jsonify({'error': 'Color Identity is required'}), 400
 
     # Check deck name uniqueness
-    existing_deck = db.session.scalar(sa.select(Deck).where(Deck.Name == name))
+    existing_deck = db.session.scalar(sa.select(Deck).where(Deck.name == name))
     if existing_deck:
         return jsonify({'error': 'Es gibt schon ein Deck mit diesem Namen.'}), 409
 
@@ -436,12 +138,12 @@ def quick_add_deck():
         return jsonify({'error': 'Der Commander existiert nicht in der Datenbank.'}), 400
 
     # Validate player exists
-    player = db.session.scalar(sa.select(Player).where(Player.Name == player_name))
+    player = db.session.scalar(sa.select(Player).where(Player.name == player_name))
     if not player:
         return jsonify({'error': 'Spieler existiert nicht.'}), 400
 
     # Validate color identity exists
-    ci = db.session.scalar(sa.select(ColorIdentity).where(ColorIdentity.Name == color_identity))
+    ci = db.session.scalar(sa.select(ColorIdentity).where(ColorIdentity.name == color_identity))
     if not ci:
         return jsonify({'error': 'Color Identity existiert nicht.'}), 400
 
@@ -450,43 +152,40 @@ def quick_add_deck():
     img = front_face.image_uri if front_face else None
 
     deck = Deck(
-        Name=name,
-        Commander=commander,
-        Player=player.id,
-        Color_Identity=color_identity,
-        Partner=partner,
+        name=name,
+        commander=commander,
+        player_id=player.id,
+        color_identity=color_identity,
+        partner=partner,
         image_uri=img,
         cedh=cedh,
-        Version=1,
+        version=1,
         patch=0,
         change=0,
-        Last_Rework=func.current_date(),
+        last_rework=func.current_date(),
         last_patch=func.current_date(),
-        Last_Change=func.current_date()
+        last_change=func.current_date()
     )
     db.session.add(deck)
-    db.session.commit()
-    _audit('deck_add', 'Deck', deck.id, f'Quick-added deck: {deck.Name} ({deck.Commander}) for {player_name}')
+    write_audit_log('deck_add', 'Deck', deck.id, f'Quick-added deck: {deck.name} ({deck.commander}) for {player_name}')
     db.session.commit()
 
     return jsonify({
-        'name': deck.Name,
-        'commander': deck.Commander,
+        'name': deck.name,
+        'commander': deck.commander,
         'player': player_name
     }), 201
 
 
 @bp.route('/deck-participant-averages/<deckname>')
+@role_required('admin')
 @login_required
 def deck_participant_averages(deckname):
     """Return participant averages for a deck, optionally filtered by a 'since' date."""
     from app.models import Deck, Participant, Game
     import statistics
 
-    if current_user.id != 1:
-        return jsonify({'error': 'Forbidden'}), 403
-
-    deck = Deck.query.filter_by(Name=deckname).first()
+    deck = Deck.query.filter_by(name=deckname).first()
     if not deck:
         return jsonify({'error': 'Deck not found'}), 404
 
@@ -496,7 +195,7 @@ def deck_participant_averages(deckname):
     query = (
         sa.select(Participant)
         .join(Game, Game.id == Participant.game_id)
-        .where(Participant.player_id == deck.Player)
+        .where(Participant.player_id == deck.player_id)
         .where(Participant.deck_id == deck.id)
     )
 
@@ -504,7 +203,7 @@ def deck_participant_averages(deckname):
         from datetime import date as date_type
         try:
             since_date = date_type.fromisoformat(since)
-            query = query.where(Game.Date >= since_date)
+            query = query.where(Game.date >= since_date)
         except ValueError:
             pass
 
@@ -549,7 +248,7 @@ def deck_participant_averages(deckname):
     loss_values = []
     for p in participants:
         game_obj = games.get(p.game_id)
-        if not game_obj or game_obj.Winner == deck.Player:
+        if not game_obj or game_obj.winner_id == deck.player_id:
             continue
         raw = getattr(p, "loss_without_answer", None)
         if raw is None:
@@ -564,7 +263,7 @@ def deck_participant_averages(deckname):
     win_values = []
     for p in participants:
         game_obj = games.get(p.game_id)
-        if not game_obj or game_obj.Winner != deck.Player:
+        if not game_obj or game_obj.winner_id != deck.player_id:
             continue
         raw = getattr(p, "selfmade_win", None)
         if raw is None:
@@ -605,7 +304,7 @@ def deck_performance(deckname):
     import statistics
     from collections import defaultdict
 
-    deck = Deck.query.filter_by(Name=deckname).first()
+    deck = Deck.query.filter_by(name=deckname).first()
     if not deck:
         return jsonify({'error': 'Deck not found'}), 404
 
@@ -615,7 +314,7 @@ def deck_performance(deckname):
     query = (
         sa.select(Participant)
         .join(Game, Game.id == Participant.game_id)
-        .where(Participant.player_id == deck.Player)
+        .where(Participant.player_id == deck.player_id)
         .where(Participant.deck_id == deck.id)
     )
 
@@ -623,7 +322,7 @@ def deck_performance(deckname):
         from datetime import date as date_type
         try:
             since_date = date_type.fromisoformat(since)
-            query = query.where(Game.Date >= since_date)
+            query = query.where(Game.date >= since_date)
         except ValueError:
             pass
 
@@ -643,11 +342,11 @@ def deck_performance(deckname):
 
     # Overall stats
     total_games = len(game_ids)
-    wins = sum(1 for gid in game_ids if games[gid].Winner == deck.Player)
+    wins = sum(1 for gid in game_ids if games[gid].winner_id == deck.player_id)
     winrate = round((wins / total_games) * 100, 1) if total_games else 0
 
     # Win turn stats
-    win_turns = [games[gid].turns for gid in game_ids if games[gid].Winner == deck.Player and games[gid].turns]
+    win_turns = [games[gid].turns for gid in game_ids if games[gid].winner_id == deck.player_id and games[gid].turns]
 
     # Pod size breakdown
     wins_by_size = {3: 0, 4: 0, 5: 0}
@@ -659,7 +358,7 @@ def deck_performance(deckname):
         num_players = len(participants_by_game.get(gid, []))
         if num_players in (3, 4, 5):
             total_by_size[num_players] += 1
-            if game.Winner == deck.Player:
+            if game.winner_id == deck.player_id:
                 wins_by_size[num_players] += 1
                 if game.turns:
                     win_turns_by_size[num_players].append(game.turns)
@@ -669,7 +368,7 @@ def deck_performance(deckname):
     avg_participants = round(statistics.mean(participant_counts), 1) if participant_counts else "–"
 
     # Last played
-    dates = [games[gid].Date for gid in game_ids if games[gid].Date]
+    dates = [games[gid].date for gid in game_ids if games[gid].date]
     last_played = max(dates).strftime("%Y-%m-%d") if dates else "–"
 
     result = {
@@ -705,95 +404,15 @@ def deck_performance(deckname):
 @login_required
 def data_years():
     """Return a list of distinct years that have game data."""
-    results = db.session.execute(text('''
-        SELECT DISTINCT EXTRACT(YEAR FROM "Date")::integer AS year
-        FROM data_owner."Games"
-        WHERE "Date" IS NOT NULL
-        ORDER BY year DESC;
-    ''')).all()
-    return jsonify([row[0] for row in results])
+    return jsonify(queries.get_game_years(db.session))
 
 
 @bp.route('/data/<int:year>')
 @login_required
 def data_by_year(year):
     """Return player stats for a specific calendar year."""
-    results = db.session.execute(text('''
-    SELECT "Name" AS name,
-    ( SELECT count(*) AS count
-           FROM data_owner."Participants"
-        LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-          WHERE "Participants".player_id = "Player".id
-          AND "Games".cedh = False
-          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS games,
-    ( SELECT count(*) AS count
-           FROM data_owner."Participants"
-        LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-          WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true
-          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS "early_sol_ring",
-    ( SELECT COALESCE((( SELECT count(*)::double precision AS count
-                   FROM data_owner."Participants"
-                LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-                  WHERE "Participants".player_id = "Player".id AND "Participants"."early_sol_ring" = true
-                  AND EXTRACT(YEAR FROM "Games"."Date") = :year)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
-                   FROM data_owner."Participants"
-                     LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-                  WHERE "Participants".player_id = "Player".id
-                  AND "Games".cedh = False
-                  AND EXTRACT(YEAR FROM "Games"."Date") = :year), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "Sol Ring (in%)",
-    ( SELECT count(*) AS count
-           FROM data_owner."Games"
-          WHERE "Games"."Winner" = "Player".id
-          AND "Games".cedh = False
-          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS winner,
-    ( SELECT COALESCE((( SELECT count(*)::double precision AS count
-                   FROM data_owner."Games"
-                  WHERE "Games"."Winner" = "Player".id
-          AND "Games".cedh = False
-          AND EXTRACT(YEAR FROM "Games"."Date") = :year)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
-                   FROM data_owner."Participants"
-                   LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-                  WHERE "Participants".player_id = "Player".id
-                  AND "Games".cedh = False
-                  AND EXTRACT(YEAR FROM "Games"."Date") = :year), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "winrate (in%)",
-    ( SELECT count(*) AS count
-           FROM data_owner."Games"
-          WHERE "Games"."First_Player" = "Player".id
-          AND "Games".cedh = False
-          AND EXTRACT(YEAR FROM "Games"."Date") = :year) AS first,
-    (SELECT COALESCE((( SELECT count(*)::double precision AS count
-           FROM data_owner."Games"
-          WHERE "Games"."First_Player" = "Player".id
-          AND "Games".cedh = False
-          AND EXTRACT(YEAR FROM "Games"."Date") = :year)) * 100::double precision / NULLIF(( SELECT count(*)::double precision AS count
-           FROM data_owner."Participants"
-           LEFT JOIN data_owner."Games" ON "Games".id = "Participants".game_id
-          WHERE "Participants".player_id = "Player".id
-          AND "Games".cedh = False
-          AND EXTRACT(YEAR FROM "Games"."Date") = :year), 0::double precision), 0::double precision)::numeric(10,2) AS "coalesce") AS "first (in%)"
-   FROM data_owner."Player"
-   WHERE "Player"."Name" != 'Precons'
-   AND EXISTS (
-       SELECT 1 FROM data_owner."Participants" p2
-       JOIN data_owner."Games" g2 ON g2.id = p2.game_id
-       WHERE p2.player_id = "Player".id
-       AND EXTRACT(YEAR FROM g2."Date") = :year
-   );'''), {'year': year})
-
-    list = []
-    for entry in results:
-        dict = {"Name": [], "Games": [], "Early Sol Ring": [], "Sol Ring (in %)": [], "Wins": [], "Winrate (in %)": [],
-                "First": [], "First (in %)": []}
-        dict["Name"].append(entry[0])
-        dict["Games"].append(entry[1])
-        dict["Early Sol Ring"].append(entry[2])
-        dict["Sol Ring (in %)"].append(float(entry[3]))
-        dict["Wins"].append(entry[4])
-        dict["Winrate (in %)"].append(float(entry[5]))
-        dict["First"].append(entry[6])
-        dict["First (in %)"].append(float(entry[7]))
-        list.append(dict)
-    return jsonify(list)
+    results = queries.get_player_stats_by_year(db.session, year)
+    return jsonify([format_player_stats(r) for r in results])
 
 
 @bp.route('/cards/autocomplete')

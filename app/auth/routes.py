@@ -1,16 +1,22 @@
-from flask import render_template, redirect, url_for, flash, request, current_app
+from flask import render_template, redirect, url_for, flash, request
 from urllib.parse import urlsplit
 from flask_login import login_user, logout_user, current_user
 import sqlalchemy as sa
-from flask_principal import identity_changed, Identity, identity_loaded
-
-from app import db
+from app import db, limiter
 from app.auth import bp
 from app.auth.forms import LoginForm, RegistrationForm
 from app.models import User
 
+# --- CSRF Audit (Requirement 16.1) ---
+# All POST endpoints in this module are protected by Flask-WTF CSRFProtect (init'd in app/__init__.py).
+# - login: WTForms LoginForm (auto CSRF token)
+# - register: WTForms RegistrationForm (auto CSRF token)
+# No exemptions are needed.
+# ---
+
 
 @bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10/minute")
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -25,8 +31,6 @@ def login():
             flash('Account ist nicht aktiviert')
             return redirect(url_for('auth.login'))
         login_user(user, remember=form.remember_me.data)
-        if (current_user.username == 'Niklas'):
-            identity_changed.send(current_app._get_current_object(),identity=Identity(user.id))
         next_page = request.args.get('next')
         if not next_page or urlsplit(next_page).netloc != '':
             next_page = url_for('main.index')

@@ -44,7 +44,7 @@
                                 <span class="field-hint">Sol Ring oder ähnliches in Turn 1-2</span>
                             </div>
                         </div>
-                        {% if current_user.username == 'Niklas' %}
+                        {% if show_my_game %}
                         <div class="interaction-row">
                             <div class="form-field">
                                 {{ pf.removal_played.label }}
@@ -144,7 +144,7 @@
             </div>
         </section>
 
-        {% if current_user.username == 'Niklas' and niklas_is_participant %}
+        {% if show_my_game and niklas_is_participant %}
         <section class="form-section" id="section-my-game">
             <h2 class="section-header">My Game</h2>
 

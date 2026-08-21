@@ -1,11 +1,14 @@
+from datetime import datetime
 from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from flask_login import UserMixin
-from flask_security import RoleMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db, login
+from config import Config
+
+DB_SCHEMA = Config.DB_SCHEMA
 
 
 @login.user_loader
@@ -13,14 +16,18 @@ def load_user(id):
     return db.session.get(User, int(id))
 
 class User(UserMixin, db.Model):
-    __table_args__ = {'schema': 'data_owner'}
+    __tablename__ = 'users'
+    __table_args__ = {'schema': DB_SCHEMA}
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
                                                 unique=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True,
                                              unique=True)
     password_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
-    spieler: so.Mapped[int] = so.mapped_column(sa.Integer)
+    player_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='SET NULL'),
+    )
     active: so.Mapped[bool] = so.mapped_column(sa.Boolean)
     role: so.Mapped[str] = so.mapped_column(sa.String(64))
 
@@ -33,132 +40,224 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-class Role(db.Model, RoleMixin):
-    __tablename__ = 'Role'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer(), primary_key=True)
-    name = db.Column(db.String(50), unique=True)
-
-class UserRoles(db.Model):
-    __tablename__ = 'user_roles'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer(), primary_key=True)
-    user_id = db.Column(db.Integer(), db.ForeignKey('data_owner.user.id'))
-    role_id = db.Column(db.Integer(), db.ForeignKey('data_owner.Role.id'))
-
 class ColorIdentity(db.Model):
-    __tablename__ = 'Color_Identities'
-    __table_args__ = {'schema': 'data_owner'}
-    Name = db.Column(db.String, primary_key=True)
-    amount = db.Column(db.Integer, nullable=False)
+    __tablename__ = 'color_identities'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    name: so.Mapped[str] = so.mapped_column(sa.String, primary_key=True)
+    amount: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
 
 class Color(db.Model):
-    __tablename__ = 'Colors'
-    __table_args__ = {'schema': 'data_owner'}
-    Name = db.Column(db.String, primary_key=True)
-    abbreviation = db.Column(db.String, nullable=False)
-    img = db.Column(db.String)
+    __tablename__ = 'colors'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    name: so.Mapped[str] = so.mapped_column(sa.String, primary_key=True)
+    abbreviation: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    img: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
 
 class Deck(db.Model):
-    __tablename__ = 'Decks'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer, primary_key=True)
-    Name = db.Column(db.String, nullable=False)
-    Active = db.Column(db.Boolean, nullable = False, default = True)
-    Commander = db.Column(db.String, nullable=False)
-    Player = db.Column(db.Integer, db.ForeignKey('data_owner.Player.id'), nullable=False)
-    Color_Identity = db.Column(db.String, db.ForeignKey('data_owner.Color_Identities.Name'), nullable=False)
-    Partner = db.Column(db.String)
-    elo_rating = db.Column(db.Float, default=1500)  # New column to store Elo rating
-    decklist = db.Column(db.String)
-    decksite = db.Column(db.String)
-    archidekt_id = db.Column(db.String)
-    image_uri = db.Column(db.String)
-    Last_Rework = db.Column(db.Date, default=sa.func.current_date())
-    Last_Change = db.Column(db.Date, default=sa.func.current_date())
-    last_patch = db.Column(db.Date, default=sa.func.current_date())
-    cedh = db.Column(db.Boolean, default=False)
-    Version = db.Column(db.Integer, default=0)
-    patch = db.Column(db.Integer, default=0)
-    change = db.Column(db.Integer, default=0)
+    __tablename__ = 'decks'
+    __table_args__ = (
+        sa.CheckConstraint('elo_rating >= 0', name='ck_deck_elo_rating'),
+        sa.CheckConstraint('version >= 0', name='ck_deck_version'),
+        sa.CheckConstraint('patch >= 0', name='ck_deck_patch'),
+        sa.CheckConstraint('change >= 0', name='ck_deck_change'),
+        {'schema': DB_SCHEMA}
+    )
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    active: so.Mapped[bool] = so.mapped_column(sa.Boolean, nullable=False, default=True)
+    commander: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    player_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='RESTRICT'),
+        nullable=False
+    )
+    color_identity: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.color_identities.name', ondelete='RESTRICT'),
+        nullable=False
+    )
+    partner: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    elo_rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, default=1500)
+    decklist: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    decksite: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    archidekt_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    image_uri: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    last_rework: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.Date, default=sa.func.current_date()
+    )
+    last_change: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.Date, default=sa.func.current_date()
+    )
+    last_patch: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.Date, default=sa.func.current_date()
+    )
+    cedh: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean, default=False)
+    version: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer, default=0
+    )
+    patch: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, default=0)
+    change: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, default=0)
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )
+
+    # Relationships
+    player_rel: so.Mapped['Player'] = so.relationship(back_populates='decks')
+    participations: so.Mapped[list['Participant']] = so.relationship(back_populates='deck')
+    version_history: so.Mapped[list['DeckVersionHistory']] = so.relationship(back_populates='deck_rel')
+    achievements: so.Mapped[list['Achievement']] = so.relationship(back_populates='deck_rel')
+    tags: so.Mapped[list['DeckTag']] = so.relationship(back_populates='deck_rel')
+    components: so.Mapped[list['DeckComponent']] = so.relationship(back_populates='deck_rel')
 
 class Game(db.Model):
-    __tablename__ = 'Games'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer, primary_key=True)
-    Date = db.Column(db.Date, nullable=False)
-    First_Player = db.Column(db.Integer)
-    Winner = db.Column(db.Integer)
-    Planechase = db.Column(db.Boolean, nullable=False, default=False)
-    turns = db.Column(db.Integer)
-    final_blow = db.Column(db.String)
-    first_ko_turn = db.Column(db.Integer)
-    first_ko_by = db.Column(db.String)
-    cedh = db.Column(db.Boolean, default=False)
-    added_by = db.Column(db.Integer)
+    __tablename__ = 'games'
+    __table_args__ = (
+        sa.CheckConstraint('turns >= 0', name='ck_game_turns'),
+        {'schema': DB_SCHEMA}
+    )
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    date: so.Mapped[datetime] = so.mapped_column(sa.Date, nullable=False)
+    first_player_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='RESTRICT'),
+    )
+    winner_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='RESTRICT'),
+    )
+    planechase: so.Mapped[bool] = so.mapped_column(sa.Boolean, nullable=False, default=False)
+    turns: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    final_blow: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    first_ko_turn: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    first_ko_by: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    cedh: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean, default=False)
+    added_by_user_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.users.id', ondelete='SET NULL')
+    )
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )
+
+    # Relationships
+    participants: so.Mapped[list['Participant']] = so.relationship(back_populates='game')
 
 class Participant(db.Model):
-    __tablename__ = 'Participants'
-    __table_args__ = {'schema': 'data_owner'}
-    game_id = db.Column(db.Integer, db.ForeignKey('data_owner.Games.id'), primary_key=True)
-    player_id = db.Column(db.Integer, db.ForeignKey('data_owner.Player.id'), primary_key=True)
-    deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
-    early_sol_ring = db.Column(db.Boolean, nullable=False, default=False)
-    mulligans = db.Column(db.Integer)
-    comments = db.Column(db.String)
-    landdrops = db.Column(db.Integer)
-    lands = db.Column(db.Integer)
-    enough_mana = db.Column(db.Boolean)
-    enough_gas = db.Column(db.Boolean)
-    deckplan = db.Column(db.Boolean)
-    unanswered_threats = db.Column(db.Boolean)
-    loss_without_answer = db.Column(db.Boolean)
-    selfmade_win = db.Column(db.Boolean)
-    fun_moments = db.Column(db.Boolean)
-    removal_played = db.Column(db.Integer)
-    targeted_by_removal = db.Column(db.Integer)
-    protection_played = db.Column(db.Integer)
+    __tablename__ = 'participants'
+    __table_args__ = (
+        sa.CheckConstraint('seat IS NULL OR seat >= 1', name='ck_participant_seat'),
+        sa.CheckConstraint('mulligans >= 0', name='ck_participant_mulligans'),
+        {'schema': DB_SCHEMA}
+    )
+
+    game_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.games.id', ondelete='RESTRICT'),
+        primary_key=True
+    )
+    player_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='RESTRICT'),
+        primary_key=True
+    )
+    deck_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.decks.id', ondelete='RESTRICT'),
+        nullable=False
+    )
+    seat: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    early_sol_ring: so.Mapped[bool] = so.mapped_column(sa.Boolean, nullable=False, default=False)
+    mulligans: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    comments: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    landdrops: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    lands: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    enough_mana: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean)
+    enough_gas: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean)
+    deckplan: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean)
+    unanswered_threats: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean)
+    loss_without_answer: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean)
+    selfmade_win: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean)
+    fun_moments: so.Mapped[Optional[bool]] = so.mapped_column(sa.Boolean)
+    removal_played: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    targeted_by_removal: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    protection_played: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )
+
+    # Relationships
+    game: so.Mapped['Game'] = so.relationship(back_populates='participants')
+    player_rel: so.Mapped['Player'] = so.relationship(back_populates='participations')
+    deck: so.Mapped['Deck'] = so.relationship(back_populates='participations')
 
 class Player(db.Model):
-    __tablename__ = 'Player'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer, primary_key=True)
-    Name = db.Column(db.String, nullable=False)
+    __tablename__ = 'players'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )
+
+    # Relationships (forward references to not-yet-migrated models)
+    decks: so.Mapped[list['Deck']] = so.relationship(back_populates='player_rel')
+    participations: so.Mapped[list['Participant']] = so.relationship(back_populates='player_rel')
 
 class ColorComponent(db.Model):
     __tablename__ = 'color_components'
-    __table_args__ = {'schema': 'data_owner'}
-    color_identity = db.Column(db.String, db.ForeignKey('data_owner.Color_Identities.Name'), primary_key=True)
-    color = db.Column(db.String, db.ForeignKey('data_owner.Colors.Name'), primary_key=True)
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    color_identity: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.color_identities.name'),
+        primary_key=True
+    )
+    color: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.colors.name'),
+        primary_key=True
+    )
 
 class Card(db.Model):
     __tablename__ = 'cards'
-    __table_args__ = {'schema': 'data_owner'}
+    __table_args__ = {'schema': DB_SCHEMA}
 
-    id = db.Column(db.String, primary_key=True)
-    oracle_id = db.Column(db.String, nullable=False, index=True)
-    name = db.Column(db.String, nullable=False, index=True)
-    mana_cost = db.Column(db.String, nullable=True)
-    cmc = db.Column(db.Float, nullable=False, default=0)
-    type_line = db.Column(db.String, nullable=False)
-    oracle_text = db.Column(db.Text, nullable=True)
-    layout = db.Column(db.String, nullable=False)
-    set_code = db.Column(db.String, nullable=False)
-    set_name = db.Column(db.String, nullable=False)
-    rarity = db.Column(db.String, nullable=False)
-    released_at = db.Column(db.Date, nullable=True)
+    id: so.Mapped[str] = so.mapped_column(sa.String, primary_key=True)
+    oracle_id: so.Mapped[str] = so.mapped_column(sa.String, nullable=False, index=True)
+    name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False, index=True)
+    mana_cost: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    cmc: so.Mapped[float] = so.mapped_column(sa.Float, nullable=False, default=0)
+    type_line: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    oracle_text: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
+    layout: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    set_code: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    set_name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    rarity: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    released_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.Date)
 
-    faces = db.relationship('CardFace', backref='card',
-                            order_by='CardFace.face_index',
-                            cascade='all, delete-orphan')
-    colors = db.relationship('CardColor', backref='card',
-                             cascade='all, delete-orphan')
-    color_identity = db.relationship('CardColorIdentity', backref='card',
-                                     cascade='all, delete-orphan')
-    keywords = db.relationship('CardKeyword', backref='card',
-                               cascade='all, delete-orphan')
-    legalities = db.relationship('CardLegality', backref='card',
-                                 cascade='all, delete-orphan')
+    # Relationships
+    faces: so.Mapped[list['CardFace']] = so.relationship(back_populates='card', order_by='CardFace.face_index', cascade='all, delete-orphan')
+    colors: so.Mapped[list['CardColor']] = so.relationship(back_populates='card', cascade='all, delete-orphan')
+    color_identity: so.Mapped[list['CardColorIdentity']] = so.relationship(back_populates='card', cascade='all, delete-orphan')
+    keywords: so.Mapped[list['CardKeyword']] = so.relationship(back_populates='card', cascade='all, delete-orphan')
+    legalities: so.Mapped[list['CardLegality']] = so.relationship(back_populates='card', cascade='all, delete-orphan')
 
     @property
     def oracle_tags(self):
@@ -168,124 +267,198 @@ class Card(db.Model):
 class CardFace(db.Model):
     __tablename__ = 'card_faces'
     __table_args__ = (
-        db.UniqueConstraint('card_id', 'face_index', name='uq_card_face'),
-        {'schema': 'data_owner'}
+        sa.UniqueConstraint('card_id', 'face_index', name='uq_card_face'),
+        {'schema': DB_SCHEMA}
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
-                        ondelete='CASCADE'), nullable=False)
-    face_index = db.Column(db.Integer, nullable=False)
-    name = db.Column(db.String, nullable=False)
-    mana_cost = db.Column(db.String, nullable=True)
-    type_line = db.Column(db.String, nullable=True)
-    oracle_text = db.Column(db.Text, nullable=True)
-    image_uri = db.Column(db.String, nullable=True)
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    card_id: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id', ondelete='CASCADE'),
+        nullable=False
+    )
+    face_index: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+    name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    mana_cost: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    type_line: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    oracle_text: so.Mapped[Optional[str]] = so.mapped_column(sa.Text)
+    image_uri: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+
+    # Relationship
+    card: so.Mapped['Card'] = so.relationship(back_populates='faces')
 
 
 class CardColor(db.Model):
     __tablename__ = 'card_colors'
-    __table_args__ = {'schema': 'data_owner'}
+    __table_args__ = {'schema': DB_SCHEMA}
 
-    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
-                        ondelete='CASCADE'), primary_key=True)
-    color = db.Column(db.String(1), primary_key=True)
+    card_id: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id', ondelete='CASCADE'),
+        primary_key=True
+    )
+    color: so.Mapped[str] = so.mapped_column(sa.String(1), primary_key=True)
+
+    # Relationship
+    card: so.Mapped['Card'] = so.relationship(back_populates='colors')
 
 
 class CardColorIdentity(db.Model):
     __tablename__ = 'card_color_identity'
-    __table_args__ = {'schema': 'data_owner'}
+    __table_args__ = {'schema': DB_SCHEMA}
 
-    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
-                        ondelete='CASCADE'), primary_key=True)
-    color = db.Column(db.String(1), primary_key=True)
+    card_id: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id', ondelete='CASCADE'),
+        primary_key=True
+    )
+    color: so.Mapped[str] = so.mapped_column(sa.String(1), primary_key=True)
+
+    # Relationship
+    card: so.Mapped['Card'] = so.relationship(back_populates='color_identity')
 
 
 class CardKeyword(db.Model):
     __tablename__ = 'card_keywords'
-    __table_args__ = {'schema': 'data_owner'}
+    __table_args__ = {'schema': DB_SCHEMA}
 
-    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
-                        ondelete='CASCADE'), primary_key=True)
-    keyword = db.Column(db.String, primary_key=True)
+    card_id: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id', ondelete='CASCADE'),
+        primary_key=True
+    )
+    keyword: so.Mapped[str] = so.mapped_column(sa.String, primary_key=True)
+
+    # Relationship
+    card: so.Mapped['Card'] = so.relationship(back_populates='keywords')
 
 
 class CardLegality(db.Model):
     __tablename__ = 'card_legalities'
-    __table_args__ = {'schema': 'data_owner'}
+    __table_args__ = {'schema': DB_SCHEMA}
 
-    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id',
-                        ondelete='CASCADE'), primary_key=True)
-    format = db.Column(db.String, primary_key=True)
-    status = db.Column(db.String, nullable=False)
+    card_id: so.Mapped[str] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id', ondelete='CASCADE'),
+        primary_key=True
+    )
+    format: so.Mapped[str] = so.mapped_column(sa.String, primary_key=True)
+    status: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+
+    # Relationship
+    card: so.Mapped['Card'] = so.relationship(back_populates='legalities')
 
 
 class OracleTag(db.Model):
     __tablename__ = 'oracle_tags'
     __table_args__ = (
-        db.UniqueConstraint('oracle_id', 'tag', name='uq_oracle_tag'),
-        {'schema': 'data_owner'}
+        sa.UniqueConstraint('oracle_id', 'tag', name='uq_oracle_tag'),
+        {'schema': DB_SCHEMA}
     )
 
-    id = db.Column(db.Integer, primary_key=True)
-    oracle_id = db.Column(db.String, nullable=False, index=True)
-    tag = db.Column(db.String, nullable=False)
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    oracle_id: so.Mapped[str] = so.mapped_column(sa.String, nullable=False, index=True)
+    tag: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
 
 class DeckComponent(db.Model):
     __tablename__ = 'deck_component'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer, primary_key=True)
-    deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'))
-    card_id = db.Column(db.String, db.ForeignKey('data_owner.cards.id'))
-    count = db.Column(db.Integer)
-    name = db.Column(db.String)
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    deck_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.decks.id', ondelete='CASCADE')
+    )
+    card_id: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id')
+    )
+    count: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+
+    # Relationship
+    deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='components')
 
 class Achievement(db.Model):
     __tablename__ = 'achievements'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer, primary_key=True)
-    titel = db.Column(db.String)
-    beschreibung = db.Column(db.String)
-    anzahl = db.Column(db.Integer)
-    deck = db.Column(db.Integer)
-    achieved = db.Column(db.Integer)
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    title: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    description: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    amount: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+    deck_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.decks.id', ondelete='CASCADE'),
+    )
+    achieved: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
+
+    # Relationship
+    deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='achievements')
 
 class DeckVersionHistory(db.Model):
     __tablename__ = 'deck_version_history'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer, primary_key=True)
-    deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
-    change_type = db.Column(db.String(20), nullable=False)  # 'change', 'patch', or 'rework'
-    previous_version = db.Column(db.Integer, nullable=False)
-    previous_patch = db.Column(db.Integer, nullable=False)
-    previous_change = db.Column(db.Integer, nullable=False)
-    new_version = db.Column(db.Integer, nullable=False)
-    new_patch = db.Column(db.Integer, nullable=False)
-    new_change = db.Column(db.Integer, nullable=False)
-    comment = db.Column(db.String, nullable=True)
-    timestamp = db.Column(db.DateTime, nullable=False, default=sa.func.current_timestamp())
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    deck_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.decks.id', ondelete='CASCADE'),
+        nullable=False
+    )
+    change_type: so.Mapped[str] = so.mapped_column(sa.String(20), nullable=False)
+    previous_version: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+    previous_patch: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+    previous_change: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+    new_version: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+    new_patch: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+    new_change: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+    comment: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    timestamp: so.Mapped[datetime] = so.mapped_column(
+        sa.DateTime, nullable=False, default=sa.func.current_timestamp()
+    )
+
+    # Relationship
+    deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='version_history')
 
 class DeckTag(db.Model):
     __tablename__ = 'deck_tags'
     __table_args__ = (
         sa.UniqueConstraint('deck_id', 'tag', name='unique_deck_tag'),
-        {'schema': 'data_owner'}
+        {'schema': DB_SCHEMA}
     )
-    id = db.Column(db.Integer, primary_key=True)
-    deck_id = db.Column(db.Integer, db.ForeignKey('data_owner.Decks.id'), nullable=False)
-    tag = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=sa.func.current_timestamp())
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    deck_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.decks.id', ondelete='CASCADE'),
+        nullable=False
+    )
+    tag: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime, default=sa.func.current_timestamp()
+    )
+
+    # Relationship
+    deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='tags')
 
 
 class AuditLog(db.Model):
     __tablename__ = 'audit_log'
-    __table_args__ = {'schema': 'data_owner'}
-    id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, nullable=False, default=sa.func.current_timestamp())
-    user_id = db.Column(db.Integer, db.ForeignKey('data_owner.user.id'), nullable=False)
-    username = db.Column(db.String, nullable=False)
-    action = db.Column(db.String, nullable=False)  # e.g. 'game_add', 'deck_edit', 'player_add'
-    entity_type = db.Column(db.String, nullable=False)  # e.g. 'Game', 'Deck', 'Player'
-    entity_id = db.Column(db.String)  # ID of the affected entity
-    details = db.Column(db.String)  # Human-readable description
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    timestamp: so.Mapped[datetime] = so.mapped_column(
+        sa.DateTime, nullable=False, default=sa.func.current_timestamp()
+    )
+    user_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.users.id'),
+        nullable=False
+    )
+    username: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    action: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    entity_type: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    entity_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    details: so.Mapped[Optional[str]] = so.mapped_column(sa.String)

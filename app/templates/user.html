@@ -4,11 +4,11 @@
 
 {% block content %}
     <main>
-        <h1>{{ spieler.Name }} Deckübersicht</h1>
+        <h1>{{ spieler.name }} Deckübersicht</h1>
         <section id="deck-stats">
             <h2>Deck Stats</h2>
             <div class="deck-stats-controls">
-                <a href="/decks/archive/{{ spieler.Name }}"><button type="button">Archiv</button></a>
+                <a href="/decks/archive/{{ spieler.name }}"><button type="button">Archiv</button></a>
             </div>
             <table id="user-deck-stats-table">
                 <thead>

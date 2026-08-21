@@ -2,7 +2,6 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, IntegerField, BooleanField, TextAreaField, FieldList, DateField, FormField, Form, HiddenField
 from wtforms.fields.choices import SelectField
 from wtforms.validators import ValidationError, DataRequired, NumberRange, Optional
-from wtforms_sqlalchemy.fields import QuerySelectField
 import sqlalchemy as sa
 from app import db
 from app.models import Player, Deck, Card
@@ -14,7 +13,7 @@ class PlayerAddForm(FlaskForm):
 
     def validate_name(self, name):
         player = db.session.scalar(sa.select(Player).where(
-            Player.Name == name.data))
+            Player.name == name.data))
         if player is not None:
             raise ValidationError('Ein User mit diesem Namen existiert bereits.')
 
@@ -29,7 +28,7 @@ class DeckAddForm(FlaskForm):
 
     def validate_name(self, name):
         name = db.session.scalar(sa.select(Deck).where(
-            Deck.Name == name.data))
+            Deck.name == name.data))
         if name is not None:
             raise ValidationError('Es gibt schon ein Deck mit diesem Namen.')
 
@@ -103,9 +102,9 @@ class ParticipantEditSubForm(Form):
 
 
 class NiklasParticipantForm(Form):
-    """Subform for Niklas-only 'My Game' personal stats fields.
+    """Subform for personal 'My Game' stats fields.
 
-    Rendered only when current_user.username == 'Niklas' and Niklas is a participant.
+    Rendered only when has_personal_stats_access(current_user) is True and the user is a participant.
     """
     mulligans = IntegerField('Mulligan', validators=[Optional(), NumberRange(min=0, max=7)])
     landdrops = IntegerField('Lands found', validators=[Optional()])

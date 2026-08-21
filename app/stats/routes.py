@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import date
 from sqlalchemy import literal, and_, func
@@ -6,26 +7,23 @@ from app import db
 from app.stats import bp
 from flask import render_template, flash, redirect, url_for, abort, request
 from flask_login import login_required, current_user
-from app.auth import role_required
+from app.auth import role_required, has_personal_stats_access
 import sqlalchemy as sa
 from sqlalchemy import desc
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm, GameEditForm, ParticipantEditSubForm
-from app.models import Player, Deck, Game, Participant, ColorIdentity, Card, ColorComponent, Color, User, AuditLog
+from app.models import Player, Deck, Game, Participant, Card, User, AuditLog
 from app.viewmodels import ColorUsage, ColorUsagePlayer
+from app.services.audit import write_audit_log
+from app.services.stats_service import get_players, get_active_decks, get_color_identities
 
+logger = logging.getLogger(__name__)
 
-def _audit(action, entity_type, entity_id=None, details=None):
-    """Write an entry to the audit log."""
-    entry = AuditLog(
-        user_id=current_user.id,
-        username=current_user.username,
-        action=action,
-        entity_type=entity_type,
-        entity_id=str(entity_id) if entity_id else None,
-        details=details
-    )
-    db.session.add(entry)
+# --- CSRF Audit (Requirement 16.1) ---
+# All POST endpoints in this module are protected by Flask-WTF CSRFProtect (init'd in app/__init__.py).
+# Form-based endpoints (game_add, game_edit, game_delete, player_add, deck_add) use WTForms which
+# includes the CSRF token automatically. No exemptions are needed.
+# ---
 
 
 
@@ -46,44 +44,8 @@ class GameRowViewModel:
 
 
 def _assert_game_owner(game: Game) -> None:
-    if game.added_by != current_user.id:
+    if game.added_by_user_id != current_user.id:
         abort(403)
-
-
-def get_player():
-    player_list = []
-    player = Player.query.order_by(Player.Name).all()
-    for player in player:
-        player_list.append(player.Name)
-    return player_list
-
-def get_decks():
-    deck_list = []
-    decks = Deck.query.order_by(Deck.Commander).all()
-    for deck in decks:
-        player = Player.query.filter_by(id = deck.Player).first()
-        if deck.Active:
-            tupel = (deck.Name, deck.Commander, player.Name)
-            deck_list.append(tupel)
-    return deck_list
-
-def get_ci():
-    ci_list = []
-    colorless = Color.query.filter_by(Name='Colorless').first()
-    colorless_img = colorless.img if colorless and colorless.img else None
-    identities = ColorIdentity.query.all()
-    for identity in identities:
-        components = ColorComponent.query.filter_by(color_identity=identity.Name).all()
-        imgs = []
-        for comp in components:
-            color = Color.query.filter_by(Name=comp.color).first()
-            if color and color.img:
-                imgs.append(color.img)
-        if not imgs and colorless_img:
-            imgs = [colorless_img]
-        ci_list.append({'name': identity.Name, 'imgs': imgs})
-    return ci_list
-
 
 
 @bp.route('/manage/games')
@@ -95,8 +57,8 @@ def game_hub():
     # Query games for current user, ordered by date descending, paginated
     query = (
         sa.select(Game)
-        .where(Game.added_by == current_user.id)
-        .order_by(Game.Date.desc())
+        .where(Game.added_by_user_id == current_user.id)
+        .order_by(Game.date.desc())
     )
     pagination = db.paginate(query, page=page, per_page=12, error_out=False)
     
@@ -104,10 +66,10 @@ def game_hub():
     game_rows = []
     for game in pagination.items:
         # Resolve winner and first player names
-        winner = db.session.get(Player, game.Winner)
-        first_player = db.session.get(Player, game.First_Player)
-        winner_name = winner.Name if winner else ''
-        first_player_name = first_player.Name if first_player else ''
+        winner = db.session.get(Player, game.winner_id)
+        first_player = db.session.get(Player, game.first_player_id)
+        winner_name = winner.name if winner else ''
+        first_player_name = first_player.name if first_player else ''
         
         # Query participants with their player and deck info
         participants_query = (
@@ -122,15 +84,15 @@ def game_hub():
         participants = []
         for participant, player, deck in participants_query:
             participants.append(ParticipantDisplay(
-                player_name=player.Name,
-                deck_name=deck.Name,
+                player_name=player.name,
+                deck_name=deck.name,
                 commander_image=deck.image_uri
             ))
         
         # Build GameRowViewModel
         game_rows.append(GameRowViewModel(
             game_id=game.id,
-            date=game.Date,
+            date=game.date,
             winner_name=winner_name,
             first_player_name=first_player_name,
             participants=participants
@@ -150,15 +112,14 @@ def game_delete(game_id):
     _assert_game_owner(game)
     
     # Store info before deletion
-    game_date = game.Date
+    game_date = game.date
     
     # Delete all participants for this game
     db.session.execute(sa.delete(Participant).where(Participant.game_id == game_id))
     
     # Delete the game itself
     db.session.delete(game)
-    db.session.commit()
-    _audit('game_delete', 'Game', game_id, f'Deleted game on {game_date}')
+    write_audit_log('game_delete', 'Game', game_id, f'Deleted game on {game_date}')
     db.session.commit()
     
     # Flash success and redirect to hub
@@ -189,24 +150,24 @@ def game_edit(game_id):
     form = GameEditForm()
     
     # Build choices for winner and first from existing participants only
-    participant_names = [(p.Name, p.Name) for _, p, _ in participants_query]
+    participant_names = [(p.name, p.name) for _, p, _ in participants_query]
     form.winner.choices = participant_names
     form.first.choices = participant_names
     
     # Build decks list for JS widget (same format as game_add)
-    decks = get_decks()
+    decks = get_active_decks()
     
-    # Detect if Niklas is a participant
+    # Detect if the personal-stats user is a participant
     niklas_is_participant = False
     niklas_participant = None
     niklas_player_id = None
     
-    if current_user.username == 'Niklas':
-        # Find Niklas's player record
-        niklas_user = db.session.get(User, current_user.id)
-        if niklas_user and niklas_user.spieler:
-            niklas_player_id = niklas_user.spieler
-            # Check if Niklas is a participant in this game
+    if has_personal_stats_access(current_user):
+        # Find the user's player record
+        stats_user = db.session.get(User, current_user.id)
+        if stats_user and stats_user.player_id:
+            niklas_player_id = stats_user.player_id
+            # Check if the user is a participant in this game
             for participant, player, deck in participants_query:
                 if player.id == niklas_player_id:
                     niklas_is_participant = True
@@ -216,7 +177,7 @@ def game_edit(game_id):
     # Handle POST submission
     if form.validate_on_submit():
         # Update Game fields
-        game.Date = form.date.data
+        game.date = form.date.data
         game.turns = form.turns.data
         game.final_blow = form.final_blow.data if form.final_blow.data else None
         game.first_ko_turn = form.first_ko_turn.data
@@ -225,13 +186,13 @@ def game_edit(game_id):
         
         # Resolve Winner and First_Player from names
         winner = db.session.scalar(
-            sa.select(Player.id).where(Player.Name == form.winner.data)
+            sa.select(Player.id).where(Player.name == form.winner.data)
         )
         first_player = db.session.scalar(
-            sa.select(Player.id).where(Player.Name == form.first.data)
+            sa.select(Player.id).where(Player.name == form.first.data)
         )
-        game.Winner = winner
-        game.First_Player = first_player
+        game.winner_id = winner
+        game.first_player_id = first_player
         
         # Update each participant
         for pf in form.participants:
@@ -249,7 +210,7 @@ def game_edit(game_id):
                 if pf.borrowed.data and pf.lender.data:
                     # Resolve lender name to player_id
                     lender = db.session.scalar(
-                        sa.select(Player.id).where(Player.Name == pf.lender.data)
+                        sa.select(Player.id).where(Player.name == pf.lender.data)
                     )
                     if lender:
                         deck_owner_id = lender
@@ -257,8 +218,8 @@ def game_edit(game_id):
                 # Find the deck using the deck name and owner
                 deck = Deck.query.filter(
                     and_(
-                        literal(pf.deck.data).contains(Deck.Name),
-                        Deck.Player == deck_owner_id
+                        literal(pf.deck.data).contains(Deck.name),
+                        Deck.player_id == deck_owner_id
                     )
                 ).first()
                 
@@ -291,8 +252,7 @@ def game_edit(game_id):
                 niklas_participant_record.comments = form.my_game.comment.data
         
         # Commit all changes
-        db.session.commit()
-        _audit('game_edit', 'Game', game.id, f'Edited game on {game.Date}')
+        write_audit_log('game_edit', 'Game', game.id, f'Edited game on {game.date}')
         db.session.commit()
         
         # Flash success and redirect to hub
@@ -301,7 +261,7 @@ def game_edit(game_id):
     
     # GET request or validation failed - pre-populate form
     # Pre-populate game-level fields
-    form.date.data = game.Date
+    form.date.data = game.date
     form.turns.data = game.turns
     form.final_blow.data = game.final_blow
     form.first_ko_turn.data = game.first_ko_turn
@@ -309,37 +269,37 @@ def game_edit(game_id):
     form.cedh.data = game.cedh
     
     # Pre-populate winner and first player
-    winner = db.session.get(Player, game.Winner)
-    first_player = db.session.get(Player, game.First_Player)
-    form.winner.data = winner.Name if winner else None
-    form.first.data = first_player.Name if first_player else None
+    winner = db.session.get(Player, game.winner_id)
+    first_player = db.session.get(Player, game.first_player_id)
+    form.winner.data = winner.name if winner else None
+    form.first.data = first_player.name if first_player else None
     
     # Populate form.participants with each participant's data
     for participant, player, deck in participants_query:
         # Get active decks for the deck owner (lender if borrowed, player otherwise)
-        deck_owner_id = deck.Player
-        player_decks = Deck.query.filter_by(Player=deck_owner_id, Active=True).all()
+        deck_owner_id = deck.player_id
+        player_decks = Deck.query.filter_by(player_id=deck_owner_id, active=True).all()
         # Use "Name (Commander)" format as value to match JS-built options
-        deck_choices = [(f"{d.Name} ({d.Commander})", f"{d.Name} ({d.Commander})") for d in player_decks]
+        deck_choices = [(f"{d.name} ({d.commander})", f"{d.name} ({d.commander})") for d in player_decks]
         
         # Ensure the current deck is in choices even if it's been deactivated
-        current_deck_value = f"{deck.Name} ({deck.Commander})"
+        current_deck_value = f"{deck.name} ({deck.commander})"
         if not any(c[0] == current_deck_value for c in deck_choices):
             deck_choices.insert(0, (current_deck_value, current_deck_value))
         
         # Determine if deck was borrowed (deck owner != player)
-        is_borrowed = deck.Player != player.id
+        is_borrowed = deck.player_id != player.id
         lender_name = None
         if is_borrowed:
-            lender = db.session.get(Player, deck.Player)
-            lender_name = lender.Name if lender else None
+            lender = db.session.get(Player, deck.player_id)
+            lender_name = lender.name if lender else None
         
         # Create entry data dict
         # Use "DeckName (Commander)" format to match the JS-built select options
         entry_data = {
             'player_id': participant.player_id,
-            'player_name': player.Name,
-            'deck': f"{deck.Name} ({deck.Commander})",
+            'player_name': player.name,
+            'deck': f"{deck.name} ({deck.commander})",
             'borrowed': is_borrowed,
             'lender': lender_name,
             'early_fast_mana': participant.early_sol_ring,
@@ -383,6 +343,7 @@ def game_edit(game_id):
                          form=form, 
                          decks=decks, 
                          niklas_is_participant=niklas_is_participant,
+                         show_my_game=has_personal_stats_access(current_user),
                          game_condition_suggestions=game_condition_suggestions,
                          player_names=player_names_list)
 
@@ -393,10 +354,9 @@ def game_edit(game_id):
 def player_add():
     form = PlayerAddForm()
     if form.validate_on_submit():
-        player = Player(Name = form.name.data)
+        player = Player(name=form.name.data)
         db.session.add(player)
-        db.session.commit()
-        _audit('player_add', 'Player', player.id, f'Added player: {player.Name}')
+        write_audit_log('player_add', 'Player', player.id, f'Added player: {player.name}')
         db.session.commit()
         flash('Player added!')
         return redirect(url_for('stats.game_hub'))
@@ -407,13 +367,13 @@ def player_add():
 @login_required
 def deck_add():
     form = DeckAddForm()
-    player_choices = get_player()
+    player_choices = get_players()
     form.player.choices = player_choices
-    ci_data = get_ci()
+    ci_data = get_color_identities()
     form.color_identity.choices = [ci['name'] for ci in ci_data]
     if form.validate_on_submit():
         player = db.session.scalar(
-            sa.select(Player.id).where(Player.Name == form.player.data)
+            sa.select(Player.id).where(Player.name == form.player.data)
         )
         partner = None
         if form.partner.data != '':
@@ -428,28 +388,27 @@ def deck_add():
                 img = front_face.image_uri
 
         deck = Deck(
-            Name = form.name.data,
-            Commander = form.commander.data,
-            Player = player,
-            Color_Identity = form.color_identity.data,
-            Partner = partner,
+            name = form.name.data,
+            commander = form.commander.data,
+            player_id = player,
+            color_identity = form.color_identity.data,
+            partner = partner,
             image_uri = img,
             cedh = form.cedh.data,
-            Version = 1,
+            version = 1,
             patch = 0,
             change = 0,
-            Last_Rework = func.current_date(),
+            last_rework = func.current_date(),
             last_patch = func.current_date(),
-            Last_Change = func.current_date()
+            last_change = func.current_date()
         )
         db.session.add(deck)
-        db.session.commit()
-        _audit('deck_add', 'Deck', deck.id, f'Added deck: {deck.Name} ({deck.Commander}) for {form.player.data}')
+        write_audit_log('deck_add', 'Deck', deck.id, f'Added deck: {deck.name} ({deck.commander}) for {form.player.data}')
         db.session.commit()
         flash('Deck added!')
         return redirect(url_for('stats.game_hub'))
     else:
-        print(form.errors)
+        logger.debug("Form validation errors: %s", form.errors)
     return render_template('stats/DeckAdd.html', form=form, ci_data=ci_data)
 
 @bp.route('/game-add', methods=['GET', 'POST'])
@@ -457,9 +416,9 @@ def deck_add():
 @login_required
 def game_add():
     form = GameAddForm()
-    player = get_player()
-    decks = get_decks()
-    ci_data = get_ci()
+    player = get_players()
+    decks = get_active_decks()
+    ci_data = get_color_identities()
     form.winner.choices = player
     form.first.choices = player
 
@@ -473,42 +432,44 @@ def game_add():
     if form.add_player.data:
         form.players.append_entry()
         return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
-                               game_condition_suggestions=game_condition_suggestions, ci_data=ci_data)
+                               game_condition_suggestions=game_condition_suggestions, ci_data=ci_data,
+                               show_my_game=has_personal_stats_access(current_user))
 
     # Handle remove player action
     if form.remove_player.data and len(form.players) > form.players.min_entries:
         form.players.pop_entry()
         return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
-                               game_condition_suggestions=game_condition_suggestions, ci_data=ci_data)
+                               game_condition_suggestions=game_condition_suggestions, ci_data=ci_data,
+                               show_my_game=has_personal_stats_access(current_user))
 
     if not form.validate_on_submit():
-        print(form.errors)
+        logger.debug("Form validation errors: %s", form.errors)
 
         # Handle form submission
     if form.validate_on_submit():
         winner = db.session.scalar(
-            sa.select(Player.id).where(Player.Name == form.winner.data)
+            sa.select(Player.id).where(Player.name == form.winner.data)
         )
         first = db.session.scalar(
-            sa.select(Player.id).where(Player.Name == form.first.data)
+            sa.select(Player.id).where(Player.name == form.first.data)
         )
 
-        game = Game( Date = form.date.data,
-                     First_Player = first,
-                     Winner = winner,
-                     Planechase = False,
+        game = Game( date = form.date.data,
+                     first_player_id = first,
+                     winner_id = winner,
+                     planechase = False,
                      turns = form.turns.data,
                      final_blow = form.final_blow.data if form.final_blow.data else None,
                      first_ko_turn = form.first_ko_turn.data,
                      first_ko_by = form.first_ko_by.data if form.first_ko_by.data else None,
                      cedh = form.cedh.data,
-                     added_by = current_user.id
+                     added_by_user_id = current_user.id
         )
         db.session.add(game)
-        db.session.commit()
+        db.session.flush()
         for participant in form.players:
             player = db.session.scalar(
-                sa.select(Player.id).where(Player.Name == participant.player.data)
+                sa.select(Player.id).where(Player.name == participant.player.data)
             )
             # Set owner to participant and then overwrite with lender if Deck was borrowed
             owner = participant.player.data
@@ -517,8 +478,8 @@ def game_add():
 
             # Contains Deck Name is necessary, because the form also contains the commander, so equal wouldn't work
             # To prevent similar named Decks to be confused we add the query for Deck owner
-            deck = Deck.query.filter(and_(literal(participant.deck.data).contains(Deck.Name),
-                                          Deck.Player == (Player.query.filter_by(Name = owner).first().id))).first().id
+            deck = Deck.query.filter(and_(literal(participant.deck.data).contains(Deck.name),
+                                          Deck.player_id == (Player.query.filter_by(name=owner).first().id))).first().id
 
             # Grab per-participant interaction values before overwriting the variable
             p_early_fast_mana = participant.early_fast_mana.data
@@ -558,15 +519,15 @@ def game_add():
                     protection_played = p_protection_played
                 )
             db.session.add(participant)
-            db.session.commit()
-        _audit('game_add', 'Game', game.id, f'Added game on {game.Date}')
+        write_audit_log('game_add', 'Game', game.id, f'Added game on {game.date}')
         db.session.commit()
         flash('Game added successfully!')
         return redirect(url_for('stats.game_hub'))
 
     # Render the form normally
     return render_template('stats/GameAdd.html', form=form, player=player, decks=decks,
-                           game_condition_suggestions=game_condition_suggestions, ci_data=ci_data)
+                           game_condition_suggestions=game_condition_suggestions, ci_data=ci_data,
+                           show_my_game=has_personal_stats_access(current_user))
 
 @bp.route('/PlayerStats')
 @login_required
@@ -575,10 +536,10 @@ def playerstats():
     from app.models import Player, Game, Participant
     one_year_ago = date.today() - timedelta(days=365)
     active_player_names = set(
-        row[0] for row in db.session.query(Player.Name)
+        row[0] for row in db.session.query(Player.name)
         .join(Participant, Participant.player_id == Player.id)
         .join(Game, Game.id == Participant.game_id)
-        .filter(Game.Date >= one_year_ago)
+        .filter(Game.date >= one_year_ago)
         .distinct()
         .all()
     )
@@ -618,11 +579,9 @@ def tracking_sheet_personal():
 
 
 @bp.route('/audit-log')
+@role_required('admin')
 @login_required
 def audit_log():
-    # Only user with id 1 (Niklas) can view the audit log
-    if current_user.id != 1:
-        abort(403)
     
     page = request.args.get('page', 1, type=int)
     query = (

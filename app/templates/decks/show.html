@@ -152,15 +152,15 @@
                     {% for a in achievements %}
                         <div class="achievement-card" data-achievement-id="{{ a.id }}">
                             <div class="achievement-header" style="display:flex; align-items:center; justify-content:space-between;">
-                                <h4 class="achievement-title" style="margin:0;">{{ a.titel }}</h4>
+                                <h4 class="achievement-title" style="margin:0;">{{ a.title }}</h4>
                                 {% if is_owner %}
                                 <button type="button" class="btn small btn-ach-delete" title="Achievement löschen" aria-label="Achievement löschen">✕</button>
                                 {% endif %}
                             </div>
 
-                            <p class="achievement-desc">{{ a.beschreibung }}</p>
+                            <p class="achievement-desc">{{ a.description }}</p>
                             <div class="achievement-checks">
-                                {% set total = a.anzahl or 0 %}
+                                {% set total = a.amount or 0 %}
                                 {% set done = a.achieved or 0 %}
                                 {% for i in range(total) %}
                                     <label class="check" title="{{ i < done and 'erreicht' or 'offen' }}">
@@ -533,10 +533,10 @@
             <tbody>
             {% for game in games %}
                 <tr class="{{ 'game-win' if game.is_win else '' }}">
-                    <td>{{ game.Datum }}</td>
+                    <td>{{ game.datum }}</td>
                     <td>
                         <div class="opponent-row">
-                            {% for opponent in game.Gegner %}
+                            {% for opponent in game.gegner %}
                                 <a href="{{ url_for('decks.deck_show', deckname=opponent.deck_name) }}" class="opponent-card" title="Zum Deck: {{ opponent.deck_name }}">
                                     <img src="{{ opponent.commander_image }}" alt="Commander" class="opponent-commander-img">
                                     <div class="opponent-info">
@@ -547,9 +547,9 @@
                             {% endfor %}
                         </div>
                     </td>
-                    <td>{{ game.Winner }}</td>
-                    <td>{{ game.Turns}}</td>
-                    <td>{{ game.Final_Blow }}</td>
+                    <td>{{ game.winner }}</td>
+                    <td>{{ game.turns}}</td>
+                    <td>{{ game.final_blow }}</td>
                 </tr>
                 {% if show_private_avgs and game.participant_data %}
                 <tr class="participant-detail-row">
@@ -667,7 +667,7 @@
     const card = document.createElement('div');
     card.className = 'achievement-card';
     card.setAttribute('data-achievement-id', a.id);
-    const checks = Array.from({length: a.anzahl || 0}, (_, i) => `
+    const checks = Array.from({length: a.amount || 0}, (_, i) => `
       <label class="check" title="${i < (a.achieved||0) ? 'erreicht' : 'offen'}">
         <input type="checkbox" class="achievement-check" ${i < (a.achieved||0) ? 'checked' : ''}>
         <span></span>
@@ -681,8 +681,8 @@
       <p class="achievement-desc"></p>
       <div class="achievement-checks">${checks}</div>
     `;
-    card.querySelector('.achievement-title').textContent = a.titel || '';
-    card.querySelector('.achievement-desc').textContent = a.beschreibung || '';
+    card.querySelector('.achievement-title').textContent = a.title || '';
+    card.querySelector('.achievement-desc').textContent = a.description || '';
     return card;
   }
 

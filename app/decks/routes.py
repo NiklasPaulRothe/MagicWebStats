@@ -1,190 +1,128 @@
-import statistics
+import logging
 
-from flask import render_template, flash, redirect, url_for, request, session, current_app, abort
+from flask import render_template, flash, redirect, url_for, request, abort
 from flask_login import login_required, current_user
-from sqlalchemy import select, and_, desc, func
 
-from app import db, models, third_party_data
+logger = logging.getLogger(__name__)
+
+from app import db, models
 from app.auth import role_required
 from app.decks import bp
 from app.decks.forms import DeckEditForm
-from app.models import Deck, Player, User, Game, Participant, DeckVersionHistory, AuditLog
-from app.third_party_data.deckbuilder import load_cards_from_archidekt
-from flask_login import current_user as _current_user
+from app.models import Deck, Player, User, Game, Participant
+from app.services.audit import write_audit_log
+from app.services.deck_service import (
+    version_change, version_patch, version_rework,
+    archive_deck, dearchive_deck, update_decklist,
+)
+from app.services.elo_service import recalculate_all_elo
+from app.services.stats_service import compute_participant_averages, compute_deck_performance
 
-
-def _audit(action, entity_type, entity_id=None, details=None):
-    """Write an entry to the audit log."""
-    entry = AuditLog(
-        user_id=_current_user.id,
-        username=_current_user.username,
-        action=action,
-        entity_type=entity_type,
-        entity_id=str(entity_id) if entity_id else None,
-        details=details
-    )
-    db.session.add(entry)
+# --- CSRF Audit (Requirement 16.1) ---
+# All POST endpoints in this module are protected by Flask-WTF CSRFProtect (init'd in app/__init__.py).
+# - deck_edit: WTForms (auto CSRF token)
+# - set_commander_image: HTML form POST (CSRFProtect validates hidden token)
+# - set_achievement_progress: JSON API (CSRF via X-CSRFToken header from JS)
+# - delete_achievement: JSON API (CSRF via X-CSRFToken header from JS)
+# - add_achievement: JSON/form (CSRF via X-CSRFToken header or form hidden token)
+# - dearchive: HTML form POST (CSRFProtect validates hidden token)
+# No exemptions are needed.
+# ---
 
 
 @bp.route('/edit/<deckname>', methods=['GET', 'POST'])
 @login_required
 def deck_edit(deckname):
-    deck = Deck.query.filter(Deck.Name == deckname).one()
+    deck = Deck.query.filter(Deck.name == deckname).one()
     user = User.query.filter(User.username == current_user.username).one()
-    owner = Player.query.filter(user.spieler == Player.id).one()
-    if deck.Player != owner.id:
+    owner = Player.query.filter(user.player_id == Player.id).one()
+    if deck.player_id != owner.id:
         flash('Du bist nicht berechtigt dieses Deck zu bearbeiten')
         return redirect(url_for('main.index'))
 
     form = DeckEditForm()
 
-    deckname = deckname + " (" + deck.Commander + ")"
+    deckname = deckname + " (" + deck.commander + ")"
 
     # Handle version updates without full form validation
     if request.method == 'POST':
         if form.archive_button.data:
-            deck.Active = False
+            archive_deck(deck)
+            write_audit_log('deck_archive', 'Deck', deck.id, f'Archived deck: {deck.name}')
             db.session.commit()
-            _audit('deck_archive', 'Deck', deck.id, f'Archived deck: {deck.Name}')
-            db.session.commit()
-            flash(f'Deck "{deck.Name}" wurde archiviert')
+            flash(f'Deck "{deck.name}" wurde archiviert')
             return redirect(url_for('main.user', spieler=current_user.username))
-        
+
         elif form.version_changed.data:
-            # Get the comment from the form
             comment = form.version_comment.data.strip() if form.version_comment.data else None
-            
-            # Save version history before updating
-            history_entry = DeckVersionHistory(
-                deck_id=deck.id,
-                change_type='change',
-                previous_version=deck.Version,
-                previous_patch=deck.patch,
-                previous_change=deck.change,
-                new_version=deck.Version,
-                new_patch=deck.patch,
-                new_change=deck.change + 1,
-                comment=comment
-            )
-            db.session.add(history_entry)
-            
-            deck.change += 1
-            deck.Last_Change = func.current_date()
+            new_version = version_change(deck, comment)
+            write_audit_log('deck_version', 'Deck', deck.id, f'Version change: {deck.name} → {new_version}')
             db.session.commit()
-            _audit('deck_version', 'Deck', deck.id, f'Version change: {deck.Name} → {deck.Version}.{deck.patch}.{deck.change}')
-            db.session.commit()
-            flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
+            flash(f'Deck version updated to {new_version}')
             return redirect(url_for('main.user', spieler=current_user.username))
-        
+
         elif form.version_patched.data:
-            # Get the comment from the form
             comment = form.version_comment.data.strip() if form.version_comment.data else None
-            
-            # Save version history before updating
-            history_entry = DeckVersionHistory(
-                deck_id=deck.id,
-                change_type='patch',
-                previous_version=deck.Version,
-                previous_patch=deck.patch,
-                previous_change=deck.change,
-                new_version=deck.Version,
-                new_patch=deck.patch + 1,
-                new_change=0,
-                comment=comment
-            )
-            db.session.add(history_entry)
-            
-            deck.patch += 1
-            deck.change = 0
-            deck.last_patch = func.current_date()
+            new_version = version_patch(deck, comment)
+            write_audit_log('deck_version', 'Deck', deck.id, f'Version patch: {deck.name} → {new_version}')
             db.session.commit()
-            _audit('deck_version', 'Deck', deck.id, f'Version patch: {deck.Name} → {deck.Version}.{deck.patch}.{deck.change}')
-            db.session.commit()
-            flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
+            flash(f'Deck version updated to {new_version}')
             return redirect(url_for('main.user', spieler=current_user.username))
-        
+
         elif form.version_reworked.data:
-            # Get the comment from the form
             comment = form.version_comment.data.strip() if form.version_comment.data else None
-            
-            # Save version history before updating
-            history_entry = DeckVersionHistory(
-                deck_id=deck.id,
-                change_type='rework',
-                previous_version=deck.Version,
-                previous_patch=deck.patch,
-                previous_change=deck.change,
-                new_version=deck.Version + 1,
-                new_patch=0,
-                new_change=0,
-                comment=comment
-            )
-            db.session.add(history_entry)
-            
-            deck.Version += 1
-            deck.patch = 0
-            deck.change = 0
-            deck.Last_Rework = func.current_date()
+            new_version = version_rework(deck, comment)
+            write_audit_log('deck_version', 'Deck', deck.id, f'Version rework: {deck.name} → {new_version}')
             db.session.commit()
-            _audit('deck_version', 'Deck', deck.id, f'Version rework: {deck.Name} → {deck.Version}.{deck.patch}.{deck.change}')
-            db.session.commit()
-            flash(f'Deck version updated to {deck.Version}.{deck.patch}.{deck.change}')
+            flash(f'Deck version updated to {new_version}')
             return redirect(url_for('main.user', spieler=current_user.username))
 
     if not form.validate_on_submit():
-        print(form.errors)
+        logger.debug("Form validation errors: %s", form.errors)
 
     if form.validate_on_submit():
-            deck.Name = form.name.data
-            db.session.commit()
+            deck.name = form.name.data
             if (form.decklist.data != ""):
-                deck.decklist = form.decklist.data
-                deckbuilder = third_party_data.deckbuilder.get_id_from_url(form.decklist.data)
-                deck.decksite = deckbuilder[0].strip()
-                deck.archidekt_id = deckbuilder[1].strip()
-                db.session.commit()
                 try:
-                    load_cards_from_archidekt(deck.archidekt_id, deck.id)
-                    db.session.commit()
-                except:
+                    update_decklist(deck, form.decklist.data)
+                except Exception:
                     flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
-                    db.session.rollback()
-            _audit('deck_edit', 'Deck', deck.id, f'Edited deck: {deck.Name}')
+            write_audit_log('deck_edit', 'Deck', deck.id, f'Edited deck: {deck.name}')
             db.session.commit()
             return redirect(url_for('main.user', spieler=current_user.username))
-    
-    form.name.default = deck.Name
+
+    form.name.default = deck.name
     form.decklist.default = deck.decklist
-    form.current_name.default = deck.Name
+    form.current_name.default = deck.name
     form.process()
 
-    current_version = f"{deck.Version}.{deck.patch}.{deck.change}"
+    current_version = f"{deck.version}.{deck.patch}.{deck.change}"
 
     return render_template('decks/edit.html', form=form, deckname=deckname, current_version=current_version)
 
 @bp.route('/choose_image/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def choose_commander_image(deckname):
-    deck = models.Deck.query.filter_by(Name=deckname).first()
+    deck = models.Deck.query.filter_by(name=deckname).first()
     if not deck:
         flash("Deck not found", "error")
         return redirect(url_for('main.index'))
 
     # Query the new cards table, get front face images
-    cards = models.Card.query.filter_by(name=deck.Commander).all()
+    cards = models.Card.query.filter_by(name=deck.commander).all()
     images = []
     for card in cards:
         front_face = next((f for f in card.faces if f.face_index == 0), None)
         if front_face and front_face.image_uri:
             images.append(front_face.image_uri)
 
-    return render_template('decks/choose_image.html', deckname=deckname, commander=deck.Commander, images=images)
+    return render_template('decks/choose_image.html', deckname=deckname, commander=deck.commander, images=images)
 
 @bp.route('/set_commander_image/<deckname>', methods=['POST'])
 @login_required
 def set_commander_image(deckname):
     image_uri = request.form.get('image_uri')
-    deck = models.Deck.query.filter_by(Name=deckname).first()
+    deck = models.Deck.query.filter_by(name=deckname).first()
 
     if not deck or not image_uri:
         flash("Fehler beim Aktualisieren des Bildes", "error")
@@ -198,34 +136,31 @@ def set_commander_image(deckname):
 
 from collections import defaultdict
 
-from collections import defaultdict, Counter
-import statistics
-
 @bp.route('/version-history/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def version_history(deckname):
-    deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
-    
+    deck = models.Deck.query.filter_by(name=deckname).first_or_404()
+
     # Get all version history entries for this deck, ordered by timestamp descending
     history = models.DeckVersionHistory.query.filter_by(
         deck_id=deck.id
     ).order_by(models.DeckVersionHistory.timestamp.desc()).all()
-    
+
     return render_template(
         'decks/version_history.html',
-        deckname=deck.Name,
+        deckname=deck.name,
         history=history
     )
 
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def deck_show(deckname):
-    deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
+    deck = models.Deck.query.filter_by(name=deckname).first_or_404()
     user = models.User.query.filter_by(username=current_user.username).one()
-    is_owner = (deck.Player == user.spieler)
+    is_owner = (deck.player_id == user.player_id)
 
     participants = models.Participant.query.filter_by(
-        player_id=deck.Player,
+        player_id=deck.player_id,
         deck_id=deck.id
     ).order_by(models.Participant.game_id.desc()).all()
 
@@ -250,37 +185,30 @@ def deck_show(deckname):
             participants_by_game[p.game_id].append(p)
 
     row = []
-    win_turns = []
-    games_by_size = {3: [], 4: [], 5: []}
-    win_turns_by_size = {3: [], 4: [], 5: []}
-    wins_by_size = {3: 0, 4: 0, 5: 0}
-    total_by_size = {3: 0, 4: 0, 5: 0}
-
     for game_id in game_ids:
         game_data = games[game_id]
         all_participants_in_game = participants_by_game.get(game_id, [])
-        num_players = len(all_participants_in_game)
 
-        opponents = [p for p in all_participants_in_game if p.player_id != deck.Player]
+        opponents = [p for p in all_participants_in_game if p.player_id != deck.player_id]
         opponent_data = []
         for opp in opponents:
             player = players.get(opp.player_id)
             deck_obj = decks.get(opp.deck_id)
             opponent_data.append({
-                "player_name": player.Name if player else "Unknown",
-                "deck_name": deck_obj.Name if deck_obj else "Unknown Deck",
+                "player_name": player.name if player else "Unknown",
+                "deck_name": deck_obj.name if deck_obj else "Unknown Deck",
                 "commander_image": deck_obj.image_uri if deck_obj and deck_obj.image_uri else "/static/img/default_commander.png"
             })
 
-        winner_name = players.get(game_data.Winner).Name if players.get(game_data.Winner) else "Unbekannt"
+        winner_name = players.get(game_data.winner_id).name if players.get(game_data.winner_id) else "Unbekannt"
         turn_count = game_data.turns if game_data.turns else "-"
         final_blow = game_data.final_blow if game_data.final_blow else "Not Tracked"
 
         # Get participant data for this deck in this game
-        my_participant = next((p for p in all_participants_in_game if p.player_id == deck.Player and p.deck_id == deck.id), None)
+        my_participant = next((p for p in all_participants_in_game if p.player_id == deck.player_id and p.deck_id == deck.id), None)
         participant_data = None
         if my_participant:
-            is_win = game_data.Winner == deck.Player
+            is_win = game_data.winner_id == deck.player_id
             participant_data = {
                 "mulligans": getattr(my_participant, "mulligans", None),
                 "landdrops": getattr(my_participant, "landdrops", None),
@@ -297,191 +225,55 @@ def deck_show(deckname):
             }
 
         row.append({
-            "Datum": game_data.Date.strftime("%Y-%m-%d"),
-            "Gegner": opponent_data,
-            "Winner": winner_name,
-            "Turns": turn_count,
-            "Final_Blow": final_blow,
+            "datum": game_data.date.strftime("%Y-%m-%d"),
+            "gegner": opponent_data,
+            "winner": winner_name,
+            "turns": turn_count,
+            "final_blow": final_blow,
             "participant_data": participant_data,
-            "is_win": game_data.Winner == deck.Player
+            "is_win": game_data.winner_id == deck.player_id
         })
 
-        # Collect full win turn stats
-        if game_data.Winner == deck.Player and game_data.turns:
-            win_turns.append(game_data.turns)
+    # === Deck performance stats via stats_service ===
+    deck_performance = compute_deck_performance(deck, participants, games, participants_by_game)
 
-        # Stats by table size
-        if num_players in (3, 4, 5):
-            total_by_size[num_players] += 1
-            if game_data.Winner == deck.Player:
-                wins_by_size[num_players] += 1
-                if game_data.turns:
-                    win_turns_by_size[num_players].append(game_data.turns)
-
-    # === General deck stats ===
-    total_games = len(game_ids)
-    wins = sum(1 for g in game_ids if games[g].Winner == deck.Player)
-    winrate = round((wins / total_games) * 100, 1) if total_games else 0
-    last_played = games[game_ids[0]].Date.strftime("%Y-%m-%d") if game_ids else "Nie"
-
-    # === Average participant count ===
-    participant_counts = [len(participants_by_game[gid]) for gid in game_ids if gid in participants_by_game]
-    average_participants = round(statistics.mean(participant_counts), 1) if participant_counts else "–"
-
-    # === Turn stats for wins ===
     deck_stats = {
-        "games": total_games,
-        "wins": wins,
-        "winrate": winrate,
-        "last_played": last_played,
-        "avg_turns": round(statistics.mean(win_turns), 1) if win_turns else "–",
-        "median_turns": statistics.median(win_turns) if win_turns else "–",
-        "min_turns": min(win_turns) if win_turns else "–",
-        "max_turns": max(win_turns) if win_turns else "–",
-        "avg_participants": average_participants
+        "games": deck_performance['games'],
+        "wins": deck_performance['wins'],
+        "winrate": deck_performance['winrate'],
+        "last_played": deck_performance['last_played'],
+        "avg_turns": deck_performance['avg_turns'],
+        "median_turns": deck_performance['median_turns'],
+        "min_turns": deck_performance['min_turns'],
+        "max_turns": deck_performance['max_turns'],
+        "avg_participants": deck_performance['avg_participants'],
     }
 
     deck_stats_by_size = {}
     for size in (3, 4, 5):
-        games_count = total_by_size[size]
-        wins_count = wins_by_size[size]
-        turns = win_turns_by_size[size]
-
+        size_data = deck_performance['by_size'].get(str(size), {})
         deck_stats_by_size[size] = {
-            "games": games_count,
-            "wins": wins_count,
-            "winrate": round((wins_count / games_count) * 100, 1) if games_count else "–",
-            "avg_turns": round(statistics.mean(turns), 1) if turns else "–",
-            "median_turns": statistics.median(turns) if turns else "–"
+            "games": size_data.get('games', 0),
+            "wins": size_data.get('wins', 0),
+            "winrate": size_data.get('winrate', "\u2013"),
+            "avg_turns": size_data.get('avg_turns', "\u2013"),
+            "median_turns": size_data.get('median_turns', "\u2013"),
         }
 
     # Load achievements for this deck (non-functional checkboxes for now)
-    achievements = models.Achievement.query.filter_by(deck=deck.id).all()
+    achievements = models.Achievement.query.filter_by(deck_id=deck.id).all()
 
     # === Participant field averages (strictly for Player 1 and User ID 1) ===
-    show_private_avgs = (deck.Player == 1 and getattr(current_user, "id", None) == 1)
+    show_private_avgs = (deck.player_id == 1 and getattr(current_user, "id", None) == 1)
     participant_avgs = {}
     if show_private_avgs and participants:
-        fields = [
-            "mulligans",
-            "landdrops",
-            "enough_mana",
-            "enough_gas",
-            "deckplan",
-            "unanswered_threats",
-            "fun_moments",
-            "lands",
-        ]
-        percent_fields = {"enough_mana", "enough_gas", "deckplan", "unanswered_threats", "fun_moments"}
-        for f in fields:
-            numeric_values = []
-            filled_count = 0
-            for p in participants:
-                if not hasattr(p, f):
-                    continue
-                raw = getattr(p, f)
-                if raw is None:
-                    continue
-                try:
-                    num = float(raw)
-                except Exception:
-                    continue
-                # Ignore -1 for 'lands'
-                if (f == "lands" or f == "landdrops") and num == -1:
-                    continue
-                numeric_values.append(num)
-                filled_count += 1
+        participant_avgs = compute_participant_averages(deck, participants, games)
 
-            if not numeric_values:
-                participant_avgs[f] = "–"
-                continue
-
-            if f in percent_fields:
-                # Convert mean to percentage string with count
-                participant_avgs[f] = f"{round(statistics.mean(numeric_values) * 100, 1)}% ({filled_count})"
-            else:
-                # Keep as numeric average with count (e.g., mulligans, landdrops, lands)
-                participant_avgs[f] = f"{round(statistics.mean(numeric_values), 2)} ({filled_count})"
-        
-        # === Special fields: lockout loss without answer and selbsterspielter sieg ===
-        # lockout_loss_without_answer: only count games where the deck lost
-        loss_values = []
-        loss_filled_count = 0
-        for p in participants:
-            game_obj = games.get(p.game_id)
-            if not game_obj:
-                continue
-            # Only count losses
-            if game_obj.Winner == deck.Player:
-                continue
-            raw = getattr(p, "loss_without_answer", None)
-            if raw is None:
-                continue
-            try:
-                num = float(raw)
-                loss_values.append(num)
-                loss_filled_count += 1
-            except Exception:
-                continue
-        
-        if loss_values:
-            participant_avgs["lockout_loss_without_answer"] = f"{round(statistics.mean(loss_values) * 100, 1)}% ({loss_filled_count})"
-        else:
-            participant_avgs["lockout_loss_without_answer"] = "–"
-        
-        # selbsterspielter_sieg: only count games where the deck won
-        win_values = []
-        win_filled_count = 0
-        for p in participants:
-            game_obj = games.get(p.game_id)
-            if not game_obj:
-                continue
-            # Only count wins
-            if game_obj.Winner != deck.Player:
-                continue
-            raw = getattr(p, "selfmade_win", None)
-            if raw is None:
-                continue
-            try:
-                num = float(raw)
-                win_values.append(num)
-                win_filled_count += 1
-            except Exception:
-                continue
-        
-        if win_values:
-            participant_avgs["selbsterspielter_sieg"] = f"{round(statistics.mean(win_values) * 100, 1)}% ({win_filled_count})"
-        else:
-            participant_avgs["selbsterspielter_sieg"] = "–"
-        
-        # all_landdrops: percentage of games where landdrops is -1
-        all_landdrops_count = 0
-        total_landdrops_filled = 0
-        for p in participants:
-            raw = getattr(p, "landdrops", None)
-            if raw is None:
-                continue
-            try:
-                num = float(raw)
-                total_landdrops_filled += 1
-                if num == -1:
-                    all_landdrops_count += 1
-            except Exception:
-                continue
-        
-        if total_landdrops_filled > 0:
-            participant_avgs["all_landdrops"] = f"{round((all_landdrops_count / total_landdrops_filled) * 100, 1)}% ({all_landdrops_count})"
-        else:
-            participant_avgs["all_landdrops"] = "–"
-
-        # === Private comments (Player 1 owner and User ID 1) ===
-    show_private_comments = (deck.Player == 1 and getattr(current_user, "id", None) == 1)
+    # === Private comments (Player 1 owner and User ID 1) ===
+    show_private_comments = (deck.player_id == 1 and getattr(current_user, "id", None) == 1)
     private_comments = []
     if show_private_comments and participants:
-        # Try to fetch a last rework date if present on the deck model;
         last_rework_date = getattr(deck, "last_patch")
-        # Build a quick game lookup if not already done
-        # games dict already exists above keyed by id
         for p in participants:
             text = getattr(p, "comments", None)
             if not text:
@@ -489,11 +281,11 @@ def deck_show(deckname):
             game_obj = games.get(p.game_id)
             if not game_obj:
                 continue
-            if game_obj.Date < last_rework_date:
+            if game_obj.date < last_rework_date:
                 continue
             private_comments.append({
                 "game_id": p.game_id,
-                "date": game_obj.Date.strftime("%Y-%m-%d") if getattr(game_obj, "Date", None) else "",
+                "date": game_obj.date.strftime("%Y-%m-%d") if getattr(game_obj, "date", None) else "",
                 "text": text
             })
         # Sort newest first
@@ -501,8 +293,8 @@ def deck_show(deckname):
 
     return render_template(
         'decks/show.html',
-        deckname=deck.Name,
-        deck_version=f"{deck.Version}.{deck.patch}.{deck.change}",
+        deckname=deck.name,
+        deck_version=f"{deck.version}.{deck.patch}.{deck.change}",
         commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
         deck_stats=deck_stats,
@@ -513,7 +305,7 @@ def deck_show(deckname):
         participant_avgs=participant_avgs,
         show_private_comments=show_private_comments,
         private_comments=private_comments,
-        last_rework_date=deck.Last_Rework.isoformat() if deck.Last_Rework else None,
+        last_rework_date=deck.last_rework.isoformat() if deck.last_rework else None,
         last_patch_date=deck.last_patch.isoformat() if deck.last_patch else None
     )
 
@@ -533,7 +325,7 @@ def set_achievement_progress(achievement_id):
         desired = ach.achieved or 0
 
     # Clamp to [0, anzahl]
-    max_allowed = ach.anzahl or 0
+    max_allowed = ach.amount or 0
     desired = max(0, min(desired, max_allowed))
 
     # Only write if changed
@@ -556,9 +348,9 @@ def delete_achievement(achievement_id):
     ach = models.Achievement.query.get_or_404(achievement_id)
 
     # Only the deck owner may delete an achievement
-    deck = models.Deck.query.get_or_404(ach.deck)
+    deck = models.Deck.query.get_or_404(ach.deck_id)
     user = models.User.query.filter_by(username=current_user.username).one()
-    if deck.Player != user.spieler:
+    if deck.player_id != user.player_id:
         return jsonify({"ok": False, "message": "Nicht berechtigt."}), 403
 
     db.session.delete(ach)
@@ -596,14 +388,14 @@ def add_achievement():
     if anzahl < 1:
         anzahl = 1
 
-    deck = models.Deck.query.filter_by(Name=deckname).first_or_404()
+    deck = models.Deck.query.filter_by(name=deckname).first_or_404()
 
     ach = models.Achievement(
-        titel=titel,
-        beschreibung=beschreibung,
-        anzahl=anzahl,
+        title=titel,
+        description=beschreibung,
+        amount=anzahl,
         achieved=0,
-        deck=deck.id
+        deck_id=deck.id
     )
     db.session.add(ach)
     db.session.commit()
@@ -612,51 +404,19 @@ def add_achievement():
         "ok": True,
         "achievement": {
             "id": ach.id,
-            "titel": ach.titel,
-            "beschreibung": ach.beschreibung,
-            "anzahl": ach.anzahl,
+            "title": ach.title,
+            "description": ach.description,
+            "amount": ach.amount,
             "achieved": ach.achieved
         }
     }), 201
 
 
-def expected_score(rating, opponent_rating):
-    return 1 / (1 + 10 ** ((opponent_rating - rating) / 400))
-
-
-def expected_multiplayer_score(deck_id, deck_ratings):
-    """
-    Calculate the expected score for a deck in a multiplayer game.
-    This is the average of pairwise expected scores against all opponents,
-    normalized so that expected scores of all participants sum to 1.
-    """
-    opponents = {did: r for did, r in deck_ratings.items() if did != deck_id}
-    my_rating = deck_ratings[deck_id]
-
-    pairwise_sum = sum(expected_score(my_rating, opp_r) for opp_r in opponents.values())
-    return pairwise_sum / len(opponents)
-
-
-def get_game_k_factor(participants_games_played):
-    """
-    Determine a single K-factor for the entire game based on the
-    median games played across all participants.
-    This ensures the update is truly zero-sum: total Elo gained = total Elo lost.
-    """
-    median_games = statistics.median(participants_games_played)
-    if median_games <= 10:
-        return 60
-    elif median_games <= 30:
-        return 40
-    else:
-        return 24
-
-
 @bp.route('/archive/<player_name>', methods=['GET'])
 @login_required
 def deck_archive(player_name):
-    player = Player.query.filter_by(Name=player_name).first_or_404()
-    is_owner = (current_user.spieler == player.id)
+    player = Player.query.filter_by(name=player_name).first_or_404()
+    is_owner = (current_user.player_id == player.id)
     is_admin = (current_user.role == 'admin')
     return render_template(
         'decks/archive.html',
@@ -672,9 +432,9 @@ def deck_archive(player_name):
 def dearchive(deck_id):
     deck = Deck.query.get_or_404(deck_id)
     player_name = request.form.get('player_name')
-    if deck.Player != current_user.spieler and current_user.role != 'admin':
+    if deck.player_id != current_user.player_id and current_user.role != 'admin':
         abort(403)
-    deck.Active = True
+    dearchive_deck(deck)
     db.session.commit()
     return redirect(url_for('decks.deck_archive', player_name=player_name))
 
@@ -683,65 +443,27 @@ def dearchive(deck_id):
 @role_required('admin')
 @login_required
 def calculate_elo():
+    # Fetch all data needed for Elo recalculation
     decks = Deck.query.all()
-    elo_ratings = {deck.id: {'elo_rating': 1500, 'games_played': 0} for deck in decks}
-
     games = Game.query.all()
-    for game in games:
-        participants = Participant.query.filter_by(game_id=game.id).all()
-        if len(participants) < 3 or len(participants) > 5:
-            continue
 
-        # Build current ratings for this game's valid participants
-        deck_ratings = {}
-        valid_participants = []
-        for p in participants:
-            deck = Deck.query.get(p.deck_id)
-            if deck.Player != p.player_id and deck.Player != 24:
-                continue
-            if p.deck_id in elo_ratings:
-                deck_ratings[p.deck_id] = elo_ratings[p.deck_id]['elo_rating']
-                valid_participants.append(p)
+    # Build participants_by_game lookup
+    all_participants = Participant.query.all()
+    participants_by_game = defaultdict(list)
+    for p in all_participants:
+        participants_by_game[p.game_id].append(p)
 
-        if len(deck_ratings) < 2:
-            continue
+    # Delegate to elo_service
+    results = recalculate_all_elo(decks, games, dict(participants_by_game))
 
-        # Normalize expected scores so they sum to 1
-        raw_expected = {
-            did: expected_multiplayer_score(did, deck_ratings)
-            for did in deck_ratings
-        }
-        total_expected = sum(raw_expected.values())
-        normalized_expected = {
-            did: raw / total_expected
-            for did, raw in raw_expected.items()
-        }
-
-        # Single K-factor for the whole game → guarantees zero-sum
-        games_played_list = [
-            elo_ratings[p.deck_id]['games_played'] for p in valid_participants
-        ]
-        k = get_game_k_factor(games_played_list)
-
-        # Apply updates
-        for participant in valid_participants:
-            did = participant.deck_id
-            actual_score = 1.0 if game.Winner == participant.player_id else 0.0
-
-            rating = elo_ratings[did]['elo_rating']
-            new_rating = rating + k * (actual_score - normalized_expected[did])
-
-            elo_ratings[did]['elo_rating'] = new_rating
-            elo_ratings[did]['games_played'] += 1
-
-    for deck_id, values in elo_ratings.items():
-        deck = Deck.query.get(deck_id)
-        if values['games_played'] >= 5:
-            deck.elo_rating = values['elo_rating']
+    # Persist the results
+    for result in results:
+        deck = Deck.query.get(result.deck_id)
+        if result.games_played >= 5:
+            deck.elo_rating = result.new_rating
         else:
             deck.elo_rating = 0
         db.session.add(deck)
 
     db.session.commit()
     return redirect(url_for('main.index'), code=302)
-

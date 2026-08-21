@@ -28,6 +28,7 @@
     <script>
         const isOwnerOrAdmin = {{ (is_owner or is_admin)|tojson }};
         const currentPlayerName = {{ player_name|tojson }};
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
         function encode(name) {
             return encodeURIComponent(name);
@@ -88,6 +89,7 @@
                     if (isOwnerOrAdmin) {
                         cells += `<td>
                             <form method="POST" action="/decks/dearchive/${item['id']}" style="all:unset;">
+                                <input type="hidden" name="csrf_token" value="${csrfToken}">
                                 <input type="hidden" name="player_name" value="${currentPlayerName}">
                                 <button type="submit">Reaktivieren</button>
                             </form>

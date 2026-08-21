@@ -13,6 +13,7 @@
     <div class="image-grid">
         {% for uri in images %}
             <form method="post" action="{{ url_for('decks.set_commander_image', deckname=deckname) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="image_uri" value="{{ uri }}">
                 <button type="submit" class="image-select-btn">
                     <img src="{{ uri }}" alt="Commander Image Option" class="selectable-image">
