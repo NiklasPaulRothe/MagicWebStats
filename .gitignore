@@ -17,7 +17,11 @@ __pycache__
 app/logs/
 logs/
 files/
+scripts/files/
 logs/webstats.log
 backups/
 .kiro/
 migrations/
+.hypothesis/
+.pytest_cache/
+test_results.txt

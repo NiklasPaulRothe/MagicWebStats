@@ -5,10 +5,12 @@ None of the functions in this module commit the session — the caller is respon
 for committing.
 """
 
+from __future__ import annotations
+
 from sqlalchemy import func
 
 from app import db
-from app.models import Deck, DeckVersionHistory
+from app.models import Deck, DeckVersionHistory, Game, Participant, Player
 from app.third_party_data.deckbuilder import get_id_from_url, load_cards_from_archidekt
 
 
@@ -160,3 +162,99 @@ def update_decklist(deck: Deck, decklist_url: str) -> None:
     except Exception:
         db.session.rollback()
         raise
+
+
+def build_game_history(
+    deck: Deck,
+    participants: list[Participant],
+    games: dict[int, Game],
+    participants_by_game: dict[int, list[Participant]],
+    players: dict[int, Player],
+    decks: dict[int, Deck],
+) -> list[dict]:
+    """Build the game-history row list for a deck's show page.
+
+    Assembles one dict per game the deck participated in, containing
+    opponent info, winner name, turn count, final blow, participant
+    performance data, and win flag.
+
+    This is a pure computation function — no Flask request context dependency.
+
+    Args:
+        deck: The deck being viewed.
+        participants: Participant records for this deck's owner/deck combo,
+            ordered by game_id descending.
+        games: Game lookup by ID.
+        participants_by_game: All participants grouped by game ID.
+        players: Player lookup by ID.
+        decks: Deck lookup by ID.
+
+    Returns:
+        A list of dicts, each containing keys: datum, gegner, winner,
+        turns, final_blow, participant_data, is_win.
+    """
+    rows: list[dict] = []
+
+    for participant in participants:
+        game_id = participant.game_id
+        game_data = games.get(game_id)
+        if game_data is None:
+            continue
+
+        all_participants_in_game = participants_by_game.get(game_id, [])
+
+        # Resolve opponents (participants whose player_id differs from the deck's owner)
+        opponents = [p for p in all_participants_in_game if p.player_id != deck.player_id]
+        opponent_data = []
+        for opp in opponents:
+            player = players.get(opp.player_id)
+            deck_obj = decks.get(opp.deck_id)
+            opponent_data.append({
+                "player_name": player.name if player else "Unknown",
+                "deck_name": deck_obj.name if deck_obj else "Unknown Deck",
+                "commander_image": deck_obj.image_uri if deck_obj and deck_obj.image_uri else "/static/img/default_commander.png",
+            })
+
+        winner_name = (
+            players.get(game_data.winner_id).name
+            if players.get(game_data.winner_id)
+            else "Unbekannt"
+        )
+        turn_count = game_data.turns if game_data.turns else "-"
+        final_blow = game_data.final_blow if game_data.final_blow else "Not Tracked"
+
+        # Get participant data for this deck in this game
+        my_participant = next(
+            (p for p in all_participants_in_game
+             if p.player_id == deck.player_id and p.deck_id == deck.id),
+            None,
+        )
+        participant_data = None
+        if my_participant:
+            is_win = game_data.winner_id == deck.player_id
+            participant_data = {
+                "mulligans": getattr(my_participant, "mulligans", None),
+                "landdrops": getattr(my_participant, "landdrops", None),
+                "lands": getattr(my_participant, "lands", None),
+                "enough_mana": getattr(my_participant, "enough_mana", None),
+                "enough_gas": getattr(my_participant, "enough_gas", None),
+                "deckplan": getattr(my_participant, "deckplan", None),
+                "unanswered_threats": getattr(my_participant, "unanswered_threats", None),
+                "fun_moments": getattr(my_participant, "fun_moments", None),
+                "loss_without_answer": getattr(my_participant, "loss_without_answer", None) if not is_win else None,
+                "selfmade_win": getattr(my_participant, "selfmade_win", None) if is_win else None,
+                "comments": getattr(my_participant, "comments", None),
+                "is_win": is_win,
+            }
+
+        rows.append({
+            "datum": game_data.date.strftime("%Y-%m-%d"),
+            "gegner": opponent_data,
+            "winner": winner_name,
+            "turns": turn_count,
+            "final_blow": final_blow,
+            "participant_data": participant_data,
+            "is_win": game_data.winner_id == deck.player_id,
+        })
+
+    return rows

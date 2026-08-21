@@ -2,15 +2,17 @@
 
 Provides functions for managing games and their participants with proper
 transaction handling — single commit per operation, full rollback on failure.
+Also provides thin DB-accessor helpers for participant resolution.
 """
 
 from dataclasses import dataclass
 from datetime import date as date_type
 
 import sqlalchemy as sa
+from sqlalchemy import literal
 
 from app import db
-from app.models import Game, Participant
+from app.models import Deck, Game, Participant, Player
 from app.services.audit import write_audit_log
 
 
@@ -38,6 +40,63 @@ class ParticipantInput:
     removal_played: int | None = None
     targeted_by_removal: int | None = None
     protection_played: int | None = None
+
+
+def resolve_player_id(name: str) -> int:
+    """Resolve a player name to its database ID.
+
+    Looks up the player by exact name match and returns the primary key.
+
+    Args:
+        name: The player's display name.
+
+    Returns:
+        The player's integer ID.
+
+    Raises:
+        ValueError: If no player with the given name exists.
+    """
+    player_id = db.session.scalar(
+        sa.select(Player.id).where(Player.name == name)
+    )
+    if player_id is None:
+        raise ValueError(f"Player '{name}' not found")
+    return player_id
+
+
+def resolve_deck_id(deck_display_name: str, owner_name: str) -> int:
+    """Resolve a deck from its display name and owner name.
+
+    The display name from the form may contain additional information
+    (e.g. the commander), so the lookup checks that the display name
+    contains the deck's stored name. The owner is matched by exact
+    player name.
+
+    Args:
+        deck_display_name: The deck display string (may contain deck name
+            plus commander or other info).
+        owner_name: The name of the deck's owner (player).
+
+    Returns:
+        The deck's integer ID.
+
+    Raises:
+        ValueError: If the owner player or matching deck cannot be found.
+    """
+    owner_id = resolve_player_id(owner_name)
+
+    deck = db.session.scalar(
+        sa.select(Deck).where(
+            literal(deck_display_name).contains(Deck.name),
+            Deck.player_id == owner_id,
+        )
+    )
+    if deck is None:
+        raise ValueError(
+            f"Deck not found for display name '{deck_display_name}' "
+            f"with owner '{owner_name}'"
+        )
+    return deck.id
 
 
 def create_game(

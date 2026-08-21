@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
-{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/autocomplete.css') }}">
+{% endblock %}
 
 {% block content %}
     <h1>Add Game</h1>
@@ -230,6 +233,7 @@
     <script id="deck-data" type="application/json">{{ decks | tojson }}</script>
     <script id="ci-data" type="application/json">{{ ci_data | tojson }}</script>
     <script src="{{ url_for('static', filename='js/GameAdd.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 
     <!-- Quick-Add Player Modal -->
     <div class="modal-overlay" id="add-player-modal" style="display:none">
@@ -409,6 +413,12 @@
             deckPlayerSel.innerHTML = '';
             players.forEach(p => deckPlayerSel.add(new Option(p, p)));
         }
+
+        // ─── Autocomplete for commander & partner in deck modal ─────────────
+        const deckCommanderInput = document.getElementById('new-deck-commander');
+        const deckPartnerInput = document.getElementById('new-deck-partner');
+        initAutocomplete(deckCommanderInput);
+        initAutocomplete(deckPartnerInput);
 
         document.getElementById('open-add-deck-modal').addEventListener('click', () => {
             populateDeckModalSelects();

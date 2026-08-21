@@ -1,6 +1,4 @@
 import logging
-import statistics
-from collections import Counter
 from datetime import date, timedelta
 
 from app import db
@@ -12,6 +10,7 @@ import sqlalchemy as sa
 logger = logging.getLogger(__name__)
 
 from app.models import User, Player, Game, Participant
+from app.services.stats_service import compute_chart_data
 from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
@@ -30,17 +29,17 @@ def healthz():
 @login_required
 def index():
     color_usage = ColorUsage.query.all()
-    
+
     # Only include players who have played at least one game in the last year
     one_year_ago = date.today() - timedelta(days=365)
-    active_player_names = set(
-        row[0] for row in db.session.query(Player.name)
+    active_player_stmt = (
+        sa.select(Player.name)
         .join(Participant, Participant.player_id == Player.id)
         .join(Game, Game.id == Participant.game_id)
-        .filter(Game.date >= one_year_ago)
+        .where(Game.date >= one_year_ago)
         .distinct()
-        .all()
     )
+    active_player_names = set(db.session.scalars(active_player_stmt).all())
     color_usage_player = [
         cup for cup in ColorUsagePlayer.query.all()
         if cup.Player in active_player_names
@@ -55,67 +54,35 @@ def index():
         } for cu in color_usage
     ]
 
-    # === Turn Chart Data ===
-    games = Game.query.with_entities(Game.turns).filter(
-        Game.turns.isnot(None),
-        Game.cedh != True
-    ).all()
-    turns_list = [g.turns for g in games]
-
-    # Count per turn
-    turn_counts = Counter(turns_list)
-    sorted_turns = sorted(turn_counts.items())
-    turn_data = [{"turn": t, "count": count} for t, count in sorted_turns]
-
-    games = Game.query.with_entities(Game.first_ko_turn).filter(
-        Game.first_ko_turn.isnot(None),
-        Game.cedh != True
-    ).all()
-    ko_turns_list = [g.first_ko_turn for g in games]
-
-    # Count per ko_turn
-    ko_turn_counts = Counter(ko_turns_list)
-    sorted_ko_turns = sorted(ko_turn_counts.items())
-    ko_turn_data = [{"turn": t, "count": count} for t, count in sorted_ko_turns]
-
-    # Compute average and median
-    avg_turns = round(statistics.mean(turns_list), 2) if turns_list else 0
-    median_turns = round(statistics.median(turns_list), 2) if turns_list else 0
-
-    # Compute average and median for ko turns
-    avg_ko_turns = round(statistics.mean(ko_turns_list), 2) if turns_list else 0
-    median_ko_turns = round(statistics.median(ko_turns_list), 2) if turns_list else 0
-
-    # Final blow pie chart data
-    final_blow_counts = (
-        db.session.query(Game.final_blow)
-        .filter(Game.final_blow.isnot(None), Game.cedh != True)
-        .all()
-    )
-    final_blow_flat = [fb[0] for fb in final_blow_counts]
-    final_blow_counter = dict(Counter(final_blow_flat))
-
-    # First KO pie chart data
-    first_ko_counts = (
-        db.session.query(Game.first_ko_by)
-        .filter(Game.first_ko_by.isnot(None), Game.cedh != True)
-        .all()
-    )
-    first_ko_flat = [fb[0] for fb in first_ko_counts]
-    first_ko_counter = dict(Counter(first_ko_flat))
+    # Chart data computed via service layer
+    try:
+        chart_data = compute_chart_data(exclude_cedh=True)
+    except Exception:
+        logger.exception("Failed to compute chart data")
+        db.session.rollback()
+        chart_data = {
+            "turn_data": [],
+            "ko_turn_data": [],
+            "avg_turns": 0,
+            "median_turns": 0,
+            "avg_ko_turns": 0,
+            "median_ko_turns": 0,
+            "final_blow_data": {},
+            "first_ko_data": {},
+        }
 
     return render_template(
         'index.html',
         color_usage=color_usage_data,
         color_usage_player=color_usage_player,
-        turn_data=turn_data,
-        final_blow_data=final_blow_counter,
-        first_ko_data=first_ko_counter,
-        ko_turn_data=ko_turn_data,
-        avg_turns=avg_turns,
-        median_turns=median_turns,
-        avg_ko_turns=avg_ko_turns,
-        median_ko_turns=median_ko_turns
+        turn_data=chart_data["turn_data"],
+        final_blow_data=chart_data["final_blow_data"],
+        first_ko_data=chart_data["first_ko_data"],
+        ko_turn_data=chart_data["ko_turn_data"],
+        avg_turns=chart_data["avg_turns"],
+        median_turns=chart_data["median_turns"],
+        avg_ko_turns=chart_data["avg_ko_turns"],
+        median_ko_turns=chart_data["median_ko_turns"]
     )
 
 

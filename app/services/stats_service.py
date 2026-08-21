@@ -7,14 +7,16 @@ and pure computation functions.
 """
 
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
+
+import sqlalchemy as sa
+from sqlalchemy import func
 
 from app import db
 from app.models import (
     Player, Deck, ColorIdentity, ColorComponent, Color,
     Participant, Game, DeckComponent,
 )
-from sqlalchemy import func
 
 
 def get_players() -> list[str]:
@@ -25,7 +27,7 @@ def get_players() -> list[str]:
     Returns:
         Sorted list of player name strings.
     """
-    return [p.name for p in Player.query.order_by(Player.name).all()]
+    return [p.name for p in db.session.scalars(sa.select(Player).order_by(Player.name)).all()]
 
 
 def get_active_decks() -> list[tuple[str, str, str]]:
@@ -37,13 +39,13 @@ def get_active_decks() -> list[tuple[str, str, str]]:
     Returns:
         List of (deck_name, commander, player_name) tuples, ordered by commander.
     """
-    rows = (
-        db.session.query(Deck.name, Deck.commander, Player.name)
+    stmt = (
+        sa.select(Deck.name, Deck.commander, Player.name)
         .join(Player, Player.id == Deck.player_id)
-        .filter(Deck.active == True)  # noqa: E712
+        .where(Deck.active == True)  # noqa: E712
         .order_by(Deck.commander)
-        .all()
     )
+    rows = db.session.execute(stmt).all()
     return [(name, commander, player_name) for name, commander, player_name in rows]
 
 
@@ -58,12 +60,12 @@ def get_color_identities() -> list[dict]:
     Returns:
         List of dicts: [{'name': str, 'imgs': list[str]}, ...]
     """
-    colorless = Color.query.filter_by(name='Colorless').first()
+    colorless = db.session.scalar(sa.select(Color).where(Color.name == 'Colorless'))
     colorless_img = colorless.img if colorless and colorless.img else None
 
     # Fetch all components and colors in bulk
-    components = ColorComponent.query.all()
-    colors = {c.name: c.img for c in Color.query.all()}
+    components = db.session.scalars(sa.select(ColorComponent)).all()
+    colors = {c.name: c.img for c in db.session.scalars(sa.select(Color)).all()}
 
     # Group images by identity
     identity_imgs: dict[str, list[str]] = {}
@@ -72,7 +74,7 @@ def get_color_identities() -> list[dict]:
         if img:
             identity_imgs.setdefault(comp.color_identity, []).append(img)
 
-    identities = ColorIdentity.query.all()
+    identities = db.session.scalars(sa.select(ColorIdentity)).all()
     result = []
     for identity in identities:
         imgs = identity_imgs.get(identity.name, [])
@@ -359,23 +361,108 @@ def get_card_usage_counts() -> list[dict[str, object]]:
         List of dicts: [{'name': str, 'count': int}, ...] sorted by count descending.
     """
     active_deck_ids = (
-        db.session.query(Deck.id)
-        .filter(Deck.decksite.contains('archidekt'), Deck.active == True)  # noqa: E712
-        .subquery()
+        sa.select(Deck.id)
+        .where(Deck.decksite.contains('archidekt'), Deck.active == True)  # noqa: E712
+        .scalar_subquery()
     )
 
-    results = (
-        db.session.query(
+    stmt = (
+        sa.select(
             DeckComponent.name,
             func.sum(DeckComponent.count).label('total_count')
         )
-        .filter(
+        .where(
             DeckComponent.card_id.isnot(None),
             DeckComponent.deck_id.in_(active_deck_ids)
         )
         .group_by(DeckComponent.name)
         .having(func.sum(DeckComponent.count) > 0)
-        .all()
     )
 
+    results = db.session.execute(stmt).all()
+
     return [{'name': name, 'count': int(total)} for name, total in results]
+
+
+def compute_chart_data(exclude_cedh: bool = True) -> dict:
+    """Compute chart data for the index page.
+
+    Queries the database for turn data, first-KO data, final-blow counts,
+    and first-KO-by counts, then computes Counter aggregations and statistical
+    summaries.
+
+    Parameters:
+        exclude_cedh: Whether to exclude cEDH games (default True).
+
+    Returns:
+        dict with keys:
+            - turn_data: list[dict] — [{"turn": int, "count": int}, ...]
+            - ko_turn_data: list[dict] — [{"turn": int, "count": int}, ...]
+            - avg_turns: float
+            - median_turns: float
+            - avg_ko_turns: float
+            - median_ko_turns: float
+            - final_blow_data: dict[str, int]
+            - first_ko_data: dict[str, int]
+    """
+    # Build base filter for cedh exclusion
+    cedh_filter = (Game.cedh != True,) if exclude_cedh else ()  # noqa: E712
+
+    # === Turn Chart Data ===
+    turns_stmt = sa.select(Game.turns).where(
+        Game.turns.isnot(None),
+        *cedh_filter
+    )
+    turns_list = list(db.session.scalars(turns_stmt).all())
+
+    # Count per turn
+    turn_counts = Counter(turns_list)
+    sorted_turns = sorted(turn_counts.items())
+    turn_data = [{"turn": t, "count": count} for t, count in sorted_turns]
+
+    # === KO Turn Chart Data ===
+    ko_turns_stmt = sa.select(Game.first_ko_turn).where(
+        Game.first_ko_turn.isnot(None),
+        *cedh_filter
+    )
+    ko_turns_list = list(db.session.scalars(ko_turns_stmt).all())
+
+    # Count per ko_turn
+    ko_turn_counts = Counter(ko_turns_list)
+    sorted_ko_turns = sorted(ko_turn_counts.items())
+    ko_turn_data = [{"turn": t, "count": count} for t, count in sorted_ko_turns]
+
+    # Compute average and median for turns
+    avg_turns = round(statistics.mean(turns_list), 2) if turns_list else 0
+    median_turns = round(statistics.median(turns_list), 2) if turns_list else 0
+
+    # Compute average and median for ko turns
+    avg_ko_turns = round(statistics.mean(ko_turns_list), 2) if ko_turns_list else 0
+    median_ko_turns = round(statistics.median(ko_turns_list), 2) if ko_turns_list else 0
+
+    # === Final blow pie chart data ===
+    final_blow_stmt = sa.select(Game.final_blow).where(
+        Game.final_blow.isnot(None),
+        *cedh_filter
+    )
+    final_blow_list = list(db.session.scalars(final_blow_stmt).all())
+    final_blow_data = dict(Counter(final_blow_list))
+
+    # === First KO pie chart data ===
+    first_ko_stmt = sa.select(Game.first_ko_by).where(
+        Game.first_ko_by.isnot(None),
+        *cedh_filter
+    )
+    first_ko_list = list(db.session.scalars(first_ko_stmt).all())
+    first_ko_data = dict(Counter(first_ko_list))
+
+    return {
+        "turn_data": turn_data,
+        "ko_turn_data": ko_turn_data,
+        "avg_turns": avg_turns,
+        "median_turns": median_turns,
+        "avg_ko_turns": avg_ko_turns,
+        "median_ko_turns": median_ko_turns,
+        "final_blow_data": final_blow_data,
+        "first_ko_data": first_ko_data,
+    }

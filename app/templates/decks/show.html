@@ -359,6 +359,7 @@
                 const data = await resp.json();
                 updatePerf(data);
             } catch (e) {
+                console.error('Failed to load deck performance:', e);
                 if (perfInfo) perfInfo.textContent = 'Error';
             }
         }
@@ -385,6 +386,7 @@
                 const data = await resp.json();
                 updateAvg(data);
             } catch (e) {
+                console.error('Failed to load participant averages:', e);
                 if (avgInfo) avgInfo.textContent = 'Error';
             }
         }
@@ -473,6 +475,7 @@
                 const data = await resp.json();
                 updatePerf(data);
             } catch (e) {
+                console.error('Failed to load deck performance:', e);
                 if (info) info.textContent = 'Error';
             }
         }
@@ -743,6 +746,7 @@
       const btnAch = document.getElementById('btn-mode-achievements');
       btnAch?.click();
     }).catch((err) => {
+      console.error('Failed to add achievement:', err);
       alert(err.message || 'Fehler beim Speichern.');
     });
   });
@@ -769,10 +773,10 @@
       const accepted = data.achieved ?? desired;
       checks.forEach((c, idx) => { c.checked = idx < accepted; });
     }).catch((err) => {
+      console.error('Failed to update achievement progress:', err);
       const previous = cardEl.getAttribute('data-prev-count');
       const prevCount = previous ? parseInt(previous, 10) : 0;
       checks.forEach((c, idx) => { c.checked = idx < prevCount; });
-      console.warn('Achievement update failed:', err);
     }).finally(() => {
       const current = Array.from(checks).filter(c => c.checked).length;
       cardEl.setAttribute('data-prev-count', String(current));
@@ -807,6 +811,7 @@
         grid.parentNode.insertBefore(p, grid.nextSibling);
       }
     }).catch((err) => {
+      console.error('Failed to delete achievement:', err);
       alert(err.message || 'Fehler beim Löschen.');
     });
   }

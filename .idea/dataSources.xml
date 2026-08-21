@@ -8,13 +8,6 @@
       <jdbc-url>jdbc:sqlite:C:\Users\paul-\PycharmProjects\MagicWebStats\app.db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
-    <data-source source="LOCAL" name="dc6rffout68rh0@cao3rh93rl3b8f.cluster-czz5s0kz4scl.eu-west-1.rds.amazonaws.com" uuid="ddb6e770-6dab-4c40-a752-eec5fbcfe5aa">
-      <driver-ref>postgresql</driver-ref>
-      <synchronize>true</synchronize>
-      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
-      <jdbc-url>jdbc:postgresql://cao3rh93rl3b8f.cluster-czz5s0kz4scl.eu-west-1.rds.amazonaws.com:5432/dc6rffout68rh0</jdbc-url>
-      <working-dir>$ProjectFileDir$</working-dir>
-    </data-source>
     <data-source source="LOCAL" name="dc6rffout68rh0@cao3rh93rl3b8f.cluster-czz5s0kz4scl.eu-west-1.rds.amazonaws.com [2]" uuid="4caf860c-357e-4051-b349-28dc14b73fa4">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>

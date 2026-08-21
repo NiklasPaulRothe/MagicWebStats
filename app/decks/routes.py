@@ -1,7 +1,9 @@
 import logging
+from collections import defaultdict
 
 from flask import render_template, flash, redirect, url_for, request, abort
 from flask_login import login_required, current_user
+import sqlalchemy as sa
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,7 @@ from app.services.audit import write_audit_log
 from app.services.deck_service import (
     version_change, version_patch, version_rework,
     archive_deck, dearchive_deck, update_decklist,
+    build_game_history,
 )
 from app.services.elo_service import recalculate_all_elo
 from app.services.stats_service import compute_participant_averages, compute_deck_performance
@@ -33,9 +36,9 @@ from app.services.stats_service import compute_participant_averages, compute_dec
 @bp.route('/edit/<deckname>', methods=['GET', 'POST'])
 @login_required
 def deck_edit(deckname):
-    deck = Deck.query.filter(Deck.name == deckname).one()
-    user = User.query.filter(User.username == current_user.username).one()
-    owner = Player.query.filter(user.player_id == Player.id).one()
+    deck = db.session.execute(sa.select(Deck).where(Deck.name == deckname)).scalar_one()
+    user = db.session.execute(sa.select(User).where(User.username == current_user.username)).scalar_one()
+    owner = db.session.execute(sa.select(Player).where(Player.id == user.player_id)).scalar_one()
     if deck.player_id != owner.id:
         flash('Du bist nicht berechtigt dieses Deck zu bearbeiten')
         return redirect(url_for('main.index'))
@@ -103,13 +106,13 @@ def deck_edit(deckname):
 @bp.route('/choose_image/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def choose_commander_image(deckname):
-    deck = models.Deck.query.filter_by(name=deckname).first()
+    deck = db.session.execute(sa.select(models.Deck).where(models.Deck.name == deckname)).scalar_one_or_none()
     if not deck:
         flash("Deck not found", "error")
         return redirect(url_for('main.index'))
 
     # Query the new cards table, get front face images
-    cards = models.Card.query.filter_by(name=deck.commander).all()
+    cards = db.session.scalars(sa.select(models.Card).where(models.Card.name == deck.commander)).all()
     images = []
     for card in cards:
         front_face = next((f for f in card.faces if f.face_index == 0), None)
@@ -122,7 +125,7 @@ def choose_commander_image(deckname):
 @login_required
 def set_commander_image(deckname):
     image_uri = request.form.get('image_uri')
-    deck = models.Deck.query.filter_by(name=deckname).first()
+    deck = db.session.execute(sa.select(models.Deck).where(models.Deck.name == deckname)).scalar_one_or_none()
 
     if not deck or not image_uri:
         flash("Fehler beim Aktualisieren des Bildes", "error")
@@ -134,17 +137,17 @@ def set_commander_image(deckname):
     return redirect(url_for('decks.deck_show', deckname=deckname))
 
 
-from collections import defaultdict
-
 @bp.route('/version-history/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def version_history(deckname):
-    deck = models.Deck.query.filter_by(name=deckname).first_or_404()
+    deck = db.first_or_404(sa.select(models.Deck).where(models.Deck.name == deckname))
 
     # Get all version history entries for this deck, ordered by timestamp descending
-    history = models.DeckVersionHistory.query.filter_by(
-        deck_id=deck.id
-    ).order_by(models.DeckVersionHistory.timestamp.desc()).all()
+    history = db.session.scalars(
+        sa.select(models.DeckVersionHistory)
+        .where(models.DeckVersionHistory.deck_id == deck.id)
+        .order_by(models.DeckVersionHistory.timestamp.desc())
+    ).all()
 
     return render_template(
         'decks/version_history.html',
@@ -155,14 +158,15 @@ def version_history(deckname):
 @bp.route('/show/<deckname>', methods=['GET'], strict_slashes=False)
 @login_required
 def deck_show(deckname):
-    deck = models.Deck.query.filter_by(name=deckname).first_or_404()
-    user = models.User.query.filter_by(username=current_user.username).one()
+    deck = db.first_or_404(sa.select(models.Deck).where(models.Deck.name == deckname))
+    user = db.session.execute(sa.select(models.User).where(models.User.username == current_user.username)).scalar_one()
     is_owner = (deck.player_id == user.player_id)
 
-    participants = models.Participant.query.filter_by(
-        player_id=deck.player_id,
-        deck_id=deck.id
-    ).order_by(models.Participant.game_id.desc()).all()
+    participants = db.session.scalars(
+        sa.select(models.Participant)
+        .where(models.Participant.player_id == deck.player_id, models.Participant.deck_id == deck.id)
+        .order_by(models.Participant.game_id.desc())
+    ).all()
 
     game_ids = [p.game_id for p in participants]
     games = {}
@@ -170,72 +174,47 @@ def deck_show(deckname):
     players, decks = {}, {}
 
     if game_ids:
-        games = {g.id: g for g in models.Game.query.filter(models.Game.id.in_(game_ids)).all()}
-        all_participants = models.Participant.query.filter(
-            models.Participant.game_id.in_(game_ids)
+        games = {g.id: g for g in db.session.scalars(
+            sa.select(models.Game).where(models.Game.id.in_(game_ids))
+        ).all()}
+        all_participants = db.session.scalars(
+            sa.select(models.Participant).where(models.Participant.game_id.in_(game_ids))
         ).all()
 
         player_ids = {p.player_id for p in all_participants}
         deck_ids = {p.deck_id for p in all_participants}
 
-        players = {p.id: p for p in models.Player.query.filter(models.Player.id.in_(player_ids)).all()}
-        decks = {d.id: d for d in models.Deck.query.filter(models.Deck.id.in_(deck_ids)).all()}
+        players = {p.id: p for p in db.session.scalars(
+            sa.select(models.Player).where(models.Player.id.in_(player_ids))
+        ).all()}
+        decks = {d.id: d for d in db.session.scalars(
+            sa.select(models.Deck).where(models.Deck.id.in_(deck_ids))
+        ).all()}
 
         for p in all_participants:
             participants_by_game[p.game_id].append(p)
 
-    row = []
-    for game_id in game_ids:
-        game_data = games[game_id]
-        all_participants_in_game = participants_by_game.get(game_id, [])
-
-        opponents = [p for p in all_participants_in_game if p.player_id != deck.player_id]
-        opponent_data = []
-        for opp in opponents:
-            player = players.get(opp.player_id)
-            deck_obj = decks.get(opp.deck_id)
-            opponent_data.append({
-                "player_name": player.name if player else "Unknown",
-                "deck_name": deck_obj.name if deck_obj else "Unknown Deck",
-                "commander_image": deck_obj.image_uri if deck_obj and deck_obj.image_uri else "/static/img/default_commander.png"
-            })
-
-        winner_name = players.get(game_data.winner_id).name if players.get(game_data.winner_id) else "Unbekannt"
-        turn_count = game_data.turns if game_data.turns else "-"
-        final_blow = game_data.final_blow if game_data.final_blow else "Not Tracked"
-
-        # Get participant data for this deck in this game
-        my_participant = next((p for p in all_participants_in_game if p.player_id == deck.player_id and p.deck_id == deck.id), None)
-        participant_data = None
-        if my_participant:
-            is_win = game_data.winner_id == deck.player_id
-            participant_data = {
-                "mulligans": getattr(my_participant, "mulligans", None),
-                "landdrops": getattr(my_participant, "landdrops", None),
-                "lands": getattr(my_participant, "lands", None),
-                "enough_mana": getattr(my_participant, "enough_mana", None),
-                "enough_gas": getattr(my_participant, "enough_gas", None),
-                "deckplan": getattr(my_participant, "deckplan", None),
-                "unanswered_threats": getattr(my_participant, "unanswered_threats", None),
-                "fun_moments": getattr(my_participant, "fun_moments", None),
-                "loss_without_answer": getattr(my_participant, "loss_without_answer", None) if not is_win else None,
-                "selfmade_win": getattr(my_participant, "selfmade_win", None) if is_win else None,
-                "comments": getattr(my_participant, "comments", None),
-                "is_win": is_win
-            }
-
-        row.append({
-            "datum": game_data.date.strftime("%Y-%m-%d"),
-            "gegner": opponent_data,
-            "winner": winner_name,
-            "turns": turn_count,
-            "final_blow": final_blow,
-            "participant_data": participant_data,
-            "is_win": game_data.winner_id == deck.player_id
-        })
+    try:
+        row = build_game_history(deck, participants, games, participants_by_game, players, decks)
+    except Exception:
+        logger.exception("Failed to build game history for deck %s", deckname)
+        db.session.rollback()
+        row = []
+        flash("Ein Fehler ist aufgetreten beim Laden der Spielhistorie.")
 
     # === Deck performance stats via stats_service ===
-    deck_performance = compute_deck_performance(deck, participants, games, participants_by_game)
+    try:
+        deck_performance = compute_deck_performance(deck, participants, games, participants_by_game)
+    except Exception:
+        logger.exception("Failed to compute deck performance for deck %s", deckname)
+        db.session.rollback()
+        deck_performance = {
+            'games': 0, 'wins': 0, 'winrate': "\u2013",
+            'last_played': None, 'avg_turns': "\u2013",
+            'median_turns': "\u2013", 'min_turns': "\u2013",
+            'max_turns': "\u2013", 'avg_participants': "\u2013",
+            'by_size': {},
+        }
 
     deck_stats = {
         "games": deck_performance['games'],
@@ -261,7 +240,9 @@ def deck_show(deckname):
         }
 
     # Load achievements for this deck (non-functional checkboxes for now)
-    achievements = models.Achievement.query.filter_by(deck_id=deck.id).all()
+    achievements = db.session.scalars(
+        sa.select(models.Achievement).where(models.Achievement.deck_id == deck.id)
+    ).all()
 
     # === Participant field averages (strictly for Player 1 and User ID 1) ===
     show_private_avgs = (deck.player_id == 1 and getattr(current_user, "id", None) == 1)
@@ -315,7 +296,7 @@ def deck_show(deckname):
 def set_achievement_progress(achievement_id):
     from flask import request, jsonify
 
-    ach = models.Achievement.query.get_or_404(achievement_id)
+    ach = db.get_or_404(models.Achievement, achievement_id)
 
     # Read desired value from JSON
     payload = request.get_json(silent=True) or {}
@@ -345,11 +326,11 @@ def set_achievement_progress(achievement_id):
 def delete_achievement(achievement_id):
     from flask import jsonify
 
-    ach = models.Achievement.query.get_or_404(achievement_id)
+    ach = db.get_or_404(models.Achievement, achievement_id)
 
     # Only the deck owner may delete an achievement
-    deck = models.Deck.query.get_or_404(ach.deck_id)
-    user = models.User.query.filter_by(username=current_user.username).one()
+    deck = db.get_or_404(models.Deck, ach.deck_id)
+    user = db.session.execute(sa.select(models.User).where(models.User.username == current_user.username)).scalar_one()
     if deck.player_id != user.player_id:
         return jsonify({"ok": False, "message": "Nicht berechtigt."}), 403
 
@@ -388,7 +369,7 @@ def add_achievement():
     if anzahl < 1:
         anzahl = 1
 
-    deck = models.Deck.query.filter_by(name=deckname).first_or_404()
+    deck = db.first_or_404(sa.select(models.Deck).where(models.Deck.name == deckname))
 
     ach = models.Achievement(
         title=titel,
@@ -415,7 +396,7 @@ def add_achievement():
 @bp.route('/archive/<player_name>', methods=['GET'])
 @login_required
 def deck_archive(player_name):
-    player = Player.query.filter_by(name=player_name).first_or_404()
+    player = db.first_or_404(sa.select(Player).where(Player.name == player_name))
     is_owner = (current_user.player_id == player.id)
     is_admin = (current_user.role == 'admin')
     return render_template(
@@ -430,7 +411,7 @@ def deck_archive(player_name):
 @bp.route('/dearchive/<int:deck_id>', methods=['POST'])
 @login_required
 def dearchive(deck_id):
-    deck = Deck.query.get_or_404(deck_id)
+    deck = db.get_or_404(Deck, deck_id)
     player_name = request.form.get('player_name')
     if deck.player_id != current_user.player_id and current_user.role != 'admin':
         abort(403)
@@ -444,11 +425,11 @@ def dearchive(deck_id):
 @login_required
 def calculate_elo():
     # Fetch all data needed for Elo recalculation
-    decks = Deck.query.all()
-    games = Game.query.all()
+    decks = db.session.scalars(sa.select(Deck)).all()
+    games = db.session.scalars(sa.select(Game)).all()
 
     # Build participants_by_game lookup
-    all_participants = Participant.query.all()
+    all_participants = db.session.scalars(sa.select(Participant)).all()
     participants_by_game = defaultdict(list)
     for p in all_participants:
         participants_by_game[p.game_id].append(p)
@@ -458,7 +439,7 @@ def calculate_elo():
 
     # Persist the results
     for result in results:
-        deck = Deck.query.get(result.deck_id)
+        deck = db.session.get(Deck, result.deck_id)
         if result.games_played >= 5:
             deck.elo_rating = result.new_rating
         else:
