@@ -3,7 +3,7 @@ import time
 import traceback
 
 import pyrchidekt
-from flask import current_app, render_template, redirect, url_for
+from flask import redirect, url_for
 from flask_login import login_required
 from pyrchidekt.api import getDeckById
 
@@ -13,13 +13,6 @@ from app.models import DeckComponent, Deck, DeckTag
 from app.third_party_data import bp
 
 logger = logging.getLogger(__name__)
-
-
-
-def load_cards_for_decks():
-    current_app.task_queue.enqueue(load_all_decks, job_timeout=600)
-
-    return render_template('index.html')
 
 
 def get_id_from_url(url):

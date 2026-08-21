@@ -11,17 +11,7 @@ from flask_login import LoginManager, FlaskLoginClient
 
 from app import db as _db
 from app.models import User
-
-
-class TestConfig:
-    """Flask configuration for testing with SQLite in-memory DB."""
-
-    TESTING = True
-    SECRET_KEY = "test-secret-key"
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    WTF_CSRF_ENABLED = False
-    SESSION_COOKIE_DOMAIN = False
+from config import TestingConfig
 
 
 @pytest.fixture(scope="session")
@@ -34,7 +24,7 @@ def app():
     """
     from app import create_app
 
-    application = create_app(config_class=TestConfig)
+    application = create_app(config_class=TestingConfig)
 
     with application.app_context():
         # Attach a schema named 'magic_stats_owner' for SQLite compatibility

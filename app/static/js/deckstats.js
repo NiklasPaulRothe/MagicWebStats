@@ -1,13 +1,34 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 let originalData = [];
 let currentSort = { idx: null, asc: true, type: null };
 
 document.addEventListener('DOMContentLoaded', function () {
     fetch('/api/deck-data')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        })
         .then(data => {
             originalData = data;
             populateSpielerFilter('spieler-filter-dropdown', data);
             renderFilteredAndSortedTable();
+        })
+        .catch(err => {
+            console.error('Failed to load deck data:', err);
+            const tbody = document.querySelector('#deck-stats-table tbody');
+            if (tbody) {
+                const colCount = document.querySelectorAll('#deck-stats-table thead th').length;
+                tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
+            }
         });
 
     document.getElementById('apply-min-spiele-filter').addEventListener('click', renderFilteredAndSortedTable);
@@ -44,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const uniquePlayers = [];
 
         data.forEach(item => {
-            const playerName = item.Spieler[0];
+            const playerName = item.player_name;
             if (!uniquePlayers.includes(playerName)) {
                 uniquePlayers.push(playerName);
             }
@@ -92,7 +113,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 e.stopPropagation();
                 const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
                 const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-                const noneChecked = Array.from(checkboxes).every(cb => !cb.checked);
                 if (allChecked) {
                     toggleBtn.textContent = 'Deselect All';
                 } else {
@@ -112,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .map(cb => cb.value);
 
         let filtered = originalData.filter(item => {
-            return item['Spiele'] >= minValue && checkedPlayers.includes(item.Spieler[0]);
+            return item.games >= minValue && checkedPlayers.includes(item.player_name);
         });
 
         if (currentSort.idx !== null) {
@@ -120,9 +140,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const key = headers[currentSort.idx].getAttribute('data-key');
             filtered.sort((a, b) => {
                 // Special sort for Color Identity: by count then by image URLs
-                if (key === 'Farbe') {
-                    const imgsA = Array.isArray(a['ColorImgs']) ? a['ColorImgs'] : [];
-                    const imgsB = Array.isArray(b['ColorImgs']) ? b['ColorImgs'] : [];
+                if (key === 'color_identity') {
+                    const imgsA = Array.isArray(a.color_imgs) ? a.color_imgs : [];
+                    const imgsB = Array.isArray(b.color_imgs) ? b.color_imgs : [];
                     const countDiff = imgsA.length - imgsB.length;
                     if (countDiff !== 0) return currentSort.asc ? countDiff : -countDiff;
                     const strA = imgsA.join('|');
@@ -164,59 +184,65 @@ document.addEventListener('DOMContentLoaded', function () {
             const row = document.createElement('tr');
             row.innerHTML = Array.from(headers).map(header => {
                 const key = header.getAttribute('data-key');
-                if (key === 'Deckname') {
+                if (key === 'deck_name') {
                     Deck = item[key];
                     let URL = encodeURIComponent(Deck);
                     // Add tags below the deck name if they exist
-                    const tags = item['Tags'] || [];
+                    const tags = item.tags || [];
                     let tagsHtml = '';
                     if (tags.length > 0) {
                         const visibleTags = tags.slice(0, 2);
                         const hiddenTags = tags.slice(2);
-                        
-                        const visibleBadges = visibleTags.map(tag => 
-                            `<span class="deck-tag">${tag}</span>`
+
+                        const visibleBadges = visibleTags.map(tag =>
+                            `<span class="deck-tag">${escapeHtml(tag)}</span>`
                         ).join('');
-                        
+
                         let expanderHtml = '';
                         if (hiddenTags.length > 0) {
-                            const hiddenBadges = hiddenTags.map(tag => 
-                                `<span class="deck-tag">${tag}</span>`
+                            const hiddenBadges = hiddenTags.map(tag =>
+                                `<span class="deck-tag">${escapeHtml(tag)}</span>`
                             ).join('');
                             expanderHtml = `<span class="deck-tag-wrapper"><span class="deck-tag deck-tag-expander">...</span><div class="deck-tags-hidden">${hiddenBadges}</div></span>`;
                         }
-                        
+
                         tagsHtml = `<div class="deck-tags">${visibleBadges}${expanderHtml}</div>`;
                     }
-                    return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a>${tagsHtml}</td>`;
+                    return `<td><a href="/decks/show/${URL}">${escapeHtml(item[key])}</a>${tagsHtml}</td>`;
                 }
-                if (key === 'Commander') {
-                    return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`;
+                if (key === 'commander') {
+                    return `<td><a href="dummy">${escapeHtml(item[key])}</a></td>`;
                 }
-                if (key === 'Spieler'){
-                    return `<td><a id="${item[key]}-link" href="/player/${item[key]}">${item[key] || ''}</a></td>`
+                if (key === 'player_name') {
+                    return `<td><a id="${escapeHtml(item[key])}-link" href="/player/${encodeURIComponent(item[key])}">${escapeHtml(item[key])}</a></td>`;
                 }
-                if (key === 'Farbe') {
-                    const imgs = Array.isArray(item['ColorImgs']) ? item['ColorImgs'] : [];
-                    const icons = imgs.map(src => `<img src="${src}" class="color-icon">`).join('');
+                if (key === 'color_identity') {
+                    const imgs = Array.isArray(item.color_imgs) ? item.color_imgs : [];
+                    const icons = imgs.map(src => `<img src="${escapeHtml(src)}" class="color-icon">`).join('');
                     return `<td>${icons || ''}</td>`;
                 }
-                if (key === 'WTurns') {
-                    const avg = item['WTurns'];
-                    const count = item['WTurnsCount'];
-                    if (!count) return `<td></td>`;
-                    return `<td>${avg} <small style="color:#aaa">(${count})</small></td>`;
+                if (key === 'avg_win_turns') {
+                    const avg = item.avg_win_turns;
+                    const count = item.win_turns_count;
+                    if (!count) return `<td>-</td>`;
+                    return `<td>${escapeHtml(String(avg))} <small style="color:#aaa">(${escapeHtml(String(count))})</small></td>`;
                 }
-                return `<td>${item[key] || ''}</td>`;
+                const val = item[key];
+                if (key === 'elo' && (val == null || val === 0)) return `<td>-</td>`;
+                if ((key === 'winrate_pct' || key === 'avg_win_turns') && val == null) return `<td>-</td>`;
+                return `<td>${val != null && val !== '' ? escapeHtml(String(val)) : '0'}</td>`;
             }).join('');
             tbody.appendChild(row);
 
-            const decklist = document.getElementById(`${Deck}-list`);
-            let url = item["Decklist"];
-            if (url && url[0] != null) {
-                decklist.href = url;
-            } else {
-                decklist.removeAttribute("href");
+            // Set decklist link on the commander anchor (second <a> in the row)
+            const decklistLink = row.querySelectorAll('a')[1];
+            if (decklistLink) {
+                let url = item.decklist;
+                if (url != null) {
+                    decklistLink.href = url;
+                } else {
+                    decklistLink.removeAttribute("href");
+                }
             }
         });
     }

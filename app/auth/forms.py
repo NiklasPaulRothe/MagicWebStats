@@ -5,6 +5,9 @@ import sqlalchemy as sa
 from app import db
 from app.models import User
 
+# NOTE: DB queries in form validators is an intentional WTForms pattern.
+# Uniqueness checks run during validation to provide immediate user feedback.
+
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])

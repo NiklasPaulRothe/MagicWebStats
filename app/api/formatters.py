@@ -1,8 +1,8 @@
 """Formatting helpers for API route handlers.
 
 Each function transforms a typed query result into the JSON-serializable dict
-format expected by the frontend. These preserve the existing output structure
-(single-element list wrapping for most fields, dash substitution for None values).
+format expected by the frontend. All formatters return flat dicts with snake_case
+keys. None values serialize to JSON null (no dash substitution).
 """
 
 from __future__ import annotations
@@ -34,82 +34,81 @@ def format_date_german(d: date | None) -> str:
 def format_player_stats(r: PlayerStatsResult) -> dict:
     """Format a PlayerStatsResult into the /api/data JSON structure.
 
-    All values are wrapped in single-element lists to match existing output.
+    Returns a flat dict with snake_case keys. No list wrapping.
     """
     return {
-        "Name": [r["name"]],
-        "Games": [r["games"]],
-        "Early Sol Ring": [r["early_sol_ring"]],
-        "Sol Ring (in %)": [r["sol_ring_pct"]],
-        "Wins": [r["wins"]],
-        "Winrate (in %)": [r["winrate_pct"]],
-        "First": [r["first"]],
-        "First (in %)": [r["first_pct"]],
+        "name": r["name"],
+        "games": r["games"],
+        "early_sol_ring": r["early_sol_ring"],
+        "sol_ring_pct": r["sol_ring_pct"],
+        "wins": r["wins"],
+        "winrate_pct": r["winrate_pct"],
+        "first": r["first"],
+        "first_pct": r["first_pct"],
     }
 
 
 def format_deck_data(r: DeckDataResult) -> dict:
     """Format a DeckDataResult into the /api/deck-data JSON structure.
 
-    Most values are wrapped in single-element lists. ColorImgs and Tags are
-    direct lists (not wrapped). Dash substitution applies to None winrate.
+    Returns a flat dict with snake_case keys. No list wrapping.
+    None winrate is preserved as None (serializes to JSON null).
     """
-    winrate: float | str = r["winrate_pct"] if r["winrate_pct"] is not None else "-"
-
     return {
-        "Deckname": [r["deck_name"]],
-        "Spieler": [r["player_name"]],
-        "Commander": [r["commander"]],
-        "Farbe": [r["color_identity"]],
-        "Spiele": [r["games"]],
-        "Siege": [r["wins"]],
-        "Winrate (in %)": [winrate],
-        "WTurns": [r["avg_win_turns"]],
-        "WTurnsCount": [r["win_turns_count"]],
-        "Decklist": [r["decklist"]],
-        "elo": [r["elo"]],
-        "ColorImgs": r["color_imgs"],
-        "Tags": r["tags"],
+        "deck_name": r["deck_name"],
+        "player_name": r["player_name"],
+        "commander": r["commander"],
+        "color_identity": r["color_identity"],
+        "games": r["games"],
+        "wins": r["wins"],
+        "winrate_pct": r["winrate_pct"],
+        "avg_win_turns": r["avg_win_turns"],
+        "win_turns_count": r["win_turns_count"],
+        "decklist": r["decklist"],
+        "elo": r["elo"],
+        "color_imgs": r["color_imgs"],
+        "tags": r["tags"],
     }
 
 
 def format_user_deck(r: UserDeckResult) -> dict:
     """Format a UserDeckResult into the /api/userdecks/<spieler> JSON structure.
 
-    Most values are wrapped in single-element lists. ColorImgs and Tags are
-    direct lists. Dash substitution applies to None winrate and None last_played.
+    Returns a flat dict with snake_case keys. No list wrapping.
+    None winrate and None last_played are preserved as None (JSON null).
+    last_played uses German date format (D.M.YYYY) when a date exists.
     """
-    winrate: float | str = r["winrate_pct"] if r["winrate_pct"] is not None else "-"
-    last_played: str = format_date_german(r["last_played"])
+    last_played_raw: str = format_date_german(r["last_played"])
+    last_played: str | None = None if last_played_raw == "-" else last_played_raw
 
     return {
-        "Name": [r["name"]],
-        "Commander": [r["commander"]],
-        "Color Identity": [r["color_identity"]],
-        "Spiele": [r["games"]],
-        "Zuletzt gespielt": [last_played],
-        "Siege": [r["wins"]],
-        "Winrate (in %)": [winrate],
-        "Decklist": [r["decklist"]],
-        "ColorImgs": r["color_imgs"],
-        "Tags": r["tags"],
+        "name": r["name"],
+        "commander": r["commander"],
+        "color_identity": r["color_identity"],
+        "games": r["games"],
+        "last_played": last_played,
+        "wins": r["wins"],
+        "winrate_pct": r["winrate_pct"],
+        "decklist": r["decklist"],
+        "color_imgs": r["color_imgs"],
+        "tags": r["tags"],
     }
 
 
 def format_user_deck_archive(r: UserDeckArchiveResult) -> dict:
     """Format a UserDeckArchiveResult into the /api/userdecks/archive/<spieler> JSON structure.
 
-    Archive endpoint does NOT wrap values in single-element lists — uses direct values.
+    Returns a flat dict with snake_case keys.
     """
     winrate: Optional[float] = float(r["winrate_pct"]) if r["winrate_pct"] is not None else None
 
     return {
         "id": r["id"],
-        "Name": r["name"],
-        "Commander": r["commander"],
-        "ColorImgs": r["color_imgs"],
-        "Spiele": r["games"],
-        "Siege": r["wins"],
-        "Winrate (in %)": winrate,
-        "Decklist": r["decklist"],
+        "name": r["name"],
+        "commander": r["commander"],
+        "color_imgs": r["color_imgs"],
+        "games": r["games"],
+        "wins": r["wins"],
+        "winrate_pct": winrate,
+        "decklist": r["decklist"],
     }

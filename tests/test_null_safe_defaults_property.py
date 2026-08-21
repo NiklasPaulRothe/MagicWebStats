@@ -1,10 +1,10 @@
-# Feature: raw-sql-to-orm, Property 11: Null-Safe Defaults
+# Feature: api-frontend-normalization, Property: Null-Safe Defaults
 """
-Property test verifying that formatting functions substitute "-" for None
-nullable numeric fields (winrate_pct, avg_win_turns) and None dates (last_played),
-never outputting null or empty values.
+Property test verifying that formatting functions produce None (JSON null)
+for nullable fields (winrate_pct, last_played) when the input value is None.
+No dash substitution — None in means None out.
 
-**Validates: Requirements 9.3, 3.3, 4.4, 5.4**
+**Validates: Requirements 1.3**
 """
 from datetime import date
 
@@ -108,71 +108,47 @@ user_deck_none_last_played_strategy = st.builds(
 
 @given(r=deck_data_none_winrate_strategy)
 @settings(max_examples=100)
-def test_format_deck_data_none_winrate_produces_dash(r: DeckDataResult):
-    """Property 11: When winrate_pct is None in DeckDataResult,
-    format_deck_data SHALL output "-" for "Winrate (in %)", never None or empty.
+def test_format_deck_data_none_winrate_produces_null(r: DeckDataResult):
+    """Property: When winrate_pct is None in DeckDataResult,
+    format_deck_data SHALL output None for "winrate_pct" (JSON null).
     """
     output = format_deck_data(r)
 
-    winrate_value = output["Winrate (in %)"]
+    winrate_value = output["winrate_pct"]
 
-    # Value is wrapped in a single-element list
-    assert isinstance(winrate_value, list), f"Expected list, got {type(winrate_value)}"
-    assert len(winrate_value) == 1, f"Expected single-element list, got {len(winrate_value)} elements"
-
-    # The actual value must be the dash string "-"
-    assert winrate_value[0] == "-", (
-        f"Expected '-' for None winrate_pct, got {winrate_value[0]!r}"
+    # The value must be None (serializes to JSON null)
+    assert winrate_value is None, (
+        f"Expected None for None winrate_pct, got {winrate_value!r}"
     )
-    # Must never be None, "null", or empty string
-    assert winrate_value[0] is not None
-    assert winrate_value[0] != "null"
-    assert winrate_value[0] != ""
 
 
 @given(r=user_deck_none_winrate_strategy)
 @settings(max_examples=100)
-def test_format_user_deck_none_winrate_produces_dash(r: UserDeckResult):
-    """Property 11: When winrate_pct is None in UserDeckResult,
-    format_user_deck SHALL output "-" for "Winrate (in %)", never None or empty.
+def test_format_user_deck_none_winrate_produces_null(r: UserDeckResult):
+    """Property: When winrate_pct is None in UserDeckResult,
+    format_user_deck SHALL output None for "winrate_pct" (JSON null).
     """
     output = format_user_deck(r)
 
-    winrate_value = output["Winrate (in %)"]
+    winrate_value = output["winrate_pct"]
 
-    # Value is wrapped in a single-element list
-    assert isinstance(winrate_value, list), f"Expected list, got {type(winrate_value)}"
-    assert len(winrate_value) == 1, f"Expected single-element list, got {len(winrate_value)} elements"
-
-    # The actual value must be the dash string "-"
-    assert winrate_value[0] == "-", (
-        f"Expected '-' for None winrate_pct, got {winrate_value[0]!r}"
+    # The value must be None (serializes to JSON null)
+    assert winrate_value is None, (
+        f"Expected None for None winrate_pct, got {winrate_value!r}"
     )
-    # Must never be None, "null", or empty string
-    assert winrate_value[0] is not None
-    assert winrate_value[0] != "null"
-    assert winrate_value[0] != ""
 
 
 @given(r=user_deck_none_last_played_strategy)
 @settings(max_examples=100)
-def test_format_user_deck_none_last_played_produces_dash(r: UserDeckResult):
-    """Property 11: When last_played is None in UserDeckResult,
-    format_user_deck SHALL output "-" for "Zuletzt gespielt", never None or empty.
+def test_format_user_deck_none_last_played_produces_null(r: UserDeckResult):
+    """Property: When last_played is None in UserDeckResult,
+    format_user_deck SHALL output None for "last_played" (JSON null).
     """
     output = format_user_deck(r)
 
-    last_played_value = output["Zuletzt gespielt"]
+    last_played_value = output["last_played"]
 
-    # Value is wrapped in a single-element list
-    assert isinstance(last_played_value, list), f"Expected list, got {type(last_played_value)}"
-    assert len(last_played_value) == 1, f"Expected single-element list, got {len(last_played_value)} elements"
-
-    # The actual value must be the dash string "-"
-    assert last_played_value[0] == "-", (
-        f"Expected '-' for None last_played, got {last_played_value[0]!r}"
+    # The value must be None (serializes to JSON null)
+    assert last_played_value is None, (
+        f"Expected None for None last_played, got {last_played_value!r}"
     )
-    # Must never be None, "null", or empty string
-    assert last_played_value[0] is not None
-    assert last_played_value[0] != "null"
-    assert last_played_value[0] != ""

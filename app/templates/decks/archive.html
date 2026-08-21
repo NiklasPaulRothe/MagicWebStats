@@ -36,8 +36,21 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             fetch('/api/userdecks/archive/' + '{{ spieler.id }}')
-                .then(response => response.json())
-                .then(data => populateTable('archive-deck-table', data));
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
+                .then(data => populateTable('archive-deck-table', data))
+                .catch(err => {
+                    console.error('Failed to load archive data:', err);
+                    const tbody = document.querySelector('#archive-deck-table tbody');
+                    if (tbody) {
+                        const colCount = document.querySelectorAll('#archive-deck-table thead th').length;
+                        tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
+                    }
+                    document.getElementById('archive-deck-table').style.display = '';
+                    document.getElementById('empty-state').style.display = 'none';
+                });
 
             function populateTable(tableId, data) {
                 const table = document.getElementById(tableId);
@@ -60,35 +73,35 @@
                     let cells = '';
 
                     // Name — link to deck show page
-                    const encodedName = encode(item['Name']);
-                    cells += `<td><a href="/decks/show/${encodedName}">${item['Name'] || ''}</a></td>`;
+                    const encodedName = encode(item.name);
+                    cells += `<td><a href="/decks/show/${encodedName}">${item.name || ''}</a></td>`;
 
                     // Commander — link to decklist if available, plain text otherwise
-                    if (item['Decklist']) {
-                        cells += `<td><a href="${item['Decklist']}">${item['Commander'] || ''}</a></td>`;
+                    if (item.decklist) {
+                        cells += `<td><a href="${item.decklist}">${item.commander || ''}</a></td>`;
                     } else {
-                        cells += `<td>${item['Commander'] || ''}</td>`;
+                        cells += `<td>${item.commander || ''}</td>`;
                     }
 
                     // Farbe — color identity images
-                    const colorImgs = item['ColorImgs'] || [];
+                    const colorImgs = item.color_imgs || [];
                     const imgTags = colorImgs.map(src => `<img src="${src}" alt="color" style="height:1.2em; vertical-align:middle;">`).join('');
                     cells += `<td>${imgTags}</td>`;
 
                     // Spiele
-                    cells += `<td>${item['Spiele'] != null ? item['Spiele'] : ''}</td>`;
+                    cells += `<td>${item.games != null ? item.games : ''}</td>`;
 
                     // Siege
-                    cells += `<td>${item['Siege'] != null ? item['Siege'] : ''}</td>`;
+                    cells += `<td>${item.wins != null ? item.wins : ''}</td>`;
 
                     // Winrate (in %)
-                    const winrate = item['Winrate (in %)'];
+                    const winrate = item.winrate_pct;
                     cells += `<td>${winrate != null ? winrate : '-'}</td>`;
 
                     // Reaktivieren — only when owner or admin
                     if (isOwnerOrAdmin) {
                         cells += `<td>
-                            <form method="POST" action="/decks/dearchive/${item['id']}" style="all:unset;">
+                            <form method="POST" action="/decks/dearchive/${item.id}" style="all:unset;">
                                 <input type="hidden" name="csrf_token" value="${csrfToken}">
                                 <input type="hidden" name="player_name" value="${currentPlayerName}">
                                 <button type="submit">Reaktivieren</button>

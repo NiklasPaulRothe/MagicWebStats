@@ -30,14 +30,14 @@
                     <table id="player-stats-table" class="modern-table">
                         <thead>
                             <tr>
-                                <th data-type="string" data-key="Name">Player</th>
-                                <th data-type="number" data-key="Games">Games</th>
-                                <th data-type="number" data-key="Early Sol Ring">Early<br>Fast Mana</th>
-                                <th data-type="number" data-key="Sol Ring (in %)">Fast Mana<br>%</th>
-                                <th data-type="number" data-key="Wins">Wins</th>
-                                <th data-type="number" data-key="Winrate (in %)">Winrate<br>%</th>
-                                <th data-type="number" data-key="First">First</th>
-                                <th data-type="number" data-key="First (in %)">First<br>%</th>
+                                <th data-type="string" data-key="name">Player</th>
+                                <th data-type="number" data-key="games">Games</th>
+                                <th data-type="number" data-key="early_sol_ring">Early<br>Fast Mana</th>
+                                <th data-type="number" data-key="sol_ring_pct">Fast Mana<br>%</th>
+                                <th data-type="number" data-key="wins">Wins</th>
+                                <th data-type="number" data-key="winrate_pct">Winrate<br>%</th>
+                                <th data-type="number" data-key="first">First</th>
+                                <th data-type="number" data-key="first_pct">First<br>%</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -98,7 +98,10 @@
 
             // Fetch available years and create buttons
             fetch('/api/data/years')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
                 .then(years => {
                     years.forEach(year => {
                         const btn = document.createElement('button');
@@ -107,14 +110,28 @@
                         yearContainer.appendChild(btn);
                     });
                     attachYearListeners();
+                })
+                .catch(err => {
+                    console.error('Failed to load years:', err);
                 });
 
             // Fetch overall data initially
             fetch('/api/data')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
                 .then(data => {
                     originalPlayerData = data;
                     renderFilteredTable();
+                })
+                .catch(err => {
+                    console.error('Failed to load player data:', err);
+                    const tbody = document.querySelector('#player-stats-table tbody');
+                    if (tbody) {
+                        const colCount = document.querySelectorAll('#player-stats-table thead th').length;
+                        tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
+                    }
                 });
 
             function attachYearListeners() {
@@ -127,10 +144,21 @@
 
                         const url = year === 'all' ? '/api/data' : `/api/data/${year}`;
                         fetch(url)
-                            .then(response => response.json())
+                            .then(response => {
+                                if (!response.ok) throw new Error('HTTP ' + response.status);
+                                return response.json();
+                            })
                             .then(data => {
                                 originalPlayerData = data;
                                 renderFilteredTable();
+                            })
+                            .catch(err => {
+                                console.error('Failed to load player data:', err);
+                                const tbody = document.querySelector('#player-stats-table tbody');
+                                if (tbody) {
+                                    const colCount = document.querySelectorAll('#player-stats-table thead th').length;
+                                    tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
+                                }
                             });
                     });
                 });
@@ -152,7 +180,7 @@
                 
                 // Filter data
                 let filtered = originalPlayerData.filter(item => {
-                    const games = item['Games'] && item['Games'][0] ? item['Games'][0] : 0;
+                    const games = item.games || 0;
                     return games >= minGames;
                 });
                 
@@ -164,10 +192,6 @@
                     filtered.sort((a, b) => {
                         let valA = a[key];
                         let valB = b[key];
-                        
-                        // Handle array values
-                        if (Array.isArray(valA) && valA.length > 0) valA = valA[0];
-                        if (Array.isArray(valB) && valB.length > 0) valB = valB[0];
                         
                         if (currentSort.type === 'number') {
                             return currentSort.asc ? valA - valB : valB - valA;
@@ -205,18 +229,13 @@
                         const key = header.getAttribute('data-key');
                         
                         // Handle Player column with link
-                        if (key === 'Name') {
-                            const playerName = item[key] && item[key][0] ? item[key][0] : '';
+                        if (key === 'name') {
+                            const playerName = item[key] || '';
                             return `<td><a href="/player/${encode(playerName)}" class="player-link">${playerName}</a></td>`;
                         }
                         
                         // Get value from item using the data-key
-                        let value = item[key];
-                        
-                        // Handle array values from API
-                        if (Array.isArray(value) && value.length > 0) {
-                            value = value[0];
-                        }
+                        const value = item[key];
                         
                         return `<td>${value !== null && value !== undefined ? value : ''}</td>`;
                     }).join('');

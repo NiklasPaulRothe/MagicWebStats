@@ -26,7 +26,7 @@ class TestFormatDateGerman:
 
 
 class TestFormatPlayerStats:
-    def test_wraps_values_in_lists(self):
+    def test_returns_flat_dict_with_snake_case_keys(self):
         result = format_player_stats({
             "name": "Alice",
             "games": 10,
@@ -38,14 +38,14 @@ class TestFormatPlayerStats:
             "first_pct": 20.0,
         })
         assert result == {
-            "Name": ["Alice"],
-            "Games": [10],
-            "Early Sol Ring": [3],
-            "Sol Ring (in %)": [30.0],
-            "Wins": [4],
-            "Winrate (in %)": [40.0],
-            "First": [2],
-            "First (in %)": [20.0],
+            "name": "Alice",
+            "games": 10,
+            "early_sol_ring": 3,
+            "sol_ring_pct": 30.0,
+            "wins": 4,
+            "winrate_pct": 40.0,
+            "first": 2,
+            "first_pct": 20.0,
         }
 
 
@@ -66,12 +66,12 @@ class TestFormatDeckData:
             "color_imgs": ["/img/B.svg", "/img/R.svg", "/img/U.svg"],
             "tags": ["combo", "storm"],
         })
-        assert result["Winrate (in %)"] == [40.0]
-        assert result["ColorImgs"] == ["/img/B.svg", "/img/R.svg", "/img/U.svg"]
-        assert result["Tags"] == ["combo", "storm"]
-        assert result["Deckname"] == ["Storm"]
+        assert result["winrate_pct"] == 40.0
+        assert result["color_imgs"] == ["/img/B.svg", "/img/R.svg", "/img/U.svg"]
+        assert result["tags"] == ["combo", "storm"]
+        assert result["deck_name"] == "Storm"
 
-    def test_none_winrate_becomes_dash(self):
+    def test_none_winrate_becomes_null(self):
         result = format_deck_data({
             "deck_name": "New Deck",
             "player_name": "Bob",
@@ -87,7 +87,7 @@ class TestFormatDeckData:
             "color_imgs": [],
             "tags": [],
         })
-        assert result["Winrate (in %)"] == ["-"]
+        assert result["winrate_pct"] is None
 
 
 class TestFormatUserDeck:
@@ -104,12 +104,12 @@ class TestFormatUserDeck:
             "color_imgs": ["/img/B.svg", "/img/G.svg"],
             "tags": ["tribal"],
         })
-        assert result["Zuletzt gespielt"] == ["5.3.2024"]
-        assert result["Winrate (in %)"] == [37.5]
-        assert result["ColorImgs"] == ["/img/B.svg", "/img/G.svg"]
-        assert result["Tags"] == ["tribal"]
+        assert result["last_played"] == "5.3.2024"
+        assert result["winrate_pct"] == 37.5
+        assert result["color_imgs"] == ["/img/B.svg", "/img/G.svg"]
+        assert result["tags"] == ["tribal"]
 
-    def test_none_winrate_becomes_dash(self):
+    def test_none_winrate_becomes_null(self):
         result = format_user_deck({
             "name": "New Deck",
             "commander": "Commander",
@@ -122,9 +122,9 @@ class TestFormatUserDeck:
             "color_imgs": [],
             "tags": [],
         })
-        assert result["Winrate (in %)"] == ["-"]
+        assert result["winrate_pct"] is None
 
-    def test_none_last_played_becomes_dash(self):
+    def test_none_last_played_becomes_null(self):
         result = format_user_deck({
             "name": "New Deck",
             "commander": "Commander",
@@ -137,11 +137,11 @@ class TestFormatUserDeck:
             "color_imgs": [],
             "tags": [],
         })
-        assert result["Zuletzt gespielt"] == ["-"]
+        assert result["last_played"] is None
 
 
 class TestFormatUserDeckArchive:
-    def test_does_not_wrap_in_lists(self):
+    def test_returns_flat_dict_with_snake_case_keys(self):
         result = format_user_deck_archive({
             "id": 42,
             "name": "Old Deck",
@@ -155,13 +155,13 @@ class TestFormatUserDeckArchive:
         })
         assert result == {
             "id": 42,
-            "Name": "Old Deck",
-            "Commander": "Arcum",
-            "ColorImgs": ["/img/U.svg"],
-            "Spiele": 10,
-            "Siege": 3,
-            "Winrate (in %)": 30.0,
-            "Decklist": "https://example.com",
+            "name": "Old Deck",
+            "commander": "Arcum",
+            "color_imgs": ["/img/U.svg"],
+            "games": 10,
+            "wins": 3,
+            "winrate_pct": 30.0,
+            "decklist": "https://example.com",
         }
 
     def test_none_winrate_stays_none(self):
@@ -177,4 +177,4 @@ class TestFormatUserDeckArchive:
             "decklist": None,
             "color_imgs": [],
         })
-        assert result["Winrate (in %)"] is None
+        assert result["winrate_pct"] is None

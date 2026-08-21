@@ -16,10 +16,10 @@
                     <table id="color-stats-table" class="modern-table">
                         <thead>
                             <tr>
-                                <th data-type="string" data-key="Name">Color Identity</th>
-                                <th data-type="number" data-key="Games">Games</th>
-                                <th data-type="number" data-key="Wins">Wins</th>
-                                <th data-type="number" data-key="Winrate (in %)">Winrate %</th>
+                                <th data-type="string" data-key="name">Color Identity</th>
+                                <th data-type="number" data-key="games">Games</th>
+                                <th data-type="number" data-key="wins">Wins</th>
+                                <th data-type="number" data-key="winrate_pct">Winrate %</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -38,10 +38,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Fetch and populate Color Stats table
             fetch('/api/color-data')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
                 .then(data => {
                     colorData = data;
                     populateTable('color-stats-table', colorData);
+                })
+                .catch(err => {
+                    console.error('Failed to load color data:', err);
+                    const tbody = document.querySelector('#color-stats-table tbody');
+                    if (tbody) {
+                        const colCount = document.querySelectorAll('#color-stats-table thead th').length;
+                        tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
+                    }
                 });
 
             // Function to populate table
@@ -55,21 +66,14 @@
                     row.innerHTML = Array.from(headers).map(header => {
                         const key = header.getAttribute('data-key');
                         
-                        if (key === 'Name') {
-                            const imgs = Array.isArray(item['ColorImgs']) ? item['ColorImgs'] : [];
+                        if (key === 'name') {
+                            const imgs = Array.isArray(item.color_imgs) ? item.color_imgs : [];
                             const icons = imgs.map(src => `<img src="${src}" class="color-icon">`).join('');
-                            const name = item['Name'] && item['Name'][0] ? item['Name'][0] : '';
+                            const name = item.name || '';
                             return `<td>${icons}<span class="color-name">${name}</span></td>`;
                         }
                         
-                        // Get value from item using the data-key
-                        let value = item[key];
-                        
-                        // Handle array values from API
-                        if (Array.isArray(value) && value.length > 0) {
-                            value = value[0];
-                        }
-                        
+                        const value = item[key];
                         return `<td>${value !== null && value !== undefined ? value : ''}</td>`;
                     }).join('');
                     tbody.appendChild(row);
@@ -109,16 +113,12 @@
                         let valA = a[key];
                         let valB = b[key];
                         
-                        // Handle array values
-                        if (Array.isArray(valA) && valA.length > 0) valA = valA[0];
-                        if (Array.isArray(valB) && valB.length > 0) valB = valB[0];
-                        
                         if (currentSort.type === 'number') {
                             return currentSort.asc ? valA - valB : valB - valA;
                         } else {
                             return currentSort.asc
-                                ? valA.toString().localeCompare(valB)
-                                : valB.toString().localeCompare(valA);
+                                ? String(valA).localeCompare(String(valB))
+                                : String(valB).localeCompare(String(valA));
                         }
                     });
                     

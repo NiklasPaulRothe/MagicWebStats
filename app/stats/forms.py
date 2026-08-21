@@ -6,6 +6,9 @@ import sqlalchemy as sa
 from app import db
 from app.models import Player, Deck, Card
 
+# NOTE: DB queries in form validators is an intentional WTForms pattern.
+# Uniqueness checks run during validation to provide immediate user feedback.
+
 
 class PlayerAddForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])

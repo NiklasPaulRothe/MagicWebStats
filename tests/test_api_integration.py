@@ -2,7 +2,7 @@
 
 These tests seed a test database with representative data and verify that the
 ORM queries + formatters produce output matching the expected JSON structure
-(key names, value types, sort orders, numeric precision, dash substitution).
+(snake_case key names, flat scalar values, null for missing, no list wrapping).
 
 Validates: Requirements 10.1, 10.2, 10.3, 10.4
 """
@@ -228,41 +228,40 @@ class TestPlayerStatsEndpoint:
 
         formatted = format_player_stats(results[0])
         expected_keys = {
-            "Name", "Games", "Early Sol Ring", "Sol Ring (in %)",
-            "Wins", "Winrate (in %)", "First", "First (in %)",
+            "name", "games", "early_sol_ring", "sol_ring_pct",
+            "wins", "winrate_pct", "first", "first_pct",
         }
         assert set(formatted.keys()) == expected_keys
 
-    def test_values_wrapped_in_single_element_lists(self, app, db_session, seed_data):
-        """All values in player stats are wrapped in single-element lists."""
+    def test_values_are_flat_scalars(self, app, db_session, seed_data):
+        """All values in player stats are flat scalars (not wrapped in lists)."""
         results = get_player_stats(db_session)
         formatted = format_player_stats(results[0])
 
         for key, value in formatted.items():
-            assert isinstance(value, list), f"Key '{key}' should be a list"
-            assert len(value) == 1, f"Key '{key}' should have exactly 1 element"
+            assert not isinstance(value, list), f"Key '{key}' should not be a list"
 
     def test_value_types(self, app, db_session, seed_data):
         """Verify value types: strings for name, ints for counts, floats for percentages."""
         results = get_player_stats(db_session)
         formatted = format_player_stats(results[0])
 
-        assert isinstance(formatted["Name"][0], str)
-        assert isinstance(formatted["Games"][0], int)
-        assert isinstance(formatted["Early Sol Ring"][0], int)
-        assert isinstance(formatted["Sol Ring (in %)"][0], float)
-        assert isinstance(formatted["Wins"][0], int)
-        assert isinstance(formatted["Winrate (in %)"][0], float)
-        assert isinstance(formatted["First"][0], int)
-        assert isinstance(formatted["First (in %)"][0], float)
+        assert isinstance(formatted["name"], str)
+        assert isinstance(formatted["games"], int)
+        assert isinstance(formatted["early_sol_ring"], int)
+        assert isinstance(formatted["sol_ring_pct"], float)
+        assert isinstance(formatted["wins"], int)
+        assert isinstance(formatted["winrate_pct"], float)
+        assert isinstance(formatted["first"], int)
+        assert isinstance(formatted["first_pct"], float)
 
     def test_percentages_two_decimal_places(self, app, db_session, seed_data):
         """Percentages should have at most 2 decimal places."""
         results = get_player_stats(db_session)
         for r in results:
             formatted = format_player_stats(r)
-            for pct_key in ["Sol Ring (in %)", "Winrate (in %)", "First (in %)"]:
-                val = formatted[pct_key][0]
+            for pct_key in ["sol_ring_pct", "winrate_pct", "first_pct"]:
+                val = formatted[pct_key]
                 # Check that rounding to 2 decimals doesn't change the value
                 assert val == round(val, 2), f"{pct_key} = {val} should be rounded to 2 decimals"
 
@@ -305,37 +304,36 @@ class TestColorDataEndpoint:
         results = get_color_data(db_session)
         assert len(results) > 0
 
-        # Simulate route handler formatting
+        # Simulate route handler formatting (new flat snake_case format)
         from app.services.color_service import resolve_color_images
         r = results[0]
         formatted = {
-            "Name": [r["name"]],
-            "Games": [r["games"]],
-            "Wins": [r["wins"]],
-            "Winrate (in %)": [r["winrate_pct"]],
-            "ColorImgs": resolve_color_images(r["name"]),
+            "name": r["name"],
+            "games": r["games"],
+            "wins": r["wins"],
+            "winrate_pct": r["winrate_pct"],
+            "color_imgs": resolve_color_images(r["name"]),
         }
-        expected_keys = {"Name", "Games", "Wins", "Winrate (in %)", "ColorImgs"}
+        expected_keys = {"name", "games", "wins", "winrate_pct", "color_imgs"}
         assert set(formatted.keys()) == expected_keys
 
-    def test_values_wrapped_in_lists(self, app, db_session, seed_data):
-        """Name, Games, Wins, Winrate should be wrapped in single-element lists."""
+    def test_values_are_flat_scalars(self, app, db_session, seed_data):
+        """Name, Games, Wins, Winrate should be flat scalars (not wrapped in lists)."""
         results = get_color_data(db_session)
         r = results[0]
         from app.services.color_service import resolve_color_images
         formatted = {
-            "Name": [r["name"]],
-            "Games": [r["games"]],
-            "Wins": [r["wins"]],
-            "Winrate (in %)": [r["winrate_pct"]],
-            "ColorImgs": resolve_color_images(r["name"]),
+            "name": r["name"],
+            "games": r["games"],
+            "wins": r["wins"],
+            "winrate_pct": r["winrate_pct"],
+            "color_imgs": resolve_color_images(r["name"]),
         }
-        for key in ["Name", "Games", "Wins", "Winrate (in %)"]:
-            assert isinstance(formatted[key], list)
-            assert len(formatted[key]) == 1
+        for key in ["name", "games", "wins", "winrate_pct"]:
+            assert not isinstance(formatted[key], list), f"'{key}' should not be a list"
 
-    def test_colorimgs_is_direct_list(self, app, db_session, seed_data):
-        """ColorImgs should be a direct list (not wrapped in another list)."""
+    def test_color_imgs_is_direct_list(self, app, db_session, seed_data):
+        """color_imgs should be a direct list of strings."""
         results = get_color_data(db_session)
         r = results[0]
         from app.services.color_service import resolve_color_images
@@ -356,7 +354,6 @@ class TestColorDataEndpoint:
         """Color identities with zero non-cEDH games should not appear."""
         results = get_color_data(db_session)
         names = [r["name"] for r in results]
-        # Colorless identity only has deck_bob, which has games
         # All identities in results should have games > 0
         for r in results:
             assert r["games"] > 0
@@ -377,38 +374,36 @@ class TestDeckDataEndpoint:
 
         formatted = format_deck_data(results[0])
         expected_keys = {
-            "Deckname", "Spieler", "Commander", "Farbe", "Spiele",
-            "Siege", "Winrate (in %)", "WTurns", "WTurnsCount",
-            "Decklist", "elo", "ColorImgs", "Tags",
+            "deck_name", "player_name", "commander", "color_identity", "games",
+            "wins", "winrate_pct", "avg_win_turns", "win_turns_count",
+            "decklist", "elo", "color_imgs", "tags",
         }
         assert set(formatted.keys()) == expected_keys
 
-    def test_single_element_list_wrapping(self, app, db_session, seed_data):
-        """Most fields should be wrapped in single-element lists."""
+    def test_values_are_flat_scalars(self, app, db_session, seed_data):
+        """Most fields should be flat scalars (not wrapped in lists)."""
         results = get_deck_data(db_session)
         formatted = format_deck_data(results[0])
 
-        list_wrapped_keys = [
-            "Deckname", "Spieler", "Commander", "Farbe", "Spiele",
-            "Siege", "Winrate (in %)", "WTurns", "WTurnsCount",
-            "Decklist", "elo",
+        scalar_keys = [
+            "deck_name", "player_name", "commander", "color_identity", "games",
+            "wins", "win_turns_count",
         ]
-        for key in list_wrapped_keys:
-            assert isinstance(formatted[key], list), f"'{key}' should be a list"
-            assert len(formatted[key]) == 1, f"'{key}' should have exactly 1 element"
+        for key in scalar_keys:
+            assert not isinstance(formatted[key], list), f"'{key}' should not be a list"
 
-    def test_colorimgs_and_tags_are_direct_lists(self, app, db_session, seed_data):
-        """ColorImgs and Tags should be direct lists (not wrapped)."""
+    def test_color_imgs_and_tags_are_direct_lists(self, app, db_session, seed_data):
+        """color_imgs and tags should be direct lists (not wrapped)."""
         results = get_deck_data(db_session)
         formatted = format_deck_data(results[0])
 
-        assert isinstance(formatted["ColorImgs"], list)
-        assert isinstance(formatted["Tags"], list)
-        # They should NOT be wrapped in another list
-        if formatted["ColorImgs"]:
-            assert isinstance(formatted["ColorImgs"][0], str)
-        if formatted["Tags"]:
-            assert isinstance(formatted["Tags"][0], str)
+        assert isinstance(formatted["color_imgs"], list)
+        assert isinstance(formatted["tags"], list)
+        # Each element should be a string
+        if formatted["color_imgs"]:
+            assert isinstance(formatted["color_imgs"][0], str)
+        if formatted["tags"]:
+            assert isinstance(formatted["tags"][0], str)
 
     def test_commander_with_partner_formatting(self, app, db_session, seed_data):
         """Commander with a partner should be formatted as 'Commander + Partner'."""
@@ -429,15 +424,14 @@ class TestDeckDataEndpoint:
         commanders = [r["commander"] for r in results]
         assert commanders == sorted(commanders)
 
-    def test_winrate_precision_and_dash_substitution(self, app, db_session, seed_data):
-        """Winrate should be 2 decimal places or '-' for zero-game decks."""
+    def test_winrate_null_for_zero_games(self, app, db_session, seed_data):
+        """Winrate should be None (null) for zero-game decks, float otherwise."""
         results = get_deck_data(db_session)
         for r in results:
             formatted = format_deck_data(r)
-            winrate_val = formatted["Winrate (in %)"][0]
-            if winrate_val == "-":
-                # Deck has zero games
-                assert r["games"] == 0
+            winrate_val = formatted["winrate_pct"]
+            if r["games"] == 0:
+                assert winrate_val is None
             else:
                 assert isinstance(winrate_val, float)
                 assert winrate_val == round(winrate_val, 2)
@@ -472,32 +466,31 @@ class TestUserDecksEndpoint:
 
         formatted = format_user_deck(results[0])
         expected_keys = {
-            "Name", "Commander", "Color Identity", "Spiele",
-            "Zuletzt gespielt", "Siege", "Winrate (in %)",
-            "Decklist", "ColorImgs", "Tags",
+            "name", "commander", "color_identity", "games",
+            "last_played", "wins", "winrate_pct",
+            "decklist", "color_imgs", "tags",
         }
         assert set(formatted.keys()) == expected_keys
 
-    def test_values_wrapped_in_single_element_lists(self, app, db_session, seed_data):
-        """Most values should be in single-element lists."""
+    def test_values_are_flat_scalars(self, app, db_session, seed_data):
+        """Most values should be flat scalars (not wrapped in lists)."""
         results = get_user_decks(db_session, player_id=1)
         formatted = format_user_deck(results[0])
 
-        list_wrapped_keys = [
-            "Name", "Commander", "Color Identity", "Spiele",
-            "Zuletzt gespielt", "Siege", "Winrate (in %)", "Decklist",
+        scalar_keys = [
+            "name", "commander", "color_identity", "games",
+            "wins", "decklist",
         ]
-        for key in list_wrapped_keys:
-            assert isinstance(formatted[key], list), f"'{key}' should be a list"
-            assert len(formatted[key]) == 1, f"'{key}' should have 1 element"
+        for key in scalar_keys:
+            assert not isinstance(formatted[key], list), f"'{key}' should not be a list"
 
-    def test_colorimgs_and_tags_direct_lists(self, app, db_session, seed_data):
-        """ColorImgs and Tags should be direct lists."""
+    def test_color_imgs_and_tags_direct_lists(self, app, db_session, seed_data):
+        """color_imgs and tags should be direct lists."""
         results = get_user_decks(db_session, player_id=1)
         formatted = format_user_deck(results[0])
 
-        assert isinstance(formatted["ColorImgs"], list)
-        assert isinstance(formatted["Tags"], list)
+        assert isinstance(formatted["color_imgs"], list)
+        assert isinstance(formatted["tags"], list)
 
     def test_sort_order_by_deck_name(self, app, db_session, seed_data):
         """Results should be sorted by deck name ascending."""
@@ -517,25 +510,25 @@ class TestUserDecksEndpoint:
         # Not Bob's
         assert "Bob Colorless" not in names
 
-    def test_winrate_dash_for_zero_games(self, app, db_session, seed_data):
-        """Winrate should be '-' when player has zero games with a deck."""
+    def test_winrate_null_for_zero_games(self, app, db_session, seed_data):
+        """Winrate should be None (null) when player has zero games with a deck."""
         results = get_user_decks(db_session, player_id=1)
         for r in results:
             formatted = format_user_deck(r)
-            winrate_val = formatted["Winrate (in %)"][0]
+            winrate_val = formatted["winrate_pct"]
             if r["games"] == 0:
-                assert winrate_val == "-"
+                assert winrate_val is None
             else:
                 assert isinstance(winrate_val, float)
                 assert winrate_val == round(winrate_val, 2)
 
     def test_last_played_date_format(self, app, db_session, seed_data):
-        """Last played should be in 'D.M.YYYY' format or '-' if None."""
+        """Last played should be in 'D.M.YYYY' format or None if no games."""
         results = get_user_decks(db_session, player_id=1)
         for r in results:
             formatted = format_user_deck(r)
-            last_played = formatted["Zuletzt gespielt"][0]
-            if last_played == "-":
+            last_played = formatted["last_played"]
+            if last_played is None:
                 assert r["last_played"] is None
             else:
                 # Should be non-zero-padded D.M.YYYY
@@ -570,8 +563,8 @@ class TestUserDecksArchiveEndpoint:
 
         formatted = format_user_deck_archive(results[0])
         expected_keys = {
-            "id", "Name", "Commander", "ColorImgs",
-            "Spiele", "Siege", "Winrate (in %)", "Decklist",
+            "id", "name", "commander", "color_imgs",
+            "games", "wins", "winrate_pct", "decklist",
         }
         assert set(formatted.keys()) == expected_keys
 
@@ -582,20 +575,20 @@ class TestUserDecksArchiveEndpoint:
 
         # These should be direct values (not lists)
         assert isinstance(formatted["id"], int)
-        assert isinstance(formatted["Name"], str)
-        assert isinstance(formatted["Commander"], str)
-        assert isinstance(formatted["Spiele"], int)
-        assert isinstance(formatted["Siege"], int)
+        assert isinstance(formatted["name"], str)
+        assert isinstance(formatted["commander"], str)
+        assert isinstance(formatted["games"], int)
+        assert isinstance(formatted["wins"], int)
         # Winrate is float or None
-        if formatted["Winrate (in %)"] is not None:
-            assert isinstance(formatted["Winrate (in %)"], float)
+        if formatted["winrate_pct"] is not None:
+            assert isinstance(formatted["winrate_pct"], float)
 
-    def test_colorimgs_is_direct_list(self, app, db_session, seed_data):
-        """ColorImgs should be a direct list of strings."""
+    def test_color_imgs_is_direct_list(self, app, db_session, seed_data):
+        """color_imgs should be a direct list of strings."""
         results = get_user_decks_archive(db_session, player_id=1)
         formatted = format_user_deck_archive(results[0])
 
-        assert isinstance(formatted["ColorImgs"], list)
+        assert isinstance(formatted["color_imgs"], list)
 
     def test_sort_order_by_deck_name(self, app, db_session, seed_data):
         """Archive results should be sorted by deck name ascending."""
@@ -617,7 +610,7 @@ class TestUserDecksArchiveEndpoint:
         for r in results:
             formatted = format_user_deck_archive(r)
             if r["games"] == 0:
-                assert formatted["Winrate (in %)"] is None
+                assert formatted["winrate_pct"] is None
 
     def test_winrate_precision(self, app, db_session, seed_data):
         """Non-null winrate should be rounded to 2 decimal places."""
@@ -675,20 +668,19 @@ class TestPlayerStatsByYearEndpoint:
         if results:
             formatted = format_player_stats(results[0])
             expected_keys = {
-                "Name", "Games", "Early Sol Ring", "Sol Ring (in %)",
-                "Wins", "Winrate (in %)", "First", "First (in %)",
+                "name", "games", "early_sol_ring", "sol_ring_pct",
+                "wins", "winrate_pct", "first", "first_pct",
             }
             assert set(formatted.keys()) == expected_keys
 
-    def test_values_wrapped_in_lists(self, app, db_session, seed_data):
-        """All values should be wrapped in single-element lists (same as /api/data)."""
+    def test_values_are_flat_scalars(self, app, db_session, seed_data):
+        """All values should be flat scalars (not wrapped in lists)."""
         current_year = date.today().year
         results = get_player_stats_by_year(db_session, year=current_year)
         if results:
             formatted = format_player_stats(results[0])
             for key, value in formatted.items():
-                assert isinstance(value, list)
-                assert len(value) == 1
+                assert not isinstance(value, list), f"'{key}' should not be a list"
 
     def test_only_players_with_games_in_year(self, app, db_session, seed_data):
         """Only players who played in the specified year should appear."""

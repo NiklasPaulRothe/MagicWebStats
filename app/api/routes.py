@@ -35,11 +35,11 @@ def color_data():
     for r in results:
         imgs = resolve_color_images(r['name'])
         response.append({
-            "Name": [r['name']],
-            "Games": [r['games']],
-            "Wins": [r['wins']],
-            "Winrate (in %)": [r['winrate_pct']],
-            "ColorImgs": imgs,
+            "name": r['name'],
+            "games": r['games'],
+            "wins": r['wins'],
+            "winrate_pct": r['winrate_pct'],
+            "color_imgs": imgs,
         })
     return jsonify(response)
 
