@@ -234,14 +234,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }).join('');
             tbody.appendChild(row);
 
-            // Set decklist link on the commander anchor (second <a> in the row)
-            const decklistLink = row.querySelectorAll('a')[1];
-            if (decklistLink) {
+            // Set decklist link on the commander anchor
+            const commanderLink = row.querySelector('a[href="dummy"]');
+            if (commanderLink) {
                 let url = item.decklist;
                 if (url != null) {
-                    decklistLink.href = url;
+                    commanderLink.href = url;
                 } else {
-                    decklistLink.removeAttribute("href");
+                    commanderLink.removeAttribute("href");
                 }
             }
         });

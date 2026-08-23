@@ -257,4 +257,4 @@ def build_game_history(
             "is_win": game_data.winner_id == deck.player_id,
         })
 
-    return rows
+    return sorted(rows, key=lambda r: r["datum"], reverse=True)

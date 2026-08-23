@@ -441,7 +441,7 @@ def calculate_elo():
     for result in results:
         deck = db.session.get(Deck, result.deck_id)
         if result.games_played >= 5:
-            deck.elo_rating = result.new_rating
+            deck.elo_rating = round(result.new_rating)
         else:
             deck.elo_rating = 0
         db.session.add(deck)
