@@ -70,9 +70,34 @@
 }
 
 /* ── Player row — full width, prominent ──────────────────────────────────── */
+.player-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.player-row .form-field:first-child {
+    flex: 1;
+}
+
 .player-row .form-field select {
     font-size: 1.05em;
     font-weight: bold;
+}
+
+/* ── Seat field — small number input ─────────────────────────────────────── */
+.seat-field {
+    flex: 0 0 70px;
+}
+
+.seat-field .seat-input {
+    width: 55px;
+    text-align: center;
+}
+
+.seat-field .seat-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* ── Deck unit: deck dropdown + borrowed row stacked ─────────────────────── */

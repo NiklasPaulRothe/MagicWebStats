@@ -422,7 +422,6 @@ def game_add():
     decks = get_active_decks()
     ci_data = get_color_identities()
     form.winner.choices = player
-    form.first.choices = player
 
     # Build autocomplete suggestions from union of distinct final_blow + first_ko_by values
     final_blow_stmt = sa.select(Game.final_blow).where(Game.final_blow.isnot(None))
@@ -451,7 +450,6 @@ def game_add():
     if form.validate_on_submit():
         try:
             winner_id = resolve_player_id(form.winner.data)
-            first_id = resolve_player_id(form.first.data)
 
             # Determine personal stats player_id for enriching participant data
             personal_player_id = None
@@ -459,6 +457,8 @@ def game_add():
                 stats_user = db.session.get(User, current_user.id)
                 if stats_user and stats_user.player_id:
                     personal_player_id = stats_user.player_id
+
+            seats_not_tracked = form.seats_not_tracked.data
 
             # Build ParticipantInput list from form entries
             participants_input = []
@@ -472,11 +472,15 @@ def game_add():
 
                 p_deck_id = resolve_deck_id(participant_form.deck.data, owner_name)
 
+                # Determine seat value
+                p_seat = None if seats_not_tracked else participant_form.seat.data
+
                 # Build participant input with personal stats if applicable
                 if personal_player_id is not None and p_player_id == personal_player_id:
                     p_input = ParticipantInput(
                         player_id=p_player_id,
                         deck_id=p_deck_id,
+                        seat=p_seat,
                         early_sol_ring=participant_form.early_fast_mana.data,
                         mulligans=form.mulligan.data,
                         comments=form.comment.data,
@@ -497,12 +501,22 @@ def game_add():
                     p_input = ParticipantInput(
                         player_id=p_player_id,
                         deck_id=p_deck_id,
+                        seat=p_seat,
                         early_sol_ring=participant_form.early_fast_mana.data,
                         removal_played=participant_form.removal_played.data,
                         targeted_by_removal=participant_form.targeted_by_removal.data,
                         protection_played=participant_form.protection_played.data,
                     )
                 participants_input.append(p_input)
+
+            # Derive first_player_id from seat 1 participant
+            first_id = None
+            if not seats_not_tracked:
+                first_participant = next(
+                    (p for p in participants_input if p.seat == 1), None
+                )
+                if first_participant:
+                    first_id = first_participant.player_id
 
             create_game(
                 date=form.date.data,

@@ -25,6 +25,7 @@ class ParticipantInput:
 
     player_id: int
     deck_id: int
+    seat: int | None = None
     early_sol_ring: bool = False
     mulligans: int | None = None
     comments: str | None = None
@@ -157,6 +158,7 @@ def create_game(
                 game_id=game.id,
                 player_id=p.player_id,
                 deck_id=p.deck_id,
+                seat=p.seat,
                 early_sol_ring=p.early_sol_ring,
                 mulligans=p.mulligans,
                 comments=p.comments,
@@ -220,6 +222,7 @@ def update_game(game: Game, **kwargs) -> None:
                     game_id=game.id,
                     player_id=p.player_id,
                     deck_id=p.deck_id,
+                    seat=p.seat,
                     early_sol_ring=p.early_sol_ring,
                     mulligans=p.mulligans,
                     comments=p.comments,

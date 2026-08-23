@@ -174,10 +174,10 @@ document.addEventListener('DOMContentLoaded', function () {
     window.__gameAddDecks = decks;
 
     const winnerSelect = document.querySelector('select[name="winner"]');
-    const firstSelect = document.querySelector('select[name="first"]');
+    const seatsNotTrackedCheckbox = document.getElementById('seats_not_tracked');
 
     /**
-     * Updates the Winner and First dropdowns to only show players
+     * Updates the Winner dropdown to only show players
      * that are currently selected as participants.
      */
     function updateWinnerFirstChoices() {
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        [winnerSelect, firstSelect].forEach(sel => {
+        [winnerSelect].forEach(sel => {
             if (!sel) return;
             const currentVal = sel.value;
             sel.innerHTML = '';
@@ -198,6 +198,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 sel.value = currentVal;
             }
         });
+    }
+
+    /**
+     * Updates seat input max values based on current player count
+     * and enables/disables them based on "seats not tracked" checkbox.
+     */
+    function updateSeatInputs() {
+        const seatInputs = document.querySelectorAll('.seat-input');
+        const disabled = seatsNotTrackedCheckbox && seatsNotTrackedCheckbox.checked;
+        seatInputs.forEach(input => {
+            input.disabled = disabled;
+            input.max = currentPlayers;
+            if (disabled) {
+                input.value = '';
+            }
+        });
+    }
+
+    if (seatsNotTrackedCheckbox) {
+        seatsNotTrackedCheckbox.addEventListener('change', updateSeatInputs);
     }
 
     // Expose for inline script usage
@@ -251,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     updateButtonStates();
     updateWinnerFirstChoices();
+    updateSeatInputs();
 
     const showInteraction = document.getElementById('show-interaction') && document.getElementById('show-interaction').value === 'true';
 
@@ -283,6 +304,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="form-field">
                         <label for="players-${playerIndex}-player">Player</label>
                         <select name="players-${playerIndex}-player" id="players-${playerIndex}-player"></select>
+                    </div>
+                    <div class="form-field seat-field">
+                        <label for="players-${playerIndex}-seat">Seat</label>
+                        <input type="number" name="players-${playerIndex}-seat" id="players-${playerIndex}-seat" size="3" min="1" max="${currentPlayers}" class="seat-input"${seatsNotTrackedCheckbox && seatsNotTrackedCheckbox.checked ? ' disabled' : ''}>
                     </div>
                 </div>
                 <div class="deck-unit">
@@ -319,6 +344,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setupPlayerListeners(playerIndex);
             updateButtonStates();
             updateWinnerFirstChoices();
+            updateSeatInputs();
 
             playerWrapper.querySelector('.remove-player').addEventListener('click', function () {
                 if (currentPlayers > minPlayers) {
@@ -326,6 +352,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     currentPlayers--;
                     updateButtonStates();
                     updateWinnerFirstChoices();
+                    updateSeatInputs();
                 }
             });
         }
@@ -338,6 +365,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentPlayers--;
                 updateButtonStates();
                 updateWinnerFirstChoices();
+                updateSeatInputs();
             }
         });
     });

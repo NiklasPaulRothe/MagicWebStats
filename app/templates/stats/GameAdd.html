@@ -29,6 +29,10 @@
                                 {{ player_form.player.label }}
                                 {{ player_form.player() }}
                             </div>
+                            <div class="form-field seat-field">
+                                {{ player_form.seat.label }}
+                                {{ player_form.seat(size=3, min=1, class="seat-input") }}
+                            </div>
                         </div>
                         <div class="deck-unit">
                             <div class="form-field">
@@ -105,12 +109,10 @@
                             <span class="field-error">{{ error }}</span>
                         {% endfor %}
                     </div>
-                    <div class="form-field">
-                        {{ form.first.label }}
-                        {{ form.first(class="input-error" if form.first.errors else "") }}
-                        {% for error in form.first.errors %}
-                            <span class="field-error">{{ error }}</span>
-                        {% endfor %}
+                    <div class="form-field form-field--inline">
+                        {{ form.seats_not_tracked() }}
+                        {{ form.seats_not_tracked.label }}
+                        <span class="field-hint">Check if seat order is unknown</span>
                     </div>
                     <div class="form-field">
                         {{ form.date.label }}

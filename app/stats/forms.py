@@ -44,6 +44,7 @@ class DeckAddForm(FlaskForm):
 class PlayerForm(Form):
     player = SelectField('Player', validate_choice=False)
     deck = SelectField('Deck', validate_choice=False)
+    seat = IntegerField('Seat', validators=[Optional()])
     borrowed = BooleanField('Borrowed', default=False)
     lender = SelectField('Geliehen von', validate_choice=False)
     early_fast_mana = BooleanField('Early Fast Mana', default=False)
@@ -54,7 +55,7 @@ class PlayerForm(Form):
 # Main GameAddForm
 class GameAddForm(FlaskForm):
     winner = SelectField('Winner', choices=[])
-    first = SelectField('First', choices=[])
+    seats_not_tracked = BooleanField('Seats not tracked', default=False)
     turns = IntegerField('Turns', validators=[Optional()])
     final_blow = StringField('Final Blow', validators=[Optional()])
     first_ko_turn = IntegerField('First KO in Turn', validators=[Optional()])
