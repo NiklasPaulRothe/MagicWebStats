@@ -1,10 +1,204 @@
 {% extends "base.html" %}
 
-{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">
+<style>
+/* ── Player Overview Stats Block ─────────────────────────────────────────── */
+.player-overview {
+    margin-bottom: 24px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
+
+.stat-card {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.stat-card h3 {
+    margin: 0 0 12px 0;
+    font-size: 0.95em;
+    color: #f4c430;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    gap: 12px;
+}
+
+.stat-label {
+    white-space: nowrap;
+    color: #aaa;
+    font-size: 0.85em;
+}
+
+.stat-value {
+    white-space: nowrap;
+    text-align: right;
+    font-weight: bold;
+    color: antiquewhite;
+    font-size: 0.9em;
+}
+
+.stat-value small {
+    font-weight: normal;
+    color: #888;
+    font-size: 0.85em;
+}
+
+.stat-empty {
+    color: #666;
+    font-style: italic;
+    font-size: 0.85em;
+    margin: 8px 0;
+}
+
+/* ── Color Usage Bars ────────────────────────────────────────────────────── */
+.color-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.color-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-pip {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7em;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.color-white { background: #f9faf4; color: #333; }
+.color-blue { background: #0e68ab; color: #fff; }
+.color-black { background: #160b00; color: #ccc; border: 1px solid #444; }
+.color-red { background: #d3202a; color: #fff; }
+.color-green { background: #00733e; color: #fff; }
+
+.color-bar-track {
+    flex: 1;
+    height: 8px;
+    background: #2a2a2a;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.color-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.color-bar-pct {
+    width: 45px;
+    text-align: right;
+    font-size: 0.8em;
+    color: #ccc;
+}
+</style>
+{% endblock %}
 
 {% block content %}
     <main>
         <h1>{{ spieler.name }} Deckübersicht</h1>
+
+        {% if player_stats and player_stats.games > 0 %}
+        <section class="player-overview">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Performance</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">Games</span>
+                        <span class="stat-value">{{ player_stats.games }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Wins</span>
+                        <span class="stat-value">{{ player_stats.wins }}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Winrate</span>
+                        <span class="stat-value">{{ player_stats.winrate }}%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">First</span>
+                        <span class="stat-value">{{ player_stats.first }} ({{ player_stats.first_pct }}%)</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>Winrate by Seat</h3>
+                    {% if player_stats.winrate_by_seat %}
+                    <div class="seat-stats">
+                        {% for seat, data in player_stats.winrate_by_seat.items() %}
+                        <div class="stat-row">
+                            <span class="stat-label">Seat {{ seat }}</span>
+                            <span class="stat-value">{{ data.winrate }}% <small>({{ data.wins }}/{{ data.games }})</small></span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="stat-empty">No seat data available</p>
+                    {% endif %}
+                </div>
+
+                <div class="stat-card">
+                    <h3>Color Usage</h3>
+                    <div class="color-bars">
+                        <div class="color-bar-row">
+                            <span class="color-pip color-white" title="White">W</span>
+                            <div class="color-bar-track"><div class="color-bar-fill" style="width: {{ player_stats.color_usage.white }}%; background: #f9faf4;"></div></div>
+                            <span class="color-bar-pct">{{ player_stats.color_usage.white }}%</span>
+                        </div>
+                        <div class="color-bar-row">
+                            <span class="color-pip color-blue" title="Blue">U</span>
+                            <div class="color-bar-track"><div class="color-bar-fill" style="width: {{ player_stats.color_usage.blue }}%; background: #0e68ab;"></div></div>
+                            <span class="color-bar-pct">{{ player_stats.color_usage.blue }}%</span>
+                        </div>
+                        <div class="color-bar-row">
+                            <span class="color-pip color-black" title="Black">B</span>
+                            <div class="color-bar-track"><div class="color-bar-fill" style="width: {{ player_stats.color_usage.black }}%; background: #160b00;"></div></div>
+                            <span class="color-bar-pct">{{ player_stats.color_usage.black }}%</span>
+                        </div>
+                        <div class="color-bar-row">
+                            <span class="color-pip color-red" title="Red">R</span>
+                            <div class="color-bar-track"><div class="color-bar-fill" style="width: {{ player_stats.color_usage.red }}%; background: #d3202a;"></div></div>
+                            <span class="color-bar-pct">{{ player_stats.color_usage.red }}%</span>
+                        </div>
+                        <div class="color-bar-row">
+                            <span class="color-pip color-green" title="Green">G</span>
+                            <div class="color-bar-track"><div class="color-bar-fill" style="width: {{ player_stats.color_usage.green }}%; background: #00733e;"></div></div>
+                            <span class="color-bar-pct">{{ player_stats.color_usage.green }}%</span>
+                        </div>
+                    </div>
+                    <div class="stat-row" style="margin-top: 8px;">
+                        <span class="stat-label">Avg Colors</span>
+                        <span class="stat-value">{{ player_stats.avg_colors }}</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
         <section id="deck-stats">
             <h2>Deck Stats</h2>
             <div class="deck-stats-controls">

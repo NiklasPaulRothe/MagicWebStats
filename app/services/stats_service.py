@@ -466,3 +466,124 @@ def compute_chart_data(exclude_cedh: bool = True) -> dict:
         "final_blow_data": final_blow_data,
         "first_ko_data": first_ko_data,
     }
+
+
+def compute_player_overview(player_id: int) -> dict:
+    """Compute overview stats for a player's profile page.
+
+    Returns games, wins, winrate, first count, first percentage,
+    winrate by seat, and color usage percentages.
+
+    Args:
+        player_id: The Player's database ID.
+
+    Returns:
+        Dict with keys:
+            - games: total non-cEDH game count
+            - wins: total non-cEDH win count
+            - winrate: win percentage (float, 1 decimal)
+            - first: times this player went first
+            - first_pct: first percentage (float, 1 decimal)
+            - winrate_by_seat: dict mapping seat number to {games, wins, winrate}
+            - color_usage: dict with keys white, blue, black, red, green (percentages)
+            - avg_colors: average number of colors across active decks
+    """
+    from app.viewmodels import ColorUsagePlayer
+
+    # --- Total games & wins (excluding cEDH) ---
+    game_ids_stmt = (
+        sa.select(Participant.game_id)
+        .join(Game, Game.id == Participant.game_id)
+        .where(Participant.player_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+    )
+    game_ids = list(db.session.scalars(game_ids_stmt).all())
+    total_games = len(game_ids)
+
+    if total_games == 0:
+        return {
+            'games': 0, 'wins': 0, 'winrate': 0.0,
+            'first': 0, 'first_pct': 0.0,
+            'winrate_by_seat': {},
+            'color_usage': {'white': 0, 'blue': 0, 'black': 0, 'red': 0, 'green': 0},
+            'avg_colors': 0.0,
+        }
+
+    # Count wins
+    wins_stmt = (
+        sa.select(func.count())
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .where(Participant.player_id == player_id)
+        .where(Game.winner_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+    )
+    wins = db.session.scalar(wins_stmt) or 0
+    winrate = round((wins / total_games) * 100, 1) if total_games else 0.0
+
+    # --- First player stats ---
+    first_stmt = (
+        sa.select(func.count())
+        .select_from(Game)
+        .where(Game.first_player_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+        .where(Game.id.in_(game_ids))
+    )
+    first_count = db.session.scalar(first_stmt) or 0
+    first_pct = round((first_count / total_games) * 100, 1) if total_games else 0.0
+
+    # --- Winrate by seat ---
+    seat_stats_stmt = (
+        sa.select(
+            Participant.seat,
+            func.count().label('games'),
+            func.sum(sa.case((Game.winner_id == player_id, 1), else_=0)).label('wins'),
+        )
+        .join(Game, Game.id == Participant.game_id)
+        .where(Participant.player_id == player_id)
+        .where(Participant.seat.isnot(None))
+        .where(Game.cedh != True)  # noqa: E712
+        .group_by(Participant.seat)
+        .order_by(Participant.seat)
+    )
+    seat_rows = db.session.execute(seat_stats_stmt).all()
+    winrate_by_seat = {}
+    for row in seat_rows:
+        seat_games = row.games
+        seat_wins = row.wins
+        seat_wr = round((seat_wins / seat_games) * 100, 1) if seat_games else 0.0
+        winrate_by_seat[row.seat] = {
+            'games': seat_games,
+            'wins': seat_wins,
+            'winrate': seat_wr,
+        }
+
+    # --- Color usage from the database view ---
+    color_usage = {'white': 0.0, 'blue': 0.0, 'black': 0.0, 'red': 0.0, 'green': 0.0}
+    avg_colors = 0.0
+
+    player_name = db.session.scalar(sa.select(Player.name).where(Player.id == player_id))
+    if player_name:
+        color_row = db.session.scalar(
+            sa.select(ColorUsagePlayer).where(ColorUsagePlayer.Player == player_name)
+        )
+        if color_row:
+            color_usage = {
+                'white': round(color_row.white or 0, 1),
+                'blue': round(color_row.blue or 0, 1),
+                'black': round(color_row.black or 0, 1),
+                'red': round(color_row.red or 0, 1),
+                'green': round(color_row.green or 0, 1),
+            }
+            avg_colors = round(color_row.avg_number_of_colors or 0, 1)
+
+    return {
+        'games': total_games,
+        'wins': wins,
+        'winrate': winrate,
+        'first': first_count,
+        'first_pct': first_pct,
+        'winrate_by_seat': winrate_by_seat,
+        'color_usage': color_usage,
+        'avg_colors': avg_colors,
+    }

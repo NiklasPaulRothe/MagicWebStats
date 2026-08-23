@@ -10,7 +10,7 @@ import sqlalchemy as sa
 logger = logging.getLogger(__name__)
 
 from app.models import User, Player, Game, Participant
-from app.services.stats_service import compute_chart_data
+from app.services.stats_service import compute_chart_data, compute_player_overview
 from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
@@ -94,11 +94,13 @@ def user(spieler):
     owner = (user.id == current_user.id)
     username = user.username
     spieler = db.session.scalar(sa.select(Player).where(Player.id == user.player_id))
+    player_stats = compute_player_overview(spieler.id) if spieler else {}
     return render_template(
         'user.html',
         spieler=spieler,
         owner=owner,
-        username=username)
+        username=username,
+        player_stats=player_stats)
 
 @bp.route('/player/<spieler>')
 @login_required
@@ -111,9 +113,11 @@ def player(spieler):
         username = user.username
     except Exception:
         owner = False
+    player_stats = compute_player_overview(player.id) if player else {}
     return render_template(
         'user.html',
         spieler=player,
         owner=owner,
-        username=username)
+        username=username,
+        player_stats=player_stats)
 
