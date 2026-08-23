@@ -295,7 +295,7 @@
                             const imgTags = colorImgs.map(src => `<img src="${src}" alt="color" style="height:1.2em; vertical-align:middle;">`).join('');
                             return `<td>${imgTags}</td>`;
                         }
-                        return `<td>${item[key] || ''}</td>`
+                        return `<td>${item[key] != null ? item[key] : ''}</td>`
                     }).join('');
                     tbody.appendChild(row);
                         decklist = document.getElementById(String(Deck).concat("-list"));
