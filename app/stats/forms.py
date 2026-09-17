@@ -131,7 +131,6 @@ class GameEditForm(FlaskForm):
     """
     date = DateField('Date', validators=[DataRequired()])
     winner = SelectField('Winner', choices=[])
-    first = SelectField('First', choices=[])
     turns = IntegerField('Turns', validators=[Optional()])
     final_blow = StringField('Final Blow', validators=[Optional()])
     first_ko_turn = IntegerField('First KO in Turn', validators=[Optional()])

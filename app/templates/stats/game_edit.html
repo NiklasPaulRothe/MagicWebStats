@@ -91,13 +91,6 @@
                         {% endfor %}
                     </div>
                     <div class="form-field">
-                        {{ form.first.label }}
-                        {{ form.first(class="input-error" if form.first.errors else "") }}
-                        {% for error in form.first.errors %}
-                            <span class="field-error">{{ error }}</span>
-                        {% endfor %}
-                    </div>
-                    <div class="form-field">
                         {{ form.date.label }}
                         {{ form.date(id="date-field", class="input-error" if form.date.errors else "") }}
                         {% for error in form.date.errors %}

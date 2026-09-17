@@ -213,9 +213,23 @@ def test_game_history_row_building_preserves_game_data(data):
         f"Expected {num_games} rows but got {len(rows)}"
     )
 
+    # --- Property: rows are ordered by date descending (most recent first) ---
+    row_dates = [row["datum"] for row in rows]
+    assert row_dates == sorted(row_dates, reverse=True), (
+        f"Rows are not ordered by date descending: {row_dates}"
+    )
+
+    # Mirror the function's sorting so positional comparisons line up:
+    # build_game_history sorts resulting rows by date descending.
+    ordered_participants = sorted(
+        owner_participants,
+        key=lambda p: games[p.game_id].date.strftime("%Y-%m-%d"),
+        reverse=True,
+    )
+
     # --- Verify each row ---
     for i, row in enumerate(rows):
-        participant = owner_participants[i]
+        participant = ordered_participants[i]
         game_id = participant.game_id
         game = games[game_id]
 

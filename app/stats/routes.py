@@ -79,6 +79,14 @@ def game_hub():
             .where(Participant.game_id == game.id)
         ).all()
         
+        # Fall back to seat order: when no explicit first player is set but seats
+        # were tracked, treat the player in seat 1 as the first player.
+        if not first_player_name:
+            for participant, player, _ in participants_query:
+                if participant.seat == 1:
+                    first_player_name = player.name
+                    break
+        
         # Build ParticipantDisplay list
         participants = []
         for participant, player, deck in participants_query:
@@ -147,10 +155,9 @@ def game_edit(game_id):
     # Instantiate GameEditForm
     form = GameEditForm()
 
-    # Build choices for winner and first from existing participants only
+    # Build choices for winner from existing participants only
     participant_names = [(p.name, p.name) for _, p, _ in participants_query]
     form.winner.choices = participant_names
-    form.first.choices = participant_names
 
     # Build decks list for JS widget (same format as game_add)
     decks = get_active_decks()
@@ -183,9 +190,8 @@ def game_edit(game_id):
             game.first_ko_by = form.first_ko_by.data if form.first_ko_by.data else None
             game.cedh = form.cedh.data
 
-            # Resolve Winner and First_Player from names via game_service
+            # Resolve Winner from name via game_service
             game.winner_id = resolve_player_id(form.winner.data)
-            game.first_player_id = resolve_player_id(form.first.data)
 
             # Update each participant
             for pf in form.participants:
@@ -264,11 +270,9 @@ def game_edit(game_id):
     form.first_ko_by.data = game.first_ko_by
     form.cedh.data = game.cedh
 
-    # Pre-populate winner and first player
+    # Pre-populate winner
     winner = db.session.get(Player, game.winner_id)
-    first_player = db.session.get(Player, game.first_player_id)
     form.winner.data = winner.name if winner else None
-    form.first.data = first_player.name if first_player else None
 
     # Populate form.participants with each participant's data
     for participant, player, deck in participants_query:

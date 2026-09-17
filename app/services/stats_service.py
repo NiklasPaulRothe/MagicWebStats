@@ -504,6 +504,7 @@ def compute_player_overview(player_id: int) -> dict:
         return {
             'games': 0, 'wins': 0, 'winrate': 0.0,
             'first': 0, 'first_pct': 0.0,
+            'avg_pod_size': 0.0,
             'winrate_by_seat': {},
             'color_usage': {'white': 0, 'blue': 0, 'black': 0, 'red': 0, 'green': 0},
             'avg_colors': 0.0,
@@ -531,6 +532,15 @@ def compute_player_overview(player_id: int) -> dict:
     )
     first_count = db.session.scalar(first_stmt) or 0
     first_pct = round((first_count / total_games) * 100, 1) if total_games else 0.0
+
+    # --- Average pod size (avg participants across this player's games) ---
+    total_participants_stmt = (
+        sa.select(func.count())
+        .select_from(Participant)
+        .where(Participant.game_id.in_(game_ids))
+    )
+    total_participants = db.session.scalar(total_participants_stmt) or 0
+    avg_pod_size = round(total_participants / total_games, 1) if total_games else 0.0
 
     # --- Winrate by seat ---
     seat_stats_stmt = (
@@ -583,6 +593,7 @@ def compute_player_overview(player_id: int) -> dict:
         'winrate': winrate,
         'first': first_count,
         'first_pct': first_pct,
+        'avg_pod_size': avg_pod_size,
         'winrate_by_seat': winrate_by_seat,
         'color_usage': color_usage,
         'avg_colors': avg_colors,
