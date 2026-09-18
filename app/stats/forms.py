@@ -96,6 +96,7 @@ class ParticipantEditSubForm(Form):
     """
     player_id = HiddenField()
     player_name = StringField()
+    seat = IntegerField('Seat', validators=[Optional(), NumberRange(min=1)])
     deck = SelectField('Deck', validate_choice=False)
     borrowed = BooleanField('Borrowed', default=False)
     lender = SelectField('Geliehen von', validate_choice=False)

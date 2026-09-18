@@ -218,10 +218,21 @@ def game_edit(game_id):
                         pass  # Keep existing deck_id if resolution fails
 
                     # Update other participant fields
+                    participant.seat = pf.seat.data
                     participant.early_sol_ring = pf.early_fast_mana.data
                     participant.removal_played = pf.removal_played.data
                     participant.targeted_by_removal = pf.targeted_by_removal.data
                     participant.protection_played = pf.protection_played.data
+
+            # Re-derive first player from the participant now in seat 1.
+            # Keeps game.first_player_id consistent with the seat order after edits.
+            # Use the hidden player_id field (player_name is display-only and not submitted).
+            first_id = None
+            for pf in form.participants:
+                if pf.seat.data == 1 and pf.player_id.data:
+                    first_id = int(pf.player_id.data)
+                    break
+            game.first_player_id = first_id
 
             # Update Niklas's "My Game" fields if applicable
             if niklas_is_participant and niklas_player_id:
@@ -301,6 +312,7 @@ def game_edit(game_id):
         entry_data = {
             'player_id': participant.player_id,
             'player_name': player.name,
+            'seat': participant.seat,
             'deck': f"{deck.name} ({deck.commander})",
             'borrowed': is_borrowed,
             'lender': lender_name,

@@ -18,6 +18,13 @@
                                 <span class="readonly-player">{{ pf.player_name.data }}</span>
                                 {{ pf.player_id() }}
                             </div>
+                            <div class="form-field">
+                                {{ pf.seat.label }}
+                                {{ pf.seat(size=5, class="input-error" if pf.seat.errors else "") }}
+                                {% for error in pf.seat.errors %}
+                                    <span class="field-error">{{ error }}</span>
+                                {% endfor %}
+                            </div>
                         </div>
                         <div class="deck-unit">
                             <div class="form-field">
