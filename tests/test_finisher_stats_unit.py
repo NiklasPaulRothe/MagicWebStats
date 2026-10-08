@@ -115,12 +115,25 @@ def test_cedh_and_losses_excluded(app, seeded):
         assert result["avg_win_turns"] == 6.5
 
 
+def test_second_final_blow_and_slowest_win_turns(app, seeded):
+    with app.app_context():
+        # final_blow counts: Combat x3, Commander x1 -> second = 'Commander'.
+        # Non-null win turns are {5, 3, 8, 10} -> fastest 3, slowest 10.
+        result = get_finisher_stats(1)
+        assert result["most_common_final_blow"] == "Combat"
+        assert result["second_final_blow"] == "Commander"
+        assert result["fastest_win_turns"] == 3
+        assert result["slowest_win_turns"] == 10
+
+
 def test_empty_state_when_all_fields_null(app, seeded):
     with app.app_context():
         result = get_finisher_stats(2)
         assert result == {
             "most_common_final_blow": None,
+            "second_final_blow": None,
             "fastest_win_turns": None,
+            "slowest_win_turns": None,
             "avg_win_turns": None,
         }
 
@@ -130,7 +143,9 @@ def test_empty_state_when_no_wins(app, seeded):
         result = get_finisher_stats(3)
         assert result == {
             "most_common_final_blow": None,
+            "second_final_blow": None,
             "fastest_win_turns": None,
+            "slowest_win_turns": None,
             "avg_win_turns": None,
         }
 
@@ -140,6 +155,8 @@ def test_empty_state_for_unknown_player(app, seeded):
         result = get_finisher_stats(999)
         assert result == {
             "most_common_final_blow": None,
+            "second_final_blow": None,
             "fastest_win_turns": None,
+            "slowest_win_turns": None,
             "avg_win_turns": None,
         }

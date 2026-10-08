@@ -484,12 +484,20 @@
                 {% set _fin = finishers or {} %}
                 {% if _fin.most_common_final_blow or _fin.fastest_win_turns is not none or _fin.avg_win_turns is not none %}
                 <div class="pf-stat-row">
-                    <span class="pf-label">Häufigster Abschluss</span>
+                    <span class="pf-label">Häufigster Finisher</span>
                     <span class="pf-value">{% if _fin.most_common_final_blow %}{{ _fin.most_common_final_blow }}{% else %}&ndash;{% endif %}</span>
+                </div>
+                <div class="pf-stat-row">
+                    <span class="pf-label">2. Häufigster Finisher</span>
+                    <span class="pf-value">{% if _fin.second_final_blow %}{{ _fin.second_final_blow }}{% else %}&ndash;{% endif %}</span>
                 </div>
                 <div class="pf-stat-row">
                     <span class="pf-label">Schnellster Sieg</span>
                     <span class="pf-value">{% if _fin.fastest_win_turns is not none %}{{ _fin.fastest_win_turns }} Züge{% else %}&ndash;{% endif %}</span>
+                </div>
+                <div class="pf-stat-row">
+                    <span class="pf-label">Spätester Sieg</span>
+                    <span class="pf-value">{% if _fin.slowest_win_turns is not none %}{{ _fin.slowest_win_turns }} Züge{% else %}&ndash;{% endif %}</span>
                 </div>
                 <div class="pf-stat-row">
                     <span class="pf-label">Ø Züge pro Sieg</span>
@@ -559,7 +567,7 @@
                     </span>
                 </div>
                 <div class="pf-stat-row">
-                    <span class="pf-label">Von Removal getroffen (Ø)</span>
+                    <span class="pf-label">Von Removal getargeted (Ø)</span>
                     <span class="pf-value">
                         {% if _tbr.avg is not none %}{{ '%.1f'|format(_tbr.avg) }} <small>(n={{ _tbr.n }})</small>{% else %}&ndash;{% endif %}
                     </span>

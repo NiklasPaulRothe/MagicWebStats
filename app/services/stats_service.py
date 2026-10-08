@@ -956,8 +956,13 @@ def get_finisher_stats(player_id: int) -> dict:
     excluding cEDH (Req 9.3), and surfaces the player's closing style:
       - ``most_common_final_blow``: the most frequent non-empty ``Game.final_blow``
         across those wins (the mode); ``None`` when no win records a final blow.
+      - ``second_final_blow``: the second-most-common non-empty ``Game.final_blow``
+        across those wins; ``None`` when fewer than two distinct final blows exist.
       - ``fastest_win_turns``: the smallest non-null ``Game.turns`` among those
         wins (the notable extreme of Req 9.2); ``None`` when no win records turns.
+      - ``slowest_win_turns``: the largest non-null ``Game.turns`` among those
+        wins (the counterpart extreme to ``fastest_win_turns``); ``None`` when
+        no win records turns.
       - ``avg_win_turns``: the mean of the non-null ``Game.turns`` among those
         wins, rounded to one decimal; ``None`` when no win records turns.
 
@@ -975,13 +980,16 @@ def get_finisher_stats(player_id: int) -> dict:
 
     Returns:
         Dict with keys ``most_common_final_blow`` (str | None),
-        ``fastest_win_turns`` (int | None), and ``avg_win_turns`` (float | None).
+        ``second_final_blow`` (str | None), ``fastest_win_turns`` (int | None),
+        ``slowest_win_turns`` (int | None), and ``avg_win_turns`` (float | None).
 
     Validates: Requirements 9.1, 9.2, 9.3, 9.4
     """
     empty = {
         'most_common_final_blow': None,
+        'second_final_blow': None,
         'fastest_win_turns': None,
+        'slowest_win_turns': None,
         'avg_win_turns': None,
     }
 
@@ -999,16 +1007,21 @@ def get_finisher_stats(player_id: int) -> dict:
         row.final_blow for row in rows
         if row.final_blow is not None and str(row.final_blow).strip() != ''
     ]
-    most_common_final_blow = Counter(final_blows).most_common(1)[0][0] if final_blows else None
+    final_blow_ranking = Counter(final_blows).most_common(2)
+    most_common_final_blow = final_blow_ranking[0][0] if final_blows else None
+    second_final_blow = final_blow_ranking[1][0] if len(final_blow_ranking) >= 2 else None
 
     # Win-turn extremes: ignore NULL turns.
     win_turns = [row.turns for row in rows if row.turns is not None]
     fastest_win_turns = min(win_turns) if win_turns else None
+    slowest_win_turns = max(win_turns) if win_turns else None
     avg_win_turns = round(statistics.mean(win_turns), 1) if win_turns else None
 
     return {
         'most_common_final_blow': most_common_final_blow,
+        'second_final_blow': second_final_blow,
         'fastest_win_turns': fastest_win_turns,
+        'slowest_win_turns': slowest_win_turns,
         'avg_win_turns': avg_win_turns,
     }
 
