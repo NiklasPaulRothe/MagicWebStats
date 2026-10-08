@@ -97,6 +97,12 @@
     color: antiquewhite;
 }
 
+.pf-tile-value small {
+    font-size: 0.6em;
+    font-weight: normal;
+    color: #888;
+}
+
 .pf-tile-label {
     color: #aaa;
     font-size: 0.7em;
@@ -105,24 +111,33 @@
     letter-spacing: 0.03em;
 }
 
-/* ── Dense content grid ───────────────────────────────────────────────────── */
-.pf-grid {
+/* ── Content overview grid — three areas on wide screens ──────────────────── */
+.pf-overview {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     align-items: start;
+    margin-bottom: 12px;
 }
 
-.pf-grid--wide { grid-column: span 2; }
+/* Vertical stack of two cards inside areas 2 and 3 */
+.pf-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ── Charts row — two chart cards side by side ────────────────────────────── */
+.pf-charts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
 
 @media (max-width: 900px) {
-    .pf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .pf-grid--wide { grid-column: span 2; }
-}
-
-@media (max-width: 600px) {
-    .pf-grid { grid-template-columns: 1fr; }
-    .pf-grid--wide { grid-column: span 1; }
+    .pf-overview { grid-template-columns: 1fr; }
+    .pf-charts { grid-template-columns: 1fr; }
 }
 
 /* ── Cards (plain divs — never reuse basic.css .stat-card) ─────────────────── */
@@ -275,49 +290,6 @@
     height: 220px;
 }
 
-/* ── Bio ──────────────────────────────────────────────────────────────────── */
-.pf-bio {
-    background: #242424;
-    border: 1px solid #2f2f2f;
-    border-radius: 5px;
-    padding: 8px 10px;
-    color: antiquewhite;
-    white-space: pre-wrap;
-    font-size: 0.85em;
-}
-
-.pf-bio-form {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 8px;
-}
-
-.pf-bio-form textarea {
-    width: 100%;
-    box-sizing: border-box;
-    background: #141414;
-    border: 1px solid #333;
-    border-radius: 4px;
-    color: antiquewhite;
-    font-size: 0.85em;
-    padding: 6px;
-    resize: vertical;
-}
-
-.pf-bio-form button {
-    align-self: flex-start;
-    padding: 5px 14px;
-    background: #2a2a2a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    color: #f4c430;
-    cursor: pointer;
-    font-size: 0.85em;
-}
-
-.pf-bio-form button:hover { background: #333; }
-
 /* ── Cross-link ───────────────────────────────────────────────────────────── */
 .pf-crosslink { margin: 12px 0 4px 0; }
 .pf-crosslink a {
@@ -336,17 +308,18 @@
 
 {% block content %}
 {# ── Compute the visual accent from the most-used color (Req 2.4) ──────────── #}
+{# Jinja {% set %} inside a loop does not persist, so accumulate into a
+   namespace that survives the loop. #}
 {% set cu = color_usage or {} %}
 {% set _color_hex = {'white': '#f9faf4', 'blue': '#0e68ab', 'black': '#160b00', 'red': '#d3202a', 'green': '#00733e'} %}
-{% set _accent_key = none %}
-{% set _accent_val = 0 %}
+{% set accent_ns = namespace(key=none, val=0) %}
 {% for k in ['white', 'blue', 'black', 'red', 'green'] %}
-    {% if (cu.get(k) or 0) > _accent_val %}
-        {% set _accent_val = cu.get(k) or 0 %}
-        {% set _accent_key = k %}
+    {% if (cu.get(k) or 0) > accent_ns.val %}
+        {% set accent_ns.val = cu.get(k) or 0 %}
+        {% set accent_ns.key = k %}
     {% endif %}
 {% endfor %}
-{% set accent = _color_hex.get(_accent_key, '#f4c430') %}
+{% set accent = _color_hex.get(accent_ns.key, '#f4c430') %}
 
 <div class="pf-page">
     {# ── 1. Identity header (Req 2.1–2.5) ─────────────────────────────────── #}
@@ -360,7 +333,7 @@
             <p class="pf-member-since">Mitglied seit {{ player.created_at.strftime('%d.%m.%Y') }}</p>
             {% endif %}
         </div>
-        {% if _accent_key %}
+        {% if accent_ns.key %}
         <div class="pf-pips">
             {% for k in ['white', 'blue', 'black', 'red', 'green'] %}
                 {% if (cu.get(k) or 0) > 0 %}
@@ -373,13 +346,13 @@
 
     {# ── 2. Headline tiles (Req 3.1–3.4) ──────────────────────────────────── #}
     {% if overview and overview.games > 0 %}
-    {# Favourite seat = seat with best winrate #}
-    {% set _fav_seat = none %}
-    {% set _fav_seat_wr = -1 %}
+    {# Best seat = seat with best winrate. Accumulate into a namespace so the
+       result survives the loop. #}
+    {% set seat_ns = namespace(seat=none, wr=-1) %}
     {% for seat, data in (overview.winrate_by_seat or {}).items() %}
-        {% if data.winrate > _fav_seat_wr %}
-            {% set _fav_seat_wr = data.winrate %}
-            {% set _fav_seat = seat %}
+        {% if data.winrate > seat_ns.wr %}
+            {% set seat_ns.wr = data.winrate %}
+            {% set seat_ns.seat = seat %}
         {% endif %}
     {% endfor %}
     <div class="pf-tiles" aria-label="Headline statistics">
@@ -396,13 +369,13 @@
             <div class="pf-tile-label">Winrate</div>
         </div>
         <div class="pf-tile">
-            <div class="pf-tile-value">{% if _fav_seat is not none %}Seat {{ _fav_seat }}{% else %}&ndash;{% endif %}</div>
-            <div class="pf-tile-label">Lieblingssitz</div>
+            <div class="pf-tile-value">{% if seat_ns.seat is not none %}Seat {{ seat_ns.seat }} <small>({{ '%.1f'|format(seat_ns.wr) }}%)</small>{% else %}&ndash;{% endif %}</div>
+            <div class="pf-tile-label">Best Seat</div>
         </div>
         <div class="pf-tile">
             <div class="pf-tile-value">
-                {% if _accent_key %}
-                    <span class="pf-pip pf-c-{{ _accent_key }}">{{ {'white':'W','blue':'U','black':'B','red':'R','green':'G'}[_accent_key] }}</span>
+                {% if accent_ns.key %}
+                    <span class="pf-pip pf-c-{{ accent_ns.key }}">{{ {'white':'W','blue':'U','black':'B','red':'R','green':'G'}[accent_ns.key] }}</span>
                 {% else %}&ndash;{% endif %}
             </div>
             <div class="pf-tile-label">Lieblingsfarbe</div>
@@ -416,204 +389,184 @@
     <p class="pf-empty">Noch keine Spiele &ndash; sobald Partien erfasst sind, erscheinen hier die Kennzahlen.</p>
     {% endif %}
 
-    {# ── Dense content grid wrapping the content cards (#3–#10) ───────────── #}
-    <div class="pf-grid">
-    {# ── 3. Recent games feed (Req 4.1–4.5) ───────────────────────────────── #}
-    <div class="pf-card" aria-label="Recent games">
-        <h2 class="pf-card-title">Letzte Spiele</h2>
-        {% if recent_games %}
-        <ul class="pf-feed">
-            {% for g in recent_games[:10] %}
-            <li class="pf-{{ g.result }}">
-                <span class="pf-feed-date">{% if g.date %}{{ g.date.strftime('%Y-%m-%d') }}{% else %}&ndash;{% endif %}</span>
-                <span class="pf-feed-deck">{{ g.deck_name or 'Unbekanntes Deck' }}</span>
-                <span class="pf-feed-result pf-{{ g.result }}">{{ 'Sieg' if g.result == 'win' else 'Niederlage' }}</span>
-                <span class="pf-feed-meta">
-                    Pod {{ g.pod_size }}{% if g.turns is not none %} &middot; {{ g.turns }} Züge{% endif %}
-                </span>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="pf-empty">Noch keine Spiele erfasst.</p>
-        {% endif %}
-    </div>
-
-    {# ── 4. Deck highlights (Req 5.1–5.5) ─────────────────────────────────── #}
-    <div class="pf-card" aria-label="Deck highlights">
-        <h2 class="pf-card-title">Deck-Highlights</h2>
-        {% set _mp = highlights.most_played if highlights else none %}
-        {% set _best = highlights.best if highlights else none %}
-        {% if _mp or _best %}
-        <div class="pf-highlights">
-            {% if _mp %}
-            <div class="pf-highlight">
-                <div class="pf-highlight-kind">Signature Deck</div>
-                <div class="pf-highlight-name">
-                    <a href="/decks/show/{{ _mp.name | urlencode }}">{{ _mp.name }}</a>
-                </div>
-                {% if _mp.commander %}<div class="pf-highlight-commander">{{ _mp.commander }}</div>{% endif %}
-                <div class="pf-highlight-metric">{{ _mp.games }} Spiele &middot; {{ '%.1f'|format(_mp.winrate) }}% Winrate</div>
-            </div>
-            {% endif %}
-            {% if _best %}
-            <div class="pf-highlight">
-                <div class="pf-highlight-kind">Best Performer</div>
-                <div class="pf-highlight-name">
-                    <a href="/decks/show/{{ _best.name | urlencode }}">{{ _best.name }}</a>
-                </div>
-                {% if _best.commander %}<div class="pf-highlight-commander">{{ _best.commander }}</div>{% endif %}
-                <div class="pf-highlight-metric">{{ '%.1f'|format(_best.winrate) }}% Winrate &middot; {{ _best.games }} Spiele</div>
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <p class="pf-empty">Noch keine Decks mit genügend Spielen.</p>
-        {% endif %}
-    </div>
-
-    {# ── 5. Head-to-head (Req 6.1–6.5) ────────────────────────────────────── #}
-    <div class="pf-card" aria-label="Head to head">
-        <h2 class="pf-card-title">Head-to-Head</h2>
-        {% if head_to_head %}
-        <table class="pf-table">
-            <thead>
-                <tr>
-                    <th>Gegner</th>
-                    <th>Spiele</th>
-                    <th>Siege</th>
-                    <th>Nied.</th>
-                    <th>Winrate</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for h in head_to_head %}
-                <tr>
-                    <td>{{ h.opponent_name }}</td>
-                    <td>{{ h.games }}</td>
-                    <td>{{ h.wins }}</td>
-                    <td>{{ h.losses }}</td>
-                    <td>{{ '%.1f'|format(h.winrate) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="pf-empty">Noch keine Gegner mit mindestens 10 gemeinsamen Spielen.</p>
-        {% endif %}
-    </div>
-
-    {# ── 6. Finishers (Req 9.1–9.4) ───────────────────────────────────────── #}
-    <div class="pf-card" aria-label="Finishers">
-        <h2 class="pf-card-title">Finisher</h2>
-        {% set _fin = finishers or {} %}
-        {% if _fin.most_common_final_blow or _fin.fastest_win_turns is not none or _fin.avg_win_turns is not none %}
-        <div class="pf-stat-row">
-            <span class="pf-label">Häufigster Abschluss</span>
-            <span class="pf-value">{% if _fin.most_common_final_blow %}{{ _fin.most_common_final_blow }}{% else %}&ndash;{% endif %}</span>
-        </div>
-        <div class="pf-stat-row">
-            <span class="pf-label">Schnellster Sieg</span>
-            <span class="pf-value">{% if _fin.fastest_win_turns is not none %}{{ _fin.fastest_win_turns }} Züge{% else %}&ndash;{% endif %}</span>
-        </div>
-        <div class="pf-stat-row">
-            <span class="pf-label">Ø Züge pro Sieg</span>
-            <span class="pf-value">{% if _fin.avg_win_turns is not none %}{{ '%.1f'|format(_fin.avg_win_turns) }}{% else %}&ndash;{% endif %}</span>
-        </div>
-        {% else %}
-        <p class="pf-empty">Noch keine Finisher-Daten verfügbar.</p>
-        {% endif %}
-    </div>
-
-    {# ── 7. Interaction — removal only (Req 11b.1) ────────────────────────── #}
-    <div class="pf-card" aria-label="Interaction">
-        <h2 class="pf-card-title">Interaktion</h2>
-        {% set _ia = interaction or {} %}
-        {% set _rp = _ia.removal_played or {} %}
-        {% set _tbr = _ia.targeted_by_removal or {} %}
-        {% if _rp.avg is not none or _tbr.avg is not none %}
-        <div class="pf-stat-row">
-            <span class="pf-label">Removal gespielt (Ø)</span>
-            <span class="pf-value">
-                {% if _rp.avg is not none %}{{ '%.1f'|format(_rp.avg) }} <small>(n={{ _rp.n }})</small>{% else %}&ndash;{% endif %}
-            </span>
-        </div>
-        <div class="pf-stat-row">
-            <span class="pf-label">Von Removal getroffen (Ø)</span>
-            <span class="pf-value">
-                {% if _tbr.avg is not none %}{{ '%.1f'|format(_tbr.avg) }} <small>(n={{ _tbr.n }})</small>{% else %}&ndash;{% endif %}
-            </span>
-        </div>
-        {% else %}
-        <p class="pf-empty">Noch keine Interaktionsdaten verfügbar.</p>
-        {% endif %}
-    </div>
-
-    {# ── 8. Bio (Req 11.1, 11.3–11.5) ─────────────────────────────────────── #}
-    <div class="pf-card" aria-label="Bio">
-        <h2 class="pf-card-title">Über</h2>
-        {% if bio %}
-        {# Autoescaped — NEVER use |safe on bio (Req 11.8). #}
-        <div class="pf-bio">{{ bio }}</div>
-        {% else %}
-        <p class="pf-empty">
-            {% if username %}
-                Noch keine Bio hinterlegt.
+    {# ── Content overview: three areas on wide screens ─────────────────────── #}
+    {#   Area 1: Head-to-Head (full-height left column)                         #}
+    {#   Area 2: Letzte Spiele (top) + Finisher (bottom)                        #}
+    {#   Area 3: Deck-Highlights (top) + Interaktion (bottom)                   #}
+    <div class="pf-overview">
+        {# ── Area 1 — Head-to-head (Req 6.1–6.5) ──────────────────────────── #}
+        <div class="pf-card" aria-label="Head to head">
+            <h2 class="pf-card-title">Head-to-Head</h2>
+            {% if head_to_head %}
+            <table class="pf-table">
+                <thead>
+                    <tr>
+                        <th>Gegner</th>
+                        <th>Spiele</th>
+                        <th>Siege</th>
+                        <th>Nied.</th>
+                        <th>Winrate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in head_to_head %}
+                    <tr>
+                        <td>{{ h.opponent_name }}</td>
+                        <td>{{ h.games }}</td>
+                        <td>{{ h.wins }}</td>
+                        <td>{{ h.losses }}</td>
+                        <td>{{ '%.1f'|format(h.winrate) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
             {% else %}
-                Für diesen Spieler ist kein Account verknüpft.
+            <p class="pf-empty">Noch keine Gegner mit mindestens 10 gemeinsamen Spielen.</p>
             {% endif %}
-        </p>
-        {% endif %}
-        {% if owner %}
-        {# ── Owner-only inline edit form (Req 11.4) ──────────────────────────
-             Only rendered when ``owner`` is true, so non-owners never see an
-             input control (Req 11.5). CSRFProtect is enabled globally, so the
-             POST carries the hidden csrf_token. The textarea is pre-filled with
-             the autoescaped current bio (NEVER |safe — Req 11.8) and capped at
-             the server's 1000-char limit. #}
-        <form class="pf-bio-form" method="post"
-              action="{{ url_for('main.update_bio', identifier=player.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label for="bio" class="pf-label">Bio bearbeiten</label>
-            <textarea id="bio" name="bio" maxlength="1000" rows="4">{{ bio or '' }}</textarea>
-            <button type="submit">Speichern</button>
-        </form>
-        {% endif %}
-    </div>
-
-    {# ── 9. Win trend (Req 7.1–7.3) — spans two columns when wide ──────────── #}
-    <div class="pf-card pf-grid--wide" aria-label="Win trend">
-        <h2 class="pf-card-title">Formkurve</h2>
-        {% if win_trend and win_trend|length >= 2 %}
-        <div class="pf-chart">
-            <canvas id="winTrendChart"></canvas>
         </div>
-        {% else %}
-        <p class="pf-empty">Nicht genügend Daten für eine Formkurve.</p>
-        {% endif %}
-    </div>
 
-    {# ── 10. Color chart (Req 10.1–10.3) ──────────────────────────────────── #}
-    <div class="pf-card" aria-label="Color usage">
-        <h2 class="pf-card-title">Farbnutzung</h2>
-        {% set _color_total = (cu.get('white') or 0) + (cu.get('blue') or 0) + (cu.get('black') or 0) + (cu.get('red') or 0) + (cu.get('green') or 0) %}
-        {% if _color_total > 0 %}
-        <div class="pf-chart">
-            <canvas id="colorChart"></canvas>
-        </div>
-        {% if overview and overview.avg_colors %}
-        <div class="pf-stat-row">
-            <span class="pf-label">Ø Anzahl Farben</span>
-            <span class="pf-value">{{ overview.avg_colors }}</span>
-        </div>
-        {% endif %}
-        {% else %}
-        <p class="pf-empty">Noch keine Farbnutzungsdaten verfügbar.</p>
-        {% endif %}
-    </div>
-    </div>{# ── end .pf-grid ───────────────────────────────────────────────── #}
+        {# ── Area 2 — Letzte Spiele (top) + Finisher (bottom) ─────────────── #}
+        <div class="pf-col">
+            {# Recent games feed (Req 4.1–4.5) #}
+            <div class="pf-card" aria-label="Recent games">
+                <h2 class="pf-card-title">Letzte Spiele</h2>
+                {% if recent_games %}
+                <ul class="pf-feed">
+                    {% for g in recent_games[:10] %}
+                    <li class="pf-{{ g.result }}">
+                        <span class="pf-feed-date">{% if g.date %}{{ g.date.strftime('%Y-%m-%d') }}{% else %}&ndash;{% endif %}</span>
+                        <span class="pf-feed-deck">{{ g.deck_name or 'Unbekanntes Deck' }}</span>
+                        <span class="pf-feed-result pf-{{ g.result }}">{{ 'Sieg' if g.result == 'win' else 'Niederlage' }}</span>
+                        <span class="pf-feed-meta">
+                            Pod {{ g.pod_size }}{% if g.turns is not none %} &middot; {{ g.turns }} Züge{% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="pf-empty">Noch keine Spiele erfasst.</p>
+                {% endif %}
+            </div>
 
-    {# ── 11. Cross-link to deck overview (Req 12.3) ───────────────────────── #}
+            {# Finishers (Req 9.1–9.4) #}
+            <div class="pf-card" aria-label="Finishers">
+                <h2 class="pf-card-title">Finisher</h2>
+                {% set _fin = finishers or {} %}
+                {% if _fin.most_common_final_blow or _fin.fastest_win_turns is not none or _fin.avg_win_turns is not none %}
+                <div class="pf-stat-row">
+                    <span class="pf-label">Häufigster Abschluss</span>
+                    <span class="pf-value">{% if _fin.most_common_final_blow %}{{ _fin.most_common_final_blow }}{% else %}&ndash;{% endif %}</span>
+                </div>
+                <div class="pf-stat-row">
+                    <span class="pf-label">Schnellster Sieg</span>
+                    <span class="pf-value">{% if _fin.fastest_win_turns is not none %}{{ _fin.fastest_win_turns }} Züge{% else %}&ndash;{% endif %}</span>
+                </div>
+                <div class="pf-stat-row">
+                    <span class="pf-label">Ø Züge pro Sieg</span>
+                    <span class="pf-value">{% if _fin.avg_win_turns is not none %}{{ '%.1f'|format(_fin.avg_win_turns) }}{% else %}&ndash;{% endif %}</span>
+                </div>
+                {% else %}
+                <p class="pf-empty">Noch keine Finisher-Daten verfügbar.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Area 3 — Deck-Highlights (top) + Interaktion (bottom) ─────────── #}
+        <div class="pf-col">
+            {# Deck highlights (Req 5.1–5.5) #}
+            <div class="pf-card" aria-label="Deck highlights">
+                <h2 class="pf-card-title">Deck-Highlights</h2>
+                {% set _mp = highlights.most_played if highlights else none %}
+                {% set _best = highlights.best if highlights else none %}
+                {% if _mp or _best %}
+                <div class="pf-highlights">
+                    {% if _mp %}
+                    <div class="pf-highlight">
+                        <div class="pf-highlight-kind">Signature Deck</div>
+                        <div class="pf-highlight-name">
+                            <a href="/decks/show/{{ _mp.name | urlencode }}">{{ _mp.name }}</a>
+                        </div>
+                        {% if _mp.commander %}<div class="pf-highlight-commander">{{ _mp.commander }}</div>{% endif %}
+                        <div class="pf-highlight-metric">{{ _mp.games }} Spiele &middot; {{ '%.1f'|format(_mp.winrate) }}% Winrate</div>
+                    </div>
+                    {% endif %}
+                    {% if _best %}
+                    <div class="pf-highlight">
+                        <div class="pf-highlight-kind">Best Performer</div>
+                        <div class="pf-highlight-name">
+                            <a href="/decks/show/{{ _best.name | urlencode }}">{{ _best.name }}</a>
+                        </div>
+                        {% if _best.commander %}<div class="pf-highlight-commander">{{ _best.commander }}</div>{% endif %}
+                        <div class="pf-highlight-metric">{{ '%.1f'|format(_best.winrate) }}% Winrate &middot; {{ _best.games }} Spiele</div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="pf-empty">Noch keine Decks mit genügend Spielen.</p>
+                {% endif %}
+            </div>
+
+            {# Interaction — removal only (Req 11b.1) #}
+            <div class="pf-card" aria-label="Interaction">
+                <h2 class="pf-card-title">Interaktion</h2>
+                {% set _ia = interaction or {} %}
+                {% set _rp = _ia.removal_played or {} %}
+                {% set _tbr = _ia.targeted_by_removal or {} %}
+                {% if _rp.avg is not none or _tbr.avg is not none %}
+                <div class="pf-stat-row">
+                    <span class="pf-label">Removal gespielt (Ø)</span>
+                    <span class="pf-value">
+                        {% if _rp.avg is not none %}{{ '%.1f'|format(_rp.avg) }} <small>(n={{ _rp.n }})</small>{% else %}&ndash;{% endif %}
+                    </span>
+                </div>
+                <div class="pf-stat-row">
+                    <span class="pf-label">Von Removal getroffen (Ø)</span>
+                    <span class="pf-value">
+                        {% if _tbr.avg is not none %}{{ '%.1f'|format(_tbr.avg) }} <small>(n={{ _tbr.n }})</small>{% else %}&ndash;{% endif %}
+                    </span>
+                </div>
+                {% else %}
+                <p class="pf-empty">Noch keine Interaktionsdaten verfügbar.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>{# ── end .pf-overview ──────────────────────────────────────────── #}
+
+    {# ── Charts row: Formkurve + Farbnutzung side by side ──────────────────── #}
+    <div class="pf-charts">
+        {# Win trend (Req 7.1–7.3) #}
+        <div class="pf-card" aria-label="Win trend">
+            <h2 class="pf-card-title">Formkurve</h2>
+            {% if win_trend and win_trend|length >= 2 %}
+            <div class="pf-chart">
+                <canvas id="winTrendChart"></canvas>
+            </div>
+            {% else %}
+            <p class="pf-empty">Nicht genügend Daten für eine Formkurve.</p>
+            {% endif %}
+        </div>
+
+        {# Color chart (Req 10.1–10.3) #}
+        <div class="pf-card" aria-label="Color usage">
+            <h2 class="pf-card-title">Farbnutzung</h2>
+            {% set _color_total = (cu.get('white') or 0) + (cu.get('blue') or 0) + (cu.get('black') or 0) + (cu.get('red') or 0) + (cu.get('green') or 0) %}
+            {% if _color_total > 0 %}
+            <div class="pf-chart">
+                <canvas id="colorChart"></canvas>
+            </div>
+            {% if overview and overview.avg_colors %}
+            <div class="pf-stat-row">
+                <span class="pf-label">Ø Anzahl Farben</span>
+                <span class="pf-value">{{ overview.avg_colors }}</span>
+            </div>
+            {% endif %}
+            {% else %}
+            <p class="pf-empty">Noch keine Farbnutzungsdaten verfügbar.</p>
+            {% endif %}
+        </div>
+    </div>{# ── end .pf-charts ───────────────────────────────────────────────── #}
+
+    {# ── Cross-link to deck overview (Req 12.3) ───────────────────────────── #}
     <div class="pf-crosslink">
         <a href="{{ url_for('main.user', identifier=player.id) }}">Deckübersicht ansehen &rarr;</a>
     </div>

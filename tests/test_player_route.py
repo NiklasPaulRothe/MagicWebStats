@@ -162,15 +162,17 @@ def two_user_players(app, two_users):
 
 
 def test_owner_sees_bio_edit_form(app, two_users, two_user_players):
-    """The owner of a profile sees the inline bio edit form (Req 11.4)."""
+    """Bio editing was removed from the profile overview: even the owner no
+    longer sees a bio textarea on the profile page. The profile still renders
+    normally for the owner."""
     client = _client(app, two_users["owner"])
     resp = client.get("/player/1")
     assert resp.status_code == 200
     body = resp.data.decode("utf-8")
-    # Owner gets an editable control...
-    assert "<textarea" in body
-    # ...posting to the bio endpoint for this player.
-    assert 'action="/user/1/bio"' in body
+    # Profile still renders for the owner...
+    assert "Alice" in body
+    # ...but the bio editing control is no longer part of the profile.
+    assert "<textarea" not in body
 
 
 def test_non_owner_has_no_bio_edit_form(app, two_users, two_user_players):
