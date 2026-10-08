@@ -30,6 +30,7 @@ class User(UserMixin, db.Model):
     )
     active: so.Mapped[bool] = so.mapped_column(sa.Boolean)
     role: so.Mapped[str] = so.mapped_column(sa.String(64))
+    bio: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1000))
 
     def __repr__(self):
         return '<User {}>'.format(self.username)

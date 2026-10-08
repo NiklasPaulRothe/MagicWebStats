@@ -6,6 +6,7 @@ inline implementations in route handlers with efficient queries (no N+1)
 and pure computation functions.
 """
 
+import logging
 import statistics
 from collections import Counter, defaultdict
 
@@ -17,6 +18,8 @@ from app.models import (
     Player, Deck, ColorIdentity, ColorComponent, Color,
     Participant, Game, DeckComponent,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_players() -> list[str]:
@@ -597,4 +600,578 @@ def compute_player_overview(player_id: int) -> dict:
         'winrate_by_seat': winrate_by_seat,
         'color_usage': color_usage,
         'avg_colors': avg_colors,
+    }
+
+
+def get_recent_games(player_id: int, limit: int = 10) -> list[dict]:
+    """Return the player's most recent non-cEDH games, newest first.
+
+    Queries the player's participations joined to Game (excluding cEDH),
+    ordered by Game.date DESC then Game.id DESC, limited to ``limit`` rows.
+    Pod size is resolved with a single grouped count across the matched
+    games to avoid an N+1 pattern.
+
+    Args:
+        player_id: The Player's database ID.
+        limit: Maximum number of games to return (default 10).
+
+    Returns:
+        List of dicts (newest first), each with keys:
+            - date: the game's date (datetime.date or None)
+            - deck_name: name of the deck the player piloted (str or None)
+            - result: 'win' when Game.winner_id == player_id, else 'loss'
+            - pod_size: number of participants in that game (int)
+            - turns: the game's turn count (int or None)
+    """
+    stmt = (
+        sa.select(
+            Game.id.label('game_id'),
+            Game.date,
+            Game.turns,
+            Game.winner_id,
+            Deck.name.label('deck_name'),
+        )
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .join(Deck, Deck.id == Participant.deck_id)
+        .where(Participant.player_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+        .order_by(Game.date.desc(), Game.id.desc())
+        .limit(limit)
+    )
+    rows = db.session.execute(stmt).all()
+
+    if not rows:
+        return []
+
+    # Resolve pod sizes for the matched games in a single grouped count.
+    game_ids = [row.game_id for row in rows]
+    pod_size_stmt = (
+        sa.select(Participant.game_id, func.count().label('pod_size'))
+        .where(Participant.game_id.in_(game_ids))
+        .group_by(Participant.game_id)
+    )
+    pod_sizes = {gid: size for gid, size in db.session.execute(pod_size_stmt).all()}
+
+    return [
+        {
+            'date': row.date,
+            'deck_name': row.deck_name,
+            'result': 'win' if row.winner_id == player_id else 'loss',
+            'pod_size': pod_sizes.get(row.game_id, 0),
+            'turns': row.turns,
+        }
+        for row in rows
+    ]
+
+
+def get_head_to_head(player_id: int, min_games: int = 10) -> list[dict]:
+    """Return head-to-head records against frequently-faced opponents.
+
+    An opponent is any other player who shared a non-cEDH ``game_id`` with the
+    subject player. For each such opponent this computes how many games they
+    shared with the subject, how many of those the subject won
+    (``Game.winner_id == player_id``), the subject's losses in those games, and
+    the subject's winrate. Only opponents with at least ``min_games`` shared
+    games are returned.
+
+    Queries are kept efficient (no N+1): one query resolves the subject's
+    non-cEDH game ids, and a single grouped aggregation joined to ``Player``
+    computes per-opponent counts and names.
+
+    Args:
+        player_id: The subject Player's database ID.
+        min_games: Minimum shared games for an opponent to be included
+            (default 10).
+
+    Returns:
+        List of dicts sorted by shared ``games`` descending (ties broken by
+        ``opponent_name``), each with keys:
+            - opponent_id: the opponent Player's database ID (int)
+            - opponent_name: the opponent's name (str)
+            - games: number of non-cEDH games shared with the subject (int)
+            - wins: games (of those) the subject won (int)
+            - losses: games - wins (int)
+            - winrate: subject win percentage in shared games (float, 1 decimal)
+        Empty list when no opponent meets the ``min_games`` threshold.
+    """
+    # 1. The subject's non-cEDH game ids.
+    game_ids_stmt = (
+        sa.select(Participant.game_id)
+        .join(Game, Game.id == Participant.game_id)
+        .where(Participant.player_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+    )
+    game_ids = list(db.session.scalars(game_ids_stmt).all())
+    if not game_ids:
+        return []
+
+    # 2. Group co-participants (other players) across those games, counting
+    #    shared games and the subject's wins in a single aggregation.
+    stmt = (
+        sa.select(
+            Participant.player_id.label('opponent_id'),
+            Player.name.label('opponent_name'),
+            func.count().label('games'),
+            func.sum(
+                sa.case((Game.winner_id == player_id, 1), else_=0)
+            ).label('wins'),
+        )
+        .join(Game, Game.id == Participant.game_id)
+        .join(Player, Player.id == Participant.player_id)
+        .where(Participant.game_id.in_(game_ids))
+        .where(Participant.player_id != player_id)
+        .group_by(Participant.player_id, Player.name)
+        .having(func.count() >= min_games)
+        .order_by(func.count().desc(), Player.name)
+    )
+    rows = db.session.execute(stmt).all()
+
+    result = []
+    for row in rows:
+        games = row.games
+        wins = int(row.wins or 0)
+        losses = games - wins
+        winrate = round((wins / games) * 100, 1) if games else 0.0
+        result.append({
+            'opponent_id': row.opponent_id,
+            'opponent_name': row.opponent_name,
+            'games': games,
+            'wins': wins,
+            'losses': losses,
+            'winrate': winrate,
+        })
+    return result
+
+
+def get_deck_highlights(player_id: int, min_games_best: int = 5) -> dict:
+    """Return the player's most-played and best-performing decks.
+
+    Groups the player's non-cEDH participations by deck and computes per-deck
+    games, wins (``Game.winner_id == player_id``), and winrate. From those:
+      - ``most_played``: the deck with the most games (ties broken by higher
+        winrate, then deck name).
+      - ``best``: the deck with the highest winrate among decks with at least
+        ``min_games_best`` games (ties broken by more games, then deck name).
+        This threshold avoids rewarding a 100%-on-one-game deck (Req 5.2).
+
+    Both highlights are drawn from the player's non-cEDH games (Req 5.4). The
+    aggregation is a single grouped query joined to ``Deck`` (no N+1), mirroring
+    the pattern used by ``get_head_to_head``.
+
+    Args:
+        player_id: The Player's database ID.
+        min_games_best: Minimum games a deck must have to be eligible for the
+            ``best`` highlight (default 5).
+
+    Returns:
+        Dict with keys ``most_played`` and ``best``. Each value is either None
+        (when no qualifying deck exists) or a dict with keys:
+            - deck_id: the Deck's database ID (int)
+            - name: the deck name (str)
+            - commander: the deck's commander (str or None)
+            - games: non-cEDH games the player piloted this deck (int)
+            - wins: games (of those) the player won (int)
+            - winrate: win percentage (float, 1 decimal)
+        ``best`` is None when no deck meets the ``min_games_best`` threshold.
+    """
+    stmt = (
+        sa.select(
+            Deck.id.label('deck_id'),
+            Deck.name.label('name'),
+            Deck.commander.label('commander'),
+            func.count().label('games'),
+            func.sum(
+                sa.case((Game.winner_id == player_id, 1), else_=0)
+            ).label('wins'),
+        )
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .join(Deck, Deck.id == Participant.deck_id)
+        .where(Participant.player_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+        .group_by(Deck.id, Deck.name, Deck.commander)
+    )
+    rows = db.session.execute(stmt).all()
+
+    decks = []
+    for row in rows:
+        games = row.games
+        wins = int(row.wins or 0)
+        winrate = round((wins / games) * 100, 1) if games else 0.0
+        decks.append({
+            'deck_id': row.deck_id,
+            'name': row.name,
+            'commander': row.commander,
+            'games': games,
+            'wins': wins,
+            'winrate': winrate,
+        })
+
+    if not decks:
+        return {'most_played': None, 'best': None}
+
+    # Most played: most games, ties broken by higher winrate then name.
+    most_played = max(decks, key=lambda d: (d['games'], d['winrate'], _neg_name(d['name'])))
+
+    # Best performing: highest winrate among decks meeting the games threshold,
+    # ties broken by more games then name.
+    eligible = [d for d in decks if d['games'] >= min_games_best]
+    best = max(eligible, key=lambda d: (d['winrate'], d['games'], _neg_name(d['name']))) if eligible else None
+
+    return {'most_played': most_played, 'best': best}
+
+
+def get_win_trend(player_id: int, granularity: str = 'month') -> list[dict]:
+    """Return the player's performance bucketed over time for charting.
+
+    Buckets the player's non-cEDH games by period (month, per design) and
+    computes games, wins (``Game.winner_id == player_id``), and winrate for each
+    bucket. Buckets are returned in chronological order so the series can be fed
+    directly to a line chart.
+
+    The subject's game rows (date + whether they won) are fetched in a single
+    query joined off ``Participant`` (anchored with ``select_from(Participant)``,
+    mirroring the other profile aggregates); bucketing is done in Python so the
+    result is identical across database backends (SQLite in tests, Postgres in
+    production) without relying on dialect-specific date functions.
+
+    Args:
+        player_id: The Player's database ID.
+        granularity: Bucket size. Only ``'month'`` is supported (per design);
+            any other value currently falls back to monthly buckets.
+
+    Returns:
+        List of dicts in chronological order, one per period that has at least
+        one game, each with keys:
+            - period: the bucket label (``'YYYY-MM'`` for monthly) (str)
+            - games: non-cEDH games the player played in that period (int)
+            - wins: games (of those) the player won (int)
+            - winrate: win percentage (float, 1 decimal)
+        Empty list when the player has no non-cEDH games.
+
+    Validates: Requirements 7.1, 7.2, 7.4
+    """
+    stmt = (
+        sa.select(
+            Game.date.label('date'),
+            sa.case((Game.winner_id == player_id, 1), else_=0).label('won'),
+        )
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .where(Participant.player_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+    )
+    rows = db.session.execute(stmt).all()
+
+    if not rows:
+        return []
+
+    # Aggregate games/wins per period label. Monthly granularity -> 'YYYY-MM'.
+    games_by_period: dict[str, int] = defaultdict(int)
+    wins_by_period: dict[str, int] = defaultdict(int)
+    for row in rows:
+        if row.date is None:
+            continue
+        label = f"{row.date.year:04d}-{row.date.month:02d}"
+        games_by_period[label] += 1
+        wins_by_period[label] += int(row.won or 0)
+
+    if not games_by_period:
+        return []
+
+    result = []
+    for label in sorted(games_by_period):
+        games = games_by_period[label]
+        wins = wins_by_period[label]
+        winrate = round((wins / games) * 100, 1) if games else 0.0
+        result.append({
+            'period': label,
+            'games': games,
+            'wins': wins,
+            'winrate': winrate,
+        })
+    return result
+
+
+def get_aggregate_elo(player_id: int) -> int | None:
+    """Return the player's aggregate Elo as the rounded average of deck ratings.
+
+    Averages ``Deck.elo_rating`` over the player's **active**, non-cEDH decks
+    that have a rating (``elo_rating IS NOT NULL``), then rounds the result to a
+    whole number (Req 8.4). cEDH decks are excluded via the ``Deck.cedh`` flag
+    to stay consistent with the rest of the profile (Req 8.2); the ``cedh``
+    column is nullable, so ``Deck.cedh != True`` keeps decks whose flag is NULL
+    or False.
+
+    The average is computed in a single ``func.avg`` aggregate query (no row
+    fetch). ``func.avg`` ignores NULL ratings, but the NULL filter is kept
+    explicit so the intent is clear and the behaviour is backend-independent.
+
+    Args:
+        player_id: The Player's database ID.
+
+    Returns:
+        The rounded average Elo (int) over the player's qualifying decks, or
+        ``None`` when the player has no active, non-cEDH, rated decks (Req 8.3).
+
+    Validates: Requirements 8.1, 8.2, 8.3, 8.4
+    """
+    avg_elo = db.session.scalar(
+        sa.select(func.avg(Deck.elo_rating))
+        .where(Deck.player_id == player_id)
+        .where(Deck.active == True)  # noqa: E712
+        .where(Deck.cedh != True)  # noqa: E712
+        .where(Deck.elo_rating.isnot(None))
+    )
+
+    if avg_elo is None:
+        return None
+    return round(avg_elo)
+
+
+def get_finisher_stats(player_id: int) -> dict:
+    """Return how the player tends to close out the games they win.
+
+    Looks at the games the player **won** (``Game.winner_id == player_id``),
+    excluding cEDH (Req 9.3), and surfaces the player's closing style:
+      - ``most_common_final_blow``: the most frequent non-empty ``Game.final_blow``
+        across those wins (the mode); ``None`` when no win records a final blow.
+      - ``fastest_win_turns``: the smallest non-null ``Game.turns`` among those
+        wins (the notable extreme of Req 9.2); ``None`` when no win records turns.
+      - ``avg_win_turns``: the mean of the non-null ``Game.turns`` among those
+        wins, rounded to one decimal; ``None`` when no win records turns.
+
+    All computation is null-safe (Req 9.4): NULL/empty ``final_blow`` values and
+    NULL ``turns`` are ignored, and when the player has no wins (or all relevant
+    fields are NULL) every value is ``None`` — a neutral empty state — rather
+    than raising. ``first_ko_by`` / ``first_ko_turn`` are read as supporting
+    signals but only the three documented keys are surfaced for the profile.
+
+    Win rows (final_blow + turns) are fetched in a single query filtered by
+    ``Game.winner_id`` (no join needed since the finisher fields live on Game).
+
+    Args:
+        player_id: The Player's database ID.
+
+    Returns:
+        Dict with keys ``most_common_final_blow`` (str | None),
+        ``fastest_win_turns`` (int | None), and ``avg_win_turns`` (float | None).
+
+    Validates: Requirements 9.1, 9.2, 9.3, 9.4
+    """
+    empty = {
+        'most_common_final_blow': None,
+        'fastest_win_turns': None,
+        'avg_win_turns': None,
+    }
+
+    stmt = (
+        sa.select(Game.final_blow, Game.turns)
+        .where(Game.winner_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+    )
+    rows = db.session.execute(stmt).all()
+    if not rows:
+        return empty
+
+    # Most common final blow: ignore NULL/empty strings, then take the mode.
+    final_blows = [
+        row.final_blow for row in rows
+        if row.final_blow is not None and str(row.final_blow).strip() != ''
+    ]
+    most_common_final_blow = Counter(final_blows).most_common(1)[0][0] if final_blows else None
+
+    # Win-turn extremes: ignore NULL turns.
+    win_turns = [row.turns for row in rows if row.turns is not None]
+    fastest_win_turns = min(win_turns) if win_turns else None
+    avg_win_turns = round(statistics.mean(win_turns), 1) if win_turns else None
+
+    return {
+        'most_common_final_blow': most_common_final_blow,
+        'fastest_win_turns': fastest_win_turns,
+        'avg_win_turns': avg_win_turns,
+    }
+
+
+def _neg_name(name) -> tuple:
+    """Sort key helper: makes earlier names rank higher under ``max``.
+
+    ``max`` prefers the lexicographically-later name on ties, so we invert the
+    character ordinals to make an alphabetically-earlier name win instead,
+    giving a deterministic tie-break. Returns a tuple so ``None`` sorts last.
+    """
+    if name is None:
+        return (1,)
+    return (0, tuple(-ord(c) for c in name))
+
+
+def get_interaction_stats(player_id: int) -> dict:
+    """Return the player's interaction profile from their own participations.
+
+    Averages the only two retained playstyle fields (Req 11b.4),
+    ``Participant.removal_played`` and ``Participant.targeted_by_removal``,
+    across the subject player's own non-cEDH participation rows
+    (``Participant.player_id == player_id``, joined to ``Game`` to exclude
+    cEDH per Req 11b.2). NULL values are ignored when averaging (Req 11b.1),
+    and each field exposes the number of non-null samples that went into its
+    average (``n``) alongside the mean (``avg``, rounded to one decimal).
+
+    When every value is NULL — or the player has no non-cEDH games at all —
+    the function returns a neutral empty state (Req 11b.3): ``avg`` is ``None``
+    and ``n`` is ``0`` for each field, without raising.
+
+    No other single-player-only qualitative fields are read or returned
+    (Req 11b.4).
+
+    The subject's participation rows (removal_played + targeted_by_removal)
+    are fetched in a single query that anchors ``FROM participants`` and joins
+    ``games`` for the cEDH filter.
+
+    Args:
+        player_id: The Player's database ID.
+
+    Returns:
+        Dict shaped as::
+
+            {
+                'removal_played': {'avg': float | None, 'n': int},
+                'targeted_by_removal': {'avg': float | None, 'n': int},
+            }
+
+    Validates: Requirements 11b.1, 11b.2, 11b.3, 11b.4
+    """
+    empty_field = {'avg': None, 'n': 0}
+
+    stmt = (
+        sa.select(Participant.removal_played, Participant.targeted_by_removal)
+        .select_from(Participant)
+        .join(Game, Participant.game_id == Game.id)
+        .where(Participant.player_id == player_id)
+        .where(Game.cedh != True)  # noqa: E712
+    )
+    rows = db.session.execute(stmt).all()
+
+    if not rows:
+        return {
+            'removal_played': dict(empty_field),
+            'targeted_by_removal': dict(empty_field),
+        }
+
+    def summarize(values: list) -> dict:
+        non_null = [v for v in values if v is not None]
+        if not non_null:
+            return {'avg': None, 'n': 0}
+        return {'avg': round(statistics.mean(non_null), 1), 'n': len(non_null)}
+
+    return {
+        'removal_played': summarize([row.removal_played for row in rows]),
+        'targeted_by_removal': summarize([row.targeted_by_removal for row in rows]),
+    }
+
+
+def build_player_profile(player_id: int) -> dict:
+    """Build the full profile context dict for a player.
+
+    Orchestrator for the profile page (Req 13.1 — aggregate computations live
+    in the services layer). Calls ``compute_player_overview`` plus the per-
+    section aggregates (``get_recent_games``, ``get_deck_highlights``,
+    ``get_head_to_head``, ``get_win_trend``, ``get_aggregate_elo``,
+    ``get_finisher_stats``, ``get_interaction_stats``) and merges them into a
+    single context dict keyed by section, following the design's naming:
+
+        {
+          'overview':      {...},   # from compute_player_overview
+          'recent_games':  [...],
+          'highlights':    {...},   # from get_deck_highlights
+          'head_to_head':  [...],
+          'win_trend':     [...],
+          'aggregate_elo': int | None,
+          'finishers':     {...},   # from get_finisher_stats
+          'interaction':   {...},   # from get_interaction_stats
+          'color_usage':   {...},   # mirrored from overview
+        }
+
+    All sections exclude cEDH because the underlying sub-functions already do
+    (Req 13.3). The ``color_usage`` key mirrors ``overview['color_usage']`` so
+    the color chart can read it directly (Req 3.2/3.3).
+
+    Defensive composition: each section call is wrapped so that if one section
+    raises, that section falls back to a safe neutral/empty default (the sub-
+    function's own documented empty shape), the error is logged, the DB session
+    is rolled back (matching the index route's pattern so a failed query doesn't
+    poison later ones), and the rest of the profile still builds. One failing
+    section never blanks the whole page.
+
+    Args:
+        player_id: The Player's database ID.
+
+    Returns:
+        The merged profile context dict described above.
+
+    Validates: Requirements 3.1, 3.2, 3.3, 13.1, 13.3
+    """
+    # Neutral/empty defaults per section — each mirrors the sub-function's own
+    # documented empty shape so templates see a consistent structure even when
+    # a section fails.
+    overview_default = {
+        'games': 0, 'wins': 0, 'winrate': 0.0,
+        'first': 0, 'first_pct': 0.0,
+        'avg_pod_size': 0.0,
+        'winrate_by_seat': {},
+        'color_usage': {'white': 0, 'blue': 0, 'black': 0, 'red': 0, 'green': 0},
+        'avg_colors': 0.0,
+    }
+    highlights_default = {'most_played': None, 'best': None}
+    finishers_default = {
+        'most_common_final_blow': None,
+        'fastest_win_turns': None,
+        'avg_win_turns': None,
+    }
+    interaction_default = {
+        'removal_played': {'avg': None, 'n': 0},
+        'targeted_by_removal': {'avg': None, 'n': 0},
+    }
+
+    def _section(name, fn, default):
+        """Call ``fn`` defensively, returning ``default`` on any failure."""
+        try:
+            return fn()
+        except Exception:
+            logger.exception(
+                "Failed to build profile section '%s' for player %s", name, player_id
+            )
+            db.session.rollback()
+            return default
+
+    overview = _section(
+        'overview', lambda: compute_player_overview(player_id), overview_default
+    )
+
+    return {
+        'overview': overview,
+        'recent_games': _section(
+            'recent_games', lambda: get_recent_games(player_id), []
+        ),
+        'highlights': _section(
+            'highlights', lambda: get_deck_highlights(player_id), highlights_default
+        ),
+        'head_to_head': _section(
+            'head_to_head', lambda: get_head_to_head(player_id), []
+        ),
+        'win_trend': _section(
+            'win_trend', lambda: get_win_trend(player_id), []
+        ),
+        'aggregate_elo': _section(
+            'aggregate_elo', lambda: get_aggregate_elo(player_id), None
+        ),
+        'finishers': _section(
+            'finishers', lambda: get_finisher_stats(player_id), finishers_default
+        ),
+        'interaction': _section(
+            'interaction', lambda: get_interaction_stats(player_id), interaction_default
+        ),
+        # color_usage mirrors the overview section (already computed above); if
+        # overview failed it falls back to the neutral color map in its default.
+        'color_usage': overview.get('color_usage', overview_default['color_usage']),
     }

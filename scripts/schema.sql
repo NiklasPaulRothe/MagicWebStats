@@ -57,9 +57,13 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.users (
     player_id     INTEGER REFERENCES magic_stats_owner.players(id) ON DELETE SET NULL,
     active        BOOLEAN NOT NULL DEFAULT true,
     role          VARCHAR(64) NOT NULL DEFAULT 'user',
+    bio           VARCHAR(1000),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- For an already-built database, add the bio column idempotently (no Alembic — ADR-001):
+ALTER TABLE magic_stats_owner.users ADD COLUMN IF NOT EXISTS bio VARCHAR(1000);
 
 -- ---------------------------------------------------------------------------
 -- 3. colors / color identities (WUBRG reference data)

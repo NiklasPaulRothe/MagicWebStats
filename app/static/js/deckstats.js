@@ -228,7 +228,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     return `<td>${escapeHtml(String(avg))} <small style="color:#aaa">(${escapeHtml(String(count))})</small></td>`;
                 }
                 const val = item[key];
-                if (key === 'elo' && (val == null || val === 0)) return `<td>-</td>`;
+                if (key === 'elo') {
+                    if (val == null || val === 0) return `<td>-</td>`;
+                    // Round the Elo to two decimal places.
+                    const rounded = Math.round(Number(val) * 100) / 100;
+                    return `<td>${escapeHtml(String(rounded))}</td>`;
+                }
                 if ((key === 'winrate_pct' || key === 'avg_win_turns') && val == null) return `<td>-</td>`;
                 return `<td>${val != null && val !== '' ? escapeHtml(String(val)) : '0'}</td>`;
             }).join('');

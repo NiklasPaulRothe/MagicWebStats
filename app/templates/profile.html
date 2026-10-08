@@ -1,0 +1,715 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<style>
+/* ── Profile layout — fully scoped under .pf-page so nothing collides with
+      the global .stat-card / .chart-box / section rules in basic.css ─────── */
+.pf-page {
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    font-size: 0.85em;
+    color: antiquewhite;
+    text-align: left;
+}
+
+/* Neutralise the global section box model should any <section> sneak in */
+.pf-page section {
+    margin: 0;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    border: 0;
+}
+
+/* ── Identity header — slim horizontal bar ────────────────────────────────── */
+.pf-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-left: 5px solid var(--pf-accent, #f4c430);
+    border-radius: 6px;
+}
+
+.pf-name {
+    margin: 0;
+    font-size: 1.3em;
+    line-height: 1.1;
+    color: antiquewhite;
+}
+
+.pf-ident {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pf-member-since {
+    margin: 0;
+    color: #aaa;
+    font-size: 0.78em;
+}
+
+.pf-badge {
+    display: inline-block;
+    margin: 0;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #f4c430;
+    font-size: 0.72em;
+}
+
+.pf-pips {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+/* ── Headline tiles — one tight row of small tiles ────────────────────────── */
+.pf-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.pf-tile {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 6px;
+    text-align: center;
+}
+
+.pf-tile-value {
+    font-size: 1.3em;
+    font-weight: bold;
+    line-height: 1.1;
+    color: antiquewhite;
+}
+
+.pf-tile-label {
+    color: #aaa;
+    font-size: 0.7em;
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* ── Dense content grid ───────────────────────────────────────────────────── */
+.pf-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.pf-grid--wide { grid-column: span 2; }
+
+@media (max-width: 900px) {
+    .pf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pf-grid--wide { grid-column: span 2; }
+}
+
+@media (max-width: 600px) {
+    .pf-grid { grid-template-columns: 1fr; }
+    .pf-grid--wide { grid-column: span 1; }
+}
+
+/* ── Cards (plain divs — never reuse basic.css .stat-card) ─────────────────── */
+.pf-card {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.pf-card-title {
+    margin: 0 0 8px 0;
+    font-size: 0.9em;
+    color: #f4c430;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.pf-empty {
+    color: #666;
+    font-style: italic;
+    font-size: 0.85em;
+    margin: 4px 0;
+}
+
+/* ── Stat rows ────────────────────────────────────────────────────────────── */
+.pf-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 3px 0;
+}
+
+.pf-label {
+    white-space: nowrap;
+    color: #aaa;
+    font-size: 0.82em;
+}
+
+.pf-value {
+    text-align: right;
+    font-weight: bold;
+    color: antiquewhite;
+    font-size: 0.88em;
+}
+
+.pf-value small {
+    font-weight: normal;
+    color: #888;
+    font-size: 0.85em;
+}
+
+/* ── Recent games feed — one tight line per row ───────────────────────────── */
+.pf-feed {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pf-feed li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    background: #242424;
+    border: 1px solid #2f2f2f;
+    border-left: 3px solid #555;
+    border-radius: 4px;
+    font-size: 0.82em;
+}
+
+.pf-feed li.pf-win { border-left-color: #00733e; }
+.pf-feed li.pf-loss { border-left-color: #d3202a; }
+
+.pf-feed-date { color: #aaa; font-size: 0.95em; width: 78px; flex-shrink: 0; }
+.pf-feed-deck { flex: 1; color: antiquewhite; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-feed-result { font-weight: bold; width: 64px; text-align: center; flex-shrink: 0; }
+.pf-feed-result.pf-win { color: #4caf50; }
+.pf-feed-result.pf-loss { color: #e57373; }
+.pf-feed-meta { color: #888; font-size: 0.9em; width: 92px; text-align: right; flex-shrink: 0; }
+
+/* ── Deck highlights ──────────────────────────────────────────────────────── */
+.pf-highlights {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pf-highlight {
+    background: #242424;
+    border: 1px solid #2f2f2f;
+    border-radius: 5px;
+    padding: 7px 9px;
+}
+
+.pf-highlight-kind {
+    color: #f4c430;
+    font-size: 0.68em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.pf-highlight-name {
+    font-size: 0.95em;
+    font-weight: bold;
+    margin: 2px 0 1px 0;
+}
+
+.pf-highlight-commander { color: #aaa; font-size: 0.78em; }
+.pf-highlight-metric { color: #ccc; font-size: 0.78em; margin-top: 4px; }
+
+/* ── Tables ───────────────────────────────────────────────────────────────── */
+.pf-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pf-table th,
+.pf-table td {
+    text-align: left;
+    padding: 4px 7px;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 0.82em;
+}
+
+.pf-table th { color: #f4c430; font-weight: bold; }
+
+/* ── Color pips ───────────────────────────────────────────────────────────── */
+.pf-pip {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.62em; font-weight: bold; flex-shrink: 0;
+}
+.pf-c-white { background: #f9faf4; color: #333; }
+.pf-c-blue { background: #0e68ab; color: #fff; }
+.pf-c-black { background: #160b00; color: #ccc; border: 1px solid #444; }
+.pf-c-red { background: #d3202a; color: #fff; }
+.pf-c-green { background: #00733e; color: #fff; }
+
+/* ── Charts — hard-capped height; maintainAspectRatio:false fills this box ─── */
+.pf-chart {
+    position: relative;
+    width: 100%;
+    height: 220px;
+}
+
+/* ── Bio ──────────────────────────────────────────────────────────────────── */
+.pf-bio {
+    background: #242424;
+    border: 1px solid #2f2f2f;
+    border-radius: 5px;
+    padding: 8px 10px;
+    color: antiquewhite;
+    white-space: pre-wrap;
+    font-size: 0.85em;
+}
+
+.pf-bio-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.pf-bio-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #141414;
+    border: 1px solid #333;
+    border-radius: 4px;
+    color: antiquewhite;
+    font-size: 0.85em;
+    padding: 6px;
+    resize: vertical;
+}
+
+.pf-bio-form button {
+    align-self: flex-start;
+    padding: 5px 14px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #f4c430;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.pf-bio-form button:hover { background: #333; }
+
+/* ── Cross-link ───────────────────────────────────────────────────────────── */
+.pf-crosslink { margin: 12px 0 4px 0; }
+.pf-crosslink a {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 5px;
+    color: #f4c430;
+    text-decoration: none;
+    font-size: 0.85em;
+}
+.pf-crosslink a:hover { background: #333; }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── Compute the visual accent from the most-used color (Req 2.4) ──────────── #}
+{% set cu = color_usage or {} %}
+{% set _color_hex = {'white': '#f9faf4', 'blue': '#0e68ab', 'black': '#160b00', 'red': '#d3202a', 'green': '#00733e'} %}
+{% set _accent_key = none %}
+{% set _accent_val = 0 %}
+{% for k in ['white', 'blue', 'black', 'red', 'green'] %}
+    {% if (cu.get(k) or 0) > _accent_val %}
+        {% set _accent_val = cu.get(k) or 0 %}
+        {% set _accent_key = k %}
+    {% endif %}
+{% endfor %}
+{% set accent = _color_hex.get(_accent_key, '#f4c430') %}
+
+<div class="pf-page">
+    {# ── 1. Identity header (Req 2.1–2.5) ─────────────────────────────────── #}
+    <header class="pf-header" style="--pf-accent: {{ accent }};">
+        <h1 class="pf-name">{{ player.name }}</h1>
+        <div class="pf-ident">
+            {% if username %}
+            <span class="pf-badge">Account: {{ username }}</span>
+            {% endif %}
+            {% if player.created_at %}
+            <p class="pf-member-since">Mitglied seit {{ player.created_at.strftime('%d.%m.%Y') }}</p>
+            {% endif %}
+        </div>
+        {% if _accent_key %}
+        <div class="pf-pips">
+            {% for k in ['white', 'blue', 'black', 'red', 'green'] %}
+                {% if (cu.get(k) or 0) > 0 %}
+                <span class="pf-pip pf-c-{{ k }}" title="{{ k|capitalize }} {{ cu.get(k) }}%">{{ {'white':'W','blue':'U','black':'B','red':'R','green':'G'}[k] }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </header>
+
+    {# ── 2. Headline tiles (Req 3.1–3.4) ──────────────────────────────────── #}
+    {% if overview and overview.games > 0 %}
+    {# Favourite seat = seat with best winrate #}
+    {% set _fav_seat = none %}
+    {% set _fav_seat_wr = -1 %}
+    {% for seat, data in (overview.winrate_by_seat or {}).items() %}
+        {% if data.winrate > _fav_seat_wr %}
+            {% set _fav_seat_wr = data.winrate %}
+            {% set _fav_seat = seat %}
+        {% endif %}
+    {% endfor %}
+    <div class="pf-tiles" aria-label="Headline statistics">
+        <div class="pf-tile">
+            <div class="pf-tile-value">{{ overview.games }}</div>
+            <div class="pf-tile-label">Spiele</div>
+        </div>
+        <div class="pf-tile">
+            <div class="pf-tile-value">{{ overview.wins }}</div>
+            <div class="pf-tile-label">Siege</div>
+        </div>
+        <div class="pf-tile">
+            <div class="pf-tile-value">{{ '%.1f'|format(overview.winrate) }}%</div>
+            <div class="pf-tile-label">Winrate</div>
+        </div>
+        <div class="pf-tile">
+            <div class="pf-tile-value">{% if _fav_seat is not none %}Seat {{ _fav_seat }}{% else %}&ndash;{% endif %}</div>
+            <div class="pf-tile-label">Lieblingssitz</div>
+        </div>
+        <div class="pf-tile">
+            <div class="pf-tile-value">
+                {% if _accent_key %}
+                    <span class="pf-pip pf-c-{{ _accent_key }}">{{ {'white':'W','blue':'U','black':'B','red':'R','green':'G'}[_accent_key] }}</span>
+                {% else %}&ndash;{% endif %}
+            </div>
+            <div class="pf-tile-label">Lieblingsfarbe</div>
+        </div>
+        <div class="pf-tile">
+            <div class="pf-tile-value">{% if aggregate_elo is not none %}{{ aggregate_elo }}{% else %}&ndash;{% endif %}</div>
+            <div class="pf-tile-label">Elo (Ø)</div>
+        </div>
+    </div>
+    {% else %}
+    <p class="pf-empty">Noch keine Spiele &ndash; sobald Partien erfasst sind, erscheinen hier die Kennzahlen.</p>
+    {% endif %}
+
+    {# ── Dense content grid wrapping the content cards (#3–#10) ───────────── #}
+    <div class="pf-grid">
+    {# ── 3. Recent games feed (Req 4.1–4.5) ───────────────────────────────── #}
+    <div class="pf-card" aria-label="Recent games">
+        <h2 class="pf-card-title">Letzte Spiele</h2>
+        {% if recent_games %}
+        <ul class="pf-feed">
+            {% for g in recent_games[:10] %}
+            <li class="pf-{{ g.result }}">
+                <span class="pf-feed-date">{% if g.date %}{{ g.date.strftime('%Y-%m-%d') }}{% else %}&ndash;{% endif %}</span>
+                <span class="pf-feed-deck">{{ g.deck_name or 'Unbekanntes Deck' }}</span>
+                <span class="pf-feed-result pf-{{ g.result }}">{{ 'Sieg' if g.result == 'win' else 'Niederlage' }}</span>
+                <span class="pf-feed-meta">
+                    Pod {{ g.pod_size }}{% if g.turns is not none %} &middot; {{ g.turns }} Züge{% endif %}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="pf-empty">Noch keine Spiele erfasst.</p>
+        {% endif %}
+    </div>
+
+    {# ── 4. Deck highlights (Req 5.1–5.5) ─────────────────────────────────── #}
+    <div class="pf-card" aria-label="Deck highlights">
+        <h2 class="pf-card-title">Deck-Highlights</h2>
+        {% set _mp = highlights.most_played if highlights else none %}
+        {% set _best = highlights.best if highlights else none %}
+        {% if _mp or _best %}
+        <div class="pf-highlights">
+            {% if _mp %}
+            <div class="pf-highlight">
+                <div class="pf-highlight-kind">Signature Deck</div>
+                <div class="pf-highlight-name">
+                    <a href="/decks/show/{{ _mp.name | urlencode }}">{{ _mp.name }}</a>
+                </div>
+                {% if _mp.commander %}<div class="pf-highlight-commander">{{ _mp.commander }}</div>{% endif %}
+                <div class="pf-highlight-metric">{{ _mp.games }} Spiele &middot; {{ '%.1f'|format(_mp.winrate) }}% Winrate</div>
+            </div>
+            {% endif %}
+            {% if _best %}
+            <div class="pf-highlight">
+                <div class="pf-highlight-kind">Best Performer</div>
+                <div class="pf-highlight-name">
+                    <a href="/decks/show/{{ _best.name | urlencode }}">{{ _best.name }}</a>
+                </div>
+                {% if _best.commander %}<div class="pf-highlight-commander">{{ _best.commander }}</div>{% endif %}
+                <div class="pf-highlight-metric">{{ '%.1f'|format(_best.winrate) }}% Winrate &middot; {{ _best.games }} Spiele</div>
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="pf-empty">Noch keine Decks mit genügend Spielen.</p>
+        {% endif %}
+    </div>
+
+    {# ── 5. Head-to-head (Req 6.1–6.5) ────────────────────────────────────── #}
+    <div class="pf-card" aria-label="Head to head">
+        <h2 class="pf-card-title">Head-to-Head</h2>
+        {% if head_to_head %}
+        <table class="pf-table">
+            <thead>
+                <tr>
+                    <th>Gegner</th>
+                    <th>Spiele</th>
+                    <th>Siege</th>
+                    <th>Nied.</th>
+                    <th>Winrate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in head_to_head %}
+                <tr>
+                    <td>{{ h.opponent_name }}</td>
+                    <td>{{ h.games }}</td>
+                    <td>{{ h.wins }}</td>
+                    <td>{{ h.losses }}</td>
+                    <td>{{ '%.1f'|format(h.winrate) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="pf-empty">Noch keine Gegner mit mindestens 10 gemeinsamen Spielen.</p>
+        {% endif %}
+    </div>
+
+    {# ── 6. Finishers (Req 9.1–9.4) ───────────────────────────────────────── #}
+    <div class="pf-card" aria-label="Finishers">
+        <h2 class="pf-card-title">Finisher</h2>
+        {% set _fin = finishers or {} %}
+        {% if _fin.most_common_final_blow or _fin.fastest_win_turns is not none or _fin.avg_win_turns is not none %}
+        <div class="pf-stat-row">
+            <span class="pf-label">Häufigster Abschluss</span>
+            <span class="pf-value">{% if _fin.most_common_final_blow %}{{ _fin.most_common_final_blow }}{% else %}&ndash;{% endif %}</span>
+        </div>
+        <div class="pf-stat-row">
+            <span class="pf-label">Schnellster Sieg</span>
+            <span class="pf-value">{% if _fin.fastest_win_turns is not none %}{{ _fin.fastest_win_turns }} Züge{% else %}&ndash;{% endif %}</span>
+        </div>
+        <div class="pf-stat-row">
+            <span class="pf-label">Ø Züge pro Sieg</span>
+            <span class="pf-value">{% if _fin.avg_win_turns is not none %}{{ '%.1f'|format(_fin.avg_win_turns) }}{% else %}&ndash;{% endif %}</span>
+        </div>
+        {% else %}
+        <p class="pf-empty">Noch keine Finisher-Daten verfügbar.</p>
+        {% endif %}
+    </div>
+
+    {# ── 7. Interaction — removal only (Req 11b.1) ────────────────────────── #}
+    <div class="pf-card" aria-label="Interaction">
+        <h2 class="pf-card-title">Interaktion</h2>
+        {% set _ia = interaction or {} %}
+        {% set _rp = _ia.removal_played or {} %}
+        {% set _tbr = _ia.targeted_by_removal or {} %}
+        {% if _rp.avg is not none or _tbr.avg is not none %}
+        <div class="pf-stat-row">
+            <span class="pf-label">Removal gespielt (Ø)</span>
+            <span class="pf-value">
+                {% if _rp.avg is not none %}{{ '%.1f'|format(_rp.avg) }} <small>(n={{ _rp.n }})</small>{% else %}&ndash;{% endif %}
+            </span>
+        </div>
+        <div class="pf-stat-row">
+            <span class="pf-label">Von Removal getroffen (Ø)</span>
+            <span class="pf-value">
+                {% if _tbr.avg is not none %}{{ '%.1f'|format(_tbr.avg) }} <small>(n={{ _tbr.n }})</small>{% else %}&ndash;{% endif %}
+            </span>
+        </div>
+        {% else %}
+        <p class="pf-empty">Noch keine Interaktionsdaten verfügbar.</p>
+        {% endif %}
+    </div>
+
+    {# ── 8. Bio (Req 11.1, 11.3–11.5) ─────────────────────────────────────── #}
+    <div class="pf-card" aria-label="Bio">
+        <h2 class="pf-card-title">Über</h2>
+        {% if bio %}
+        {# Autoescaped — NEVER use |safe on bio (Req 11.8). #}
+        <div class="pf-bio">{{ bio }}</div>
+        {% else %}
+        <p class="pf-empty">
+            {% if username %}
+                Noch keine Bio hinterlegt.
+            {% else %}
+                Für diesen Spieler ist kein Account verknüpft.
+            {% endif %}
+        </p>
+        {% endif %}
+        {% if owner %}
+        {# ── Owner-only inline edit form (Req 11.4) ──────────────────────────
+             Only rendered when ``owner`` is true, so non-owners never see an
+             input control (Req 11.5). CSRFProtect is enabled globally, so the
+             POST carries the hidden csrf_token. The textarea is pre-filled with
+             the autoescaped current bio (NEVER |safe — Req 11.8) and capped at
+             the server's 1000-char limit. #}
+        <form class="pf-bio-form" method="post"
+              action="{{ url_for('main.update_bio', identifier=player.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="bio" class="pf-label">Bio bearbeiten</label>
+            <textarea id="bio" name="bio" maxlength="1000" rows="4">{{ bio or '' }}</textarea>
+            <button type="submit">Speichern</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {# ── 9. Win trend (Req 7.1–7.3) — spans two columns when wide ──────────── #}
+    <div class="pf-card pf-grid--wide" aria-label="Win trend">
+        <h2 class="pf-card-title">Formkurve</h2>
+        {% if win_trend and win_trend|length >= 2 %}
+        <div class="pf-chart">
+            <canvas id="winTrendChart"></canvas>
+        </div>
+        {% else %}
+        <p class="pf-empty">Nicht genügend Daten für eine Formkurve.</p>
+        {% endif %}
+    </div>
+
+    {# ── 10. Color chart (Req 10.1–10.3) ──────────────────────────────────── #}
+    <div class="pf-card" aria-label="Color usage">
+        <h2 class="pf-card-title">Farbnutzung</h2>
+        {% set _color_total = (cu.get('white') or 0) + (cu.get('blue') or 0) + (cu.get('black') or 0) + (cu.get('red') or 0) + (cu.get('green') or 0) %}
+        {% if _color_total > 0 %}
+        <div class="pf-chart">
+            <canvas id="colorChart"></canvas>
+        </div>
+        {% if overview and overview.avg_colors %}
+        <div class="pf-stat-row">
+            <span class="pf-label">Ø Anzahl Farben</span>
+            <span class="pf-value">{{ overview.avg_colors }}</span>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="pf-empty">Noch keine Farbnutzungsdaten verfügbar.</p>
+        {% endif %}
+    </div>
+    </div>{# ── end .pf-grid ───────────────────────────────────────────────── #}
+
+    {# ── 11. Cross-link to deck overview (Req 12.3) ───────────────────────── #}
+    <div class="pf-crosslink">
+        <a href="{{ url_for('main.user', identifier=player.id) }}">Deckübersicht ansehen &rarr;</a>
+    </div>
+
+    {# ── Chart data (passed as JSON, read by the script below) ────────────── #}
+    <script type="application/json" id="win-trend-data">{{ (win_trend or []) | tojson }}</script>
+    <script type="application/json" id="color-usage-data">{{ (color_usage or {}) | tojson }}</script>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        function readJSON(id) {
+            const el = document.getElementById(id);
+            if (!el) return null;
+            try { return JSON.parse(el.textContent); } catch (e) { return null; }
+        }
+
+        // ── Win trend line chart (Req 7) ──────────────────────────────────
+        const trend = readJSON('win-trend-data') || [];
+        const trendCanvas = document.getElementById('winTrendChart');
+        if (trendCanvas && trend.length >= 2) {
+            new Chart(trendCanvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: trend.map(t => t.period),
+                    datasets: [
+                        {
+                            label: 'Winrate (%)',
+                            data: trend.map(t => t.winrate),
+                            borderColor: '#f4c430',
+                            backgroundColor: 'rgba(244, 196, 48, 0.15)',
+                            yAxisID: 'yWinrate',
+                            tension: 0.25,
+                            fill: true,
+                        },
+                        {
+                            label: 'Spiele',
+                            data: trend.map(t => t.games),
+                            borderColor: '#0e68ab',
+                            backgroundColor: 'rgba(14, 104, 171, 0.15)',
+                            yAxisID: 'yGames',
+                            tension: 0.25,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { datalabels: { display: false } },
+                    scales: {
+                        yWinrate: {
+                            type: 'linear', position: 'left',
+                            min: 0, max: 100,
+                            title: { display: true, text: 'Winrate (%)' },
+                        },
+                        yGames: {
+                            type: 'linear', position: 'right',
+                            min: 0,
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Spiele' },
+                            ticks: { precision: 0 },
+                        },
+                    },
+                },
+            });
+        }
+
+        // ── Color usage polar area chart (Req 10) ─────────────────────────
+        const cu = readJSON('color-usage-data') || {};
+        const colorCanvas = document.getElementById('colorChart');
+        const colorKeys = ['white', 'blue', 'black', 'red', 'green'];
+        const colorLabels = { white: 'White', blue: 'Blue', black: 'Black', red: 'Red', green: 'Green' };
+        const colorHex = { white: '#f9faf4', blue: '#0e68ab', black: '#160b00', red: '#d3202a', green: '#00733e' };
+        const colorValues = colorKeys.map(k => Number(cu[k]) || 0);
+        if (colorCanvas && colorValues.some(v => v > 0)) {
+            new Chart(colorCanvas.getContext('2d'), {
+                type: 'polarArea',
+                data: {
+                    labels: colorKeys.map(k => colorLabels[k]),
+                    datasets: [{
+                        data: colorValues,
+                        backgroundColor: colorKeys.map(k => colorHex[k]),
+                        borderColor: '#333',
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#ccc' } },
+                        datalabels: { display: false },
+                    },
+                    scales: { r: { ticks: { display: false } } },
+                },
+            });
+        }
+    });
+</script>
+{% endblock %}

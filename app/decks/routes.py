@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from collections import defaultdict
 
 from flask import render_template, flash, redirect, url_for, request, abort
@@ -54,7 +54,7 @@ def deck_edit(deckname):
             write_audit_log('deck_archive', 'Deck', deck.id, f'Archived deck: {deck.name}')
             db.session.commit()
             flash(f'Deck "{deck.name}" wurde archiviert')
-            return redirect(url_for('main.user', spieler=current_user.username))
+            return redirect(url_for('main.user', identifier=current_user.player_id))
 
         elif form.version_changed.data:
             comment = form.version_comment.data.strip() if form.version_comment.data else None
@@ -62,7 +62,7 @@ def deck_edit(deckname):
             write_audit_log('deck_version', 'Deck', deck.id, f'Version change: {deck.name} → {new_version}')
             db.session.commit()
             flash(f'Deck version updated to {new_version}')
-            return redirect(url_for('main.user', spieler=current_user.username))
+            return redirect(url_for('main.user', identifier=current_user.player_id))
 
         elif form.version_patched.data:
             comment = form.version_comment.data.strip() if form.version_comment.data else None
@@ -70,7 +70,7 @@ def deck_edit(deckname):
             write_audit_log('deck_version', 'Deck', deck.id, f'Version patch: {deck.name} → {new_version}')
             db.session.commit()
             flash(f'Deck version updated to {new_version}')
-            return redirect(url_for('main.user', spieler=current_user.username))
+            return redirect(url_for('main.user', identifier=current_user.player_id))
 
         elif form.version_reworked.data:
             comment = form.version_comment.data.strip() if form.version_comment.data else None
@@ -78,7 +78,7 @@ def deck_edit(deckname):
             write_audit_log('deck_version', 'Deck', deck.id, f'Version rework: {deck.name} → {new_version}')
             db.session.commit()
             flash(f'Deck version updated to {new_version}')
-            return redirect(url_for('main.user', spieler=current_user.username))
+            return redirect(url_for('main.user', identifier=current_user.player_id))
 
     if not form.validate_on_submit():
         logger.debug("Form validation errors: %s", form.errors)
@@ -92,7 +92,7 @@ def deck_edit(deckname):
                     flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
             write_audit_log('deck_edit', 'Deck', deck.id, f'Edited deck: {deck.name}')
             db.session.commit()
-            return redirect(url_for('main.user', spieler=current_user.username))
+            return redirect(url_for('main.user', identifier=current_user.player_id))
 
     form.name.default = deck.name
     form.decklist.default = deck.decklist

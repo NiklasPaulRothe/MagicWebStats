@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -21,7 +21,8 @@
                 {% if current_user.is_anonymous %}
                     <li><a href="{{ url_for('auth.login') }}">Login</a></li>
                 {% else %}
-                    <li><a href="{{ url_for('main.user', spieler=current_user.username) }}">Profile</a></li>
+                    <li><a href="{{ url_for('main.player', identifier=current_user.player_id) }}">Profile</a></li>
+                    <li><a href="{{ url_for('main.user', identifier=current_user.player_id) }}">Decks</a></li>
                     <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
                 {% endif %}
             </ul>

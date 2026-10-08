@@ -1,4 +1,4 @@
-"""Static analysis tests verifying codebase normalization invariants.
+﻿"""Static analysis tests verifying codebase normalization invariants.
 
 These tests scan source and template files to assert:
 - No unprotected fetch() calls remain in templates (Requirement 3.1, 3.6)
@@ -26,7 +26,7 @@ MIGRATED_MODULES = [
 TEMPLATE_FILES = [
     os.path.join(BASE_DIR, 'app', 'templates', 'decks', 'show.html'),
     os.path.join(BASE_DIR, 'app', 'templates', 'stats', 'playerstats.html'),
-    os.path.join(BASE_DIR, 'app', 'templates', 'user.html'),
+    os.path.join(BASE_DIR, 'app', 'templates', 'decks.html'),
     os.path.join(BASE_DIR, 'app', 'templates', 'stats', 'colorstats.html'),
     os.path.join(BASE_DIR, 'app', 'templates', 'decks', 'archive.html'),
 ]

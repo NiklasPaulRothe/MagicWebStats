@@ -3,15 +3,37 @@ from datetime import date, timedelta
 
 from app import db
 from app.main import bp
-from flask import render_template
+from flask import render_template, redirect, url_for, request, abort
 from flask_login import login_required, current_user
 import sqlalchemy as sa
 
 logger = logging.getLogger(__name__)
 
 from app.models import User, Player, Game, Participant
-from app.services.stats_service import compute_chart_data, compute_player_overview
+from app.services.stats_service import (
+    compute_chart_data,
+    compute_player_overview,
+    build_player_profile,
+)
 from app.viewmodels import ColorUsage, ColorUsagePlayer
+
+
+def resolve_player(identifier):
+    """Resolve a player by numeric id or by name.
+
+    A numeric identifier (int or all-digit string) is looked up against
+    ``Player.id``; any other value is looked up against ``Player.name`` for
+    backward-compatible, name-based URLs. Returns ``None`` when no player
+    matches so callers can turn that into a 404.
+
+    Requirements: 1.3 (numeric id as primary identifier), 1.4 (legacy name
+    URLs still resolve), 1.5 (missing player -> None -> 404 at call site).
+    """
+    if identifier is None:
+        return None
+    if isinstance(identifier, int) or str(identifier).isdigit():
+        return db.session.get(Player, int(identifier))
+    return db.session.scalar(sa.select(Player).where(Player.name == identifier))
 
 
 @bp.route('/healthz')
@@ -86,38 +108,126 @@ def index():
     )
 
 
-@bp.route('/user/<spieler>')
+@bp.route('/user/<identifier>')
 @login_required
-def user(spieler):
-    logger.debug("Loading user profile: %s", spieler)
-    user = db.first_or_404(sa.select(User).where(User.username == spieler))
-    owner = (user.id == current_user.id)
-    username = user.username
-    spieler = db.session.scalar(sa.select(Player).where(Player.id == user.player_id))
-    player_stats = compute_player_overview(spieler.id) if spieler else {}
+def user(identifier):
+    """Owner/private deck overview page.
+
+    Resolves the player by numeric id or legacy name (Req 1.3/1.4), 404s when
+    missing (Req 1.5), and renders the deck overview view (Req 12.1). The route
+    lives under ``/user`` as the private/owner view (Req 1.2) and requires auth
+    (Req 1.6). Owner/username context is derived from the linked ``User`` so the
+    overview still renders when no user is linked (Req 13.2).
+    """
+    logger.debug("Loading deck overview: %s", identifier)
+    spieler = resolve_player(identifier)
+    if spieler is None:
+        from flask import abort
+        abort(404)
+
+    # Owner/username via the linked User (User.player_id == player.id). When no
+    # user is linked, owner is False and username is None — the overview still
+    # renders.
+    linked_user = db.session.scalar(
+        sa.select(User).where(User.player_id == spieler.id)
+    )
+    if linked_user is not None:
+        owner = (linked_user.id == current_user.id)
+        username = linked_user.username
+    else:
+        owner = False
+        username = None
+
+    player_stats = compute_player_overview(spieler.id)
     return render_template(
-        'user.html',
+        'decks.html',
         spieler=spieler,
         owner=owner,
         username=username,
         player_stats=player_stats)
 
-@bp.route('/player/<spieler>')
+@bp.route('/player/<identifier>')
 @login_required
-def player(spieler):
-    player = db.session.scalar(sa.select(Player).where(Player.name == spieler))
-    username = None
-    try:
-        user = db.session.scalar(sa.select(User).where(User.player_id == player.id))
-        owner = (user.id == current_user.id)
-        username = user.username
-    except Exception:
+def player(identifier):
+    """Public player profile page.
+
+    Resolves the player by numeric id or legacy name (Req 1.3/1.4), 404s when
+    missing (Req 1.5), and renders the profile view (Req 1.1). The route lives
+    under ``/player`` as the public profile (Req 1.2) and requires auth (Req
+    1.6). Owner/username context is derived from the linked ``User`` so the
+    profile still renders when no user is linked (Req 11.3, 13.2).
+    """
+    player = resolve_player(identifier)
+    if player is None:
+        from flask import abort
+        abort(404)
+
+    # Owner/username via the linked User (User.player_id == player.id). When no
+    # user is linked, owner is False and username is None — the profile still
+    # renders (Req 11.3, 13.2).
+    linked_user = db.session.scalar(
+        sa.select(User).where(User.player_id == player.id)
+    )
+    if linked_user is not None:
+        owner = (linked_user.id == current_user.id)
+        username = linked_user.username
+    else:
         owner = False
-    player_stats = compute_player_overview(player.id) if player else {}
+        username = None
+
+    # Bio lives on the linked User (Req 11.2); None when no user is linked so
+    # the bio section renders a read-only empty state (Req 11.3).
+    bio = linked_user.bio if linked_user is not None else None
+
+    profile = build_player_profile(player.id)
     return render_template(
-        'user.html',
-        spieler=player,
+        'profile.html',
+        player=player,
         owner=owner,
         username=username,
-        player_stats=player_stats)
+        bio=bio,
+        **profile,
+    )
+
+
+# CSRF: CSRFProtect is enabled globally (app/__init__.py); this HTML form POST
+# validates the hidden csrf token automatically, so no exemption is needed.
+@bp.route('/user/<identifier>/bio', methods=['POST'])
+@login_required
+def update_bio(identifier):
+    """Persist a bio update for a player's linked user account.
+
+    Server-side ownership is re-checked here, independent of whether the UI
+    rendered the edit controls (Req 11.7): the current user is the owner only
+    when a ``User`` is linked to the player (``User.player_id == player.id``)
+    and that user is ``current_user``; otherwise the request is forbidden.
+
+    The submitted bio is stripped and length-capped to match the
+    ``User.bio`` column (``String(1000)``); over-length input is rejected with
+    400 (Req 11.8). The raw stripped text is persisted — Jinja autoescaping on
+    render guards against stored XSS, so no pre-escaping or ``|safe`` is used.
+    On success the request redirects to the profile page so a reload shows the
+    new value (Req 11.6).
+
+    Requirements: 11.6, 11.7, 11.8.
+    """
+    player = resolve_player(identifier)
+    if player is None:
+        abort(404)
+
+    linked_user = db.session.scalar(
+        sa.select(User).where(User.player_id == player.id)
+    )
+    if not (linked_user is not None and linked_user.id == current_user.id):
+        # Server-side ownership check (Req 11.7): only the owner may edit.
+        abort(403)
+
+    bio = (request.form.get('bio') or '').strip()
+    if len(bio) > 1000:
+        # Length limit matching the User.bio column (Req 11.8).
+        abort(400)
+
+    linked_user.bio = bio
+    db.session.commit()
+    return redirect(url_for('main.player', identifier=player.id))
 
