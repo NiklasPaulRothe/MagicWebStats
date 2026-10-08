@@ -419,14 +419,14 @@
         <div class="pf-card" aria-label="Head to head">
             <h2 class="pf-card-title">Head-to-Head</h2>
             {% if head_to_head %}
-            <table class="pf-table">
+            <table class="pf-table pf-sortable" id="pf-h2h-table">
                 <thead>
                     <tr>
-                        <th>Gegner</th>
-                        <th>Spiele</th>
-                        <th>Siege</th>
-                        <th>Nied.</th>
-                        <th>Winrate</th>
+                        <th data-type="string"><span>Gegner</span></th>
+                        <th data-type="number"><span>Spiele</span></th>
+                        <th data-type="number"><span>Siege</span></th>
+                        <th data-type="number"><span>Nied.</span></th>
+                        <th data-type="number"><span>Winrate</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -604,6 +604,43 @@
             if (!el) return null;
             try { return JSON.parse(el.textContent); } catch (e) { return null; }
         }
+
+        // ── Sortable Head-to-Head table ───────────────────────────────────
+        (function () {
+            const table = document.getElementById('pf-h2h-table');
+            if (!table) return;  // empty-state: no table rendered
+            const headers = Array.from(table.tHead.rows[0].cells);
+            const tbody = table.tBodies[0];
+
+            const cellText = (row, idx) => (row.cells[idx].innerText || row.cells[idx].textContent || '').trim();
+
+            function compare(idx, type, asc) {
+                return (a, b) => {
+                    let v1 = cellText(a, idx);
+                    let v2 = cellText(b, idx);
+                    let res;
+                    if (type === 'number') {
+                        // parseFloat handles plain numbers and values like "58.3%".
+                        res = (parseFloat(v1) || 0) - (parseFloat(v2) || 0);
+                    } else {
+                        res = v1.localeCompare(v2, undefined, { sensitivity: 'base' });
+                    }
+                    return asc ? res : -res;
+                };
+            }
+
+            headers.forEach((th, idx) => {
+                th.addEventListener('click', function () {
+                    const type = th.getAttribute('data-type') || 'string';
+                    const asc = !(th.classList.contains('sorted-asc'));
+                    headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+                    th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+                    Array.from(tbody.rows)
+                        .sort(compare(idx, type, asc))
+                        .forEach(row => tbody.appendChild(row));
+                });
+            });
+        })();
 
         // ── Win trend line chart (Req 7) ──────────────────────────────────
         const trend = readJSON('win-trend-data') || [];
