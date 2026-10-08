@@ -703,7 +703,7 @@
             new Chart(colorCanvas.getContext('2d'), {
                 type: 'polarArea',
                 data: {
-                    labels: colorKeys.map(k => colorLabels[k]),
+                    labels: colorKeys.map(k => `${colorLabels[k]} ${(Number(cu[k]) || 0).toFixed(1)}%`),
                     datasets: [{
                         data: colorValues,
                         backgroundColor: colorKeys.map(k => colorHex[k]),
@@ -714,7 +714,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#ccc' } },
+                        legend: { position: 'bottom', labels: { color: '#ccc', boxWidth: 0, boxHeight: 0 } },
                         datalabels: { display: false },
                     },
                     scales: { r: { ticks: { display: false } } },
