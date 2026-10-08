@@ -115,17 +115,19 @@
 .pf-overview {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "h2h recent highlights"
+        "h2h finisher interaction";
     gap: 12px;
-    align-items: start;
+    align-items: stretch;
     margin-bottom: 12px;
 }
-
-/* Vertical stack of two cards inside areas 2 and 3 */
-.pf-col {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
+.pf-overview > .pf-area-h2h { grid-area: h2h; }
+.pf-overview > .pf-area-recent { grid-area: recent; }
+.pf-overview > .pf-area-finisher { grid-area: finisher; }
+.pf-overview > .pf-area-highlights { grid-area: highlights; }
+.pf-overview > .pf-area-interaction { grid-area: interaction; }
 
 /* ── Charts row — two chart cards side by side ────────────────────────────── */
 .pf-charts {
@@ -136,7 +138,15 @@
 }
 
 @media (max-width: 900px) {
-    .pf-overview { grid-template-columns: 1fr; }
+    .pf-overview {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "h2h"
+            "recent"
+            "highlights"
+            "finisher"
+            "interaction";
+    }
     .pf-charts { grid-template-columns: 1fr; }
 }
 
@@ -416,7 +426,7 @@
     {#   Area 3: Deck-Highlights (top) + Interaktion (bottom)                   #}
     <div class="pf-overview">
         {# ── Area 1 — Head-to-head (Req 6.1–6.5) ──────────────────────────── #}
-        <div class="pf-card" aria-label="Head to head">
+        <div class="pf-card pf-area-h2h" aria-label="Head to head">
             <h2 class="pf-card-title">Head-to-Head</h2>
             {% if head_to_head %}
             <table class="pf-table pf-sortable" id="pf-h2h-table">
@@ -447,9 +457,8 @@
         </div>
 
         {# ── Area 2 — Letzte Spiele (top) + Finisher (bottom) ─────────────── #}
-        <div class="pf-col">
-            {# Recent games feed (Req 4.1–4.5) #}
-            <div class="pf-card" aria-label="Recent games">
+        {# Recent games feed (Req 4.1–4.5) #}
+        <div class="pf-card pf-area-recent" aria-label="Recent games">
                 <h2 class="pf-card-title">Letzte Spiele</h2>
                 {% if recent_games %}
                 <ul class="pf-feed">
@@ -470,7 +479,7 @@
             </div>
 
             {# Finishers (Req 9.1–9.4) #}
-            <div class="pf-card" aria-label="Finishers">
+            <div class="pf-card pf-area-finisher" aria-label="Finishers">
                 <h2 class="pf-card-title">Finisher</h2>
                 {% set _fin = finishers or {} %}
                 {% if _fin.most_common_final_blow or _fin.fastest_win_turns is not none or _fin.avg_win_turns is not none %}
@@ -490,16 +499,15 @@
                 <p class="pf-empty">Noch keine Finisher-Daten verfügbar.</p>
                 {% endif %}
             </div>
-        </div>
 
         {# ── Area 3 — Deck-Highlights (top) + Interaktion (bottom) ─────────── #}
-        <div class="pf-col">
             {# Deck highlights (Req 5.1–5.5) #}
-            <div class="pf-card" aria-label="Deck highlights">
+            <div class="pf-card pf-area-highlights" aria-label="Deck highlights">
                 <h2 class="pf-card-title">Deck-Highlights</h2>
                 {% set _mp = highlights.most_played if highlights else none %}
                 {% set _best = highlights.best if highlights else none %}
-                {% if _mp or _best %}
+                {% set _hr = highlights.highest_rated if highlights else none %}
+                {% if _mp or _best or _hr %}
                 <div class="pf-highlights">
                     {% if _mp %}
                     <div class="pf-highlight">
@@ -521,6 +529,16 @@
                         <div class="pf-highlight-metric">{{ '%.1f'|format(_best.winrate) }}% Winrate &middot; {{ _best.games }} Spiele</div>
                     </div>
                     {% endif %}
+                    {% if _hr %}
+                    <div class="pf-highlight">
+                        <div class="pf-highlight-kind">Highest Rated</div>
+                        <div class="pf-highlight-name">
+                            <a href="/decks/show/{{ _hr.name | urlencode }}">{{ _hr.name }}</a>
+                        </div>
+                        {% if _hr.commander %}<div class="pf-highlight-commander">{{ _hr.commander }}</div>{% endif %}
+                        <div class="pf-highlight-metric">Elo {{ _hr.elo }}</div>
+                    </div>
+                    {% endif %}
                 </div>
                 {% else %}
                 <p class="pf-empty">Noch keine Decks mit genügend Spielen.</p>
@@ -528,7 +546,7 @@
             </div>
 
             {# Interaction — removal only (Req 11b.1) #}
-            <div class="pf-card" aria-label="Interaction">
+            <div class="pf-card pf-area-interaction" aria-label="Interaction">
                 <h2 class="pf-card-title">Interaktion</h2>
                 {% set _ia = interaction or {} %}
                 {% set _rp = _ia.removal_played or {} %}
@@ -550,7 +568,6 @@
                 <p class="pf-empty">Noch keine Interaktionsdaten verfügbar.</p>
                 {% endif %}
             </div>
-        </div>
     </div>{# ── end .pf-overview ──────────────────────────────────────────── #}
 
     {# ── Charts row: Formkurve + Farbnutzung side by side ──────────────────── #}

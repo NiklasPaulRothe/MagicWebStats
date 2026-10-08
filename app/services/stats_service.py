@@ -808,8 +808,27 @@ def get_deck_highlights(player_id: int, min_games_best: int = 5) -> dict:
             'winrate': winrate,
         })
 
+    # Highest rated: the player's active, non-cEDH deck with the top real Elo.
+    # elo_rating > 0 excludes NULL and the 0 sentinel the Elo pipeline writes
+    # for decks with fewer than 5 games (consistent with get_aggregate_elo).
+    hr_row = db.session.execute(
+        sa.select(Deck.id, Deck.name, Deck.commander, Deck.elo_rating)
+        .where(Deck.player_id == player_id)
+        .where(Deck.active == True)  # noqa: E712
+        .where(Deck.cedh != True)  # noqa: E712
+        .where(Deck.elo_rating > 0)
+        .order_by(Deck.elo_rating.desc(), Deck.name)
+        .limit(1)
+    ).first()
+    highest_rated = {
+        'deck_id': hr_row.id,
+        'name': hr_row.name,
+        'commander': hr_row.commander,
+        'elo': round(hr_row.elo_rating),
+    } if hr_row else None
+
     if not decks:
-        return {'most_played': None, 'best': None}
+        return {'most_played': None, 'best': None, 'highest_rated': highest_rated}
 
     # Most played: most games, ties broken by higher winrate then name.
     most_played = max(decks, key=lambda d: (d['games'], d['winrate'], _neg_name(d['name'])))
@@ -819,7 +838,7 @@ def get_deck_highlights(player_id: int, min_games_best: int = 5) -> dict:
     eligible = [d for d in decks if d['games'] >= min_games_best]
     best = max(eligible, key=lambda d: (d['winrate'], d['games'], _neg_name(d['name']))) if eligible else None
 
-    return {'most_played': most_played, 'best': best}
+    return {'most_played': most_played, 'best': best, 'highest_rated': highest_rated}
 
 
 def get_win_trend(player_id: int, granularity: str = 'month') -> list[dict]:
