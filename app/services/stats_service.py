@@ -1,4 +1,4 @@
-"""Stats service module for MagicWebStats.
+﻿"""Stats service module for MagicWebStats.
 
 Provides functions for player listings, active deck queries, color identity
 resolution, participant averages, and deck performance statistics. Replaces
@@ -922,7 +922,7 @@ def get_aggregate_elo(player_id: int) -> int | None:
         .where(Deck.player_id == player_id)
         .where(Deck.active == True)  # noqa: E712
         .where(Deck.cedh != True)  # noqa: E712
-        .where(Deck.elo_rating.isnot(None))
+        .where(Deck.elo_rating > 0)  # exclude unrated decks (elo 0 = <5 games) and NULL
     )
 
     if avg_elo is None:

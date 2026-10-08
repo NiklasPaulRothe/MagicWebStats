@@ -24,9 +24,11 @@ def seeded(app, db_session):
         Deck4: INACTIVE,          elo 9000 -> excluded (not active)
         Deck5: active, non-cEDH, elo None  -> excluded (no rating)
         Deck6: active, cEDH,      elo 3000 -> excluded (cEDH)
+        Deck7: active, non-cEDH, elo 0     -> excluded (0 = <5 games sentinel)
 
     Player 2 owns one rated deck used to verify an exact rounding case.
     Player 3 owns only non-qualifying decks (empty-state check).
+    Player 4 owns only a 0-rated deck (zero-only empty-state check).
     """
     with app.app_context():
         db_session.query(Deck).delete()
@@ -37,7 +39,7 @@ def seeded(app, db_session):
         db_session.add(ColorIdentity(name="TestColor", amount=1))
         db_session.flush()
 
-        for pid, name in [(1, "Subject"), (2, "Rounder"), (3, "NoRated")]:
+        for pid, name in [(1, "Subject"), (2, "Rounder"), (3, "NoRated"), (4, "ZeroOnly")]:
             db_session.add(Player(id=pid, name=name))
         db_session.flush()
 
@@ -64,6 +66,9 @@ def seeded(app, db_session):
         add_deck(4, 1, 9000, active=False)
         add_deck(5, 1, None)
         add_deck(6, 1, 3000, cedh=True)
+        # elo 0 is the "fewer than 5 games" sentinel written by the Elo
+        # pipeline; it must be excluded (elo_rating > 0), not averaged in.
+        add_deck(7, 1, 0)
 
         # Player 2: 1500 and 1501 -> avg 1500.5 -> rounds to 1500 (bankers' nearest even)
         add_deck(10, 2, 1500)
@@ -73,14 +78,36 @@ def seeded(app, db_session):
         add_deck(20, 3, 1500, active=False)
         add_deck(21, 3, None)
 
+        # Player 4: only an active, non-cEDH deck with the 0-rating sentinel
+        # -> no qualifiers (elo_rating > 0 excludes it).
+        add_deck(30, 4, 0)
+
         db_session.flush()
         yield db_session
 
 
 def test_average_over_active_rated_non_cedh_decks(app, seeded):
     with app.app_context():
-        # (1500 + 1600 + 1700) / 3 = 1600; inactive/null/cEDH decks excluded.
+        # (1500 + 1600 + 1700) / 3 = 1600; inactive/null/cEDH/0-rated decks excluded.
         assert get_aggregate_elo(1) == 1600
+
+
+def test_zero_rated_decks_excluded(app, seeded):
+    """A 0-rated deck (the <5-games sentinel) must not enter the average.
+
+    Player 1 owns an active, non-cEDH deck with elo_rating=0 (Deck7). Were it
+    counted, (1500 + 1600 + 1700 + 0) / 4 = 1200. Because elo_rating > 0
+    excludes it, the average stays 1600 over the three genuinely rated decks.
+    """
+    with app.app_context():
+        assert get_aggregate_elo(1) == 1600
+
+
+def test_none_when_only_zero_rated_decks(app, seeded):
+    """A player whose only deck carries the 0-rating sentinel yields None."""
+    with app.app_context():
+        # Player 4 owns a single active, non-cEDH deck with elo_rating=0.
+        assert get_aggregate_elo(4) is None
 
 
 def test_result_is_rounded_to_int(app, seeded):
