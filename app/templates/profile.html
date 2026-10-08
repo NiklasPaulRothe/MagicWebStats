@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -320,6 +320,15 @@
     {% endif %}
 {% endfor %}
 {% set accent = _color_hex.get(accent_ns.key, '#f4c430') %}
+{# All colors tied for the highest percentage (so ties show every color). #}
+{% set accent_keys = [] %}
+{% if accent_ns.val > 0 %}
+    {% for k in ['white', 'blue', 'black', 'red', 'green'] %}
+        {% if (cu.get(k) or 0) == accent_ns.val %}
+            {% set _ = accent_keys.append(k) %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
 
 <div class="pf-page">
     {# ── 1. Identity header (Req 2.1–2.5) ─────────────────────────────────── #}
@@ -346,15 +355,27 @@
 
     {# ── 2. Headline tiles (Req 3.1–3.4) ──────────────────────────────────── #}
     {% if overview and overview.games > 0 %}
-    {# Best seat = seat with best winrate. Accumulate into a namespace so the
-       result survives the loop. #}
-    {% set seat_ns = namespace(seat=none, wr=-1) %}
-    {% for seat, data in (overview.winrate_by_seat or {}).items() %}
-        {% if data.winrate > seat_ns.wr %}
-            {% set seat_ns.wr = data.winrate %}
-            {% set seat_ns.seat = seat %}
+    {# Best seat (Req 3.1): the seat with the highest winrate.
+       Gate: seats 1-4 must EACH have >= 10 games, else "Not enough Data".
+       Seat 5 is only eligible when it also has >= 10 games (but a thin seat 5
+       never blocks the tile). Seat keys may be int or str, so look up both. #}
+    {% set wbs = overview.winrate_by_seat or {} %}
+    {% set seat_ns = namespace(seat=none, wr=-1, enough=true) %}
+    {% for s in [1, 2, 3, 4] %}
+        {% set d = wbs.get(s) or wbs.get(s|string) %}
+        {% if not d or (d.games or 0) < 10 %}
+            {% set seat_ns.enough = false %}
         {% endif %}
     {% endfor %}
+    {% if seat_ns.enough %}
+        {% for s in [1, 2, 3, 4, 5] %}
+            {% set d = wbs.get(s) or wbs.get(s|string) %}
+            {% if d and (d.games or 0) >= 10 and d.winrate > seat_ns.wr %}
+                {% set seat_ns.wr = d.winrate %}
+                {% set seat_ns.seat = s %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
     <div class="pf-tiles" aria-label="Headline statistics">
         <div class="pf-tile">
             <div class="pf-tile-value">{{ overview.games }}</div>
@@ -369,13 +390,13 @@
             <div class="pf-tile-label">Winrate</div>
         </div>
         <div class="pf-tile">
-            <div class="pf-tile-value">{% if seat_ns.seat is not none %}Seat {{ seat_ns.seat }} <small>({{ '%.1f'|format(seat_ns.wr) }}%)</small>{% else %}&ndash;{% endif %}</div>
+            <div class="pf-tile-value">{% if seat_ns.seat is not none %}Seat {{ seat_ns.seat }} <small>({{ '%.1f'|format(seat_ns.wr) }}%)</small>{% else %}<small>Not enough Data</small>{% endif %}</div>
             <div class="pf-tile-label">Best Seat</div>
         </div>
         <div class="pf-tile">
             <div class="pf-tile-value">
-                {% if accent_ns.key %}
-                    <span class="pf-pip pf-c-{{ accent_ns.key }}">{{ {'white':'W','blue':'U','black':'B','red':'R','green':'G'}[accent_ns.key] }}</span>
+                {% if accent_keys %}
+                    {% for k in accent_keys %}<span class="pf-pip pf-c-{{ k }}">{{ {'white':'W','blue':'U','black':'B','red':'R','green':'G'}[k] }}</span>{% endfor %}
                 {% else %}&ndash;{% endif %}
             </div>
             <div class="pf-tile-label">Lieblingsfarbe</div>
