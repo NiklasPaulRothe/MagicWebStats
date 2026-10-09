@@ -1069,14 +1069,25 @@ def get_interaction_stats(player_id: int) -> dict:
             {
                 'removal_played': {'avg': float | None, 'n': int},
                 'targeted_by_removal': {'avg': float | None, 'n': int},
+                'removal_played_wins': {'avg': float | None, 'n': int},
+                'targeted_by_removal_wins': {'avg': float | None, 'n': int},
             }
+
+        The ``*_wins`` variants are computed only over the player's won games
+        (``Game.winner_id == player_id``); the plain variants cover all non-cEDH
+        games. A wins-only field is ``{'avg': None, 'n': 0}`` when the player has
+        no won rows or every won row is NULL for that field.
 
     Validates: Requirements 11b.1, 11b.2, 11b.3, 11b.4
     """
     empty_field = {'avg': None, 'n': 0}
 
     stmt = (
-        sa.select(Participant.removal_played, Participant.targeted_by_removal)
+        sa.select(
+            Participant.removal_played,
+            Participant.targeted_by_removal,
+            Game.winner_id,
+        )
         .select_from(Participant)
         .join(Game, Participant.game_id == Game.id)
         .where(Participant.player_id == player_id)
@@ -1088,6 +1099,8 @@ def get_interaction_stats(player_id: int) -> dict:
         return {
             'removal_played': dict(empty_field),
             'targeted_by_removal': dict(empty_field),
+            'removal_played_wins': dict(empty_field),
+            'targeted_by_removal_wins': dict(empty_field),
         }
 
     def summarize(values: list) -> dict:
@@ -1096,9 +1109,13 @@ def get_interaction_stats(player_id: int) -> dict:
             return {'avg': None, 'n': 0}
         return {'avg': round(statistics.mean(non_null), 1), 'n': len(non_null)}
 
+    win_rows = [r for r in rows if r.winner_id == player_id]
+
     return {
         'removal_played': summarize([row.removal_played for row in rows]),
         'targeted_by_removal': summarize([row.targeted_by_removal for row in rows]),
+        'removal_played_wins': summarize([r.removal_played for r in win_rows]),
+        'targeted_by_removal_wins': summarize([r.targeted_by_removal for r in win_rows]),
     }
 
 
