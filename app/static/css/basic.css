@@ -3,6 +3,11 @@
     box-sizing: border-box;
 }
 
+html {
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: 'Segoe UI', sans-serif;
     margin: 0;
@@ -12,16 +17,99 @@ body {
 }
 
 /* ── Navigation ──────────────────────────────────────────────────────────── */
+nav {
+    background-color: #0d0800;
+}
+
+/* Skip link: hidden until focused via keyboard */
+.skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
+    z-index: 1100;
+    background-color: #f4c430;
+    color: #0d0800;
+    padding: 10px 16px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+/* Top bar holds the brand + hamburger; visible layout control on mobile */
+.nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-brand {
+    color: #f4c430;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    padding: 8px 16px;
+    text-decoration: none;
+}
+
+/* Hamburger toggle — checkbox hack, no JS required */
+.nav-toggle {
+    display: none;
+}
+
+.nav-toggle-label {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    padding: 16px;
+    cursor: pointer;
+}
+
+.nav-toggle-label span {
+    display: block;
+    width: 24px;
+    height: 3px;
+    background-color: #f4c430;
+    border-radius: 2px;
+}
+
+/* Desktop: three-column grid — an empty left spacer, the centered main links,
+   and the account menu on the right. The symmetric side columns keep .nav-main
+   truly centered in the bar while .nav-account stays right-aligned.
+   The .nav-bar (brand + hamburger) is only used on mobile. */
+nav {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 24px;
+}
+
+.nav-bar {
+    display: none;
+}
+
 nav ul {
     list-style-type: none;
     margin: 0;
     padding: 0;
     display: flex;
-    background-color: #0d0800;
+}
+
+/* Centered main links occupy the middle grid column */
+.nav-main {
+    grid-column: 2;
     justify-content: center;
 }
 
-nav li {
+/* Account menu occupies the right column, right-aligned but with the nav's
+   own 24px padding keeping it off the screen edge. */
+.nav-account {
+    grid-column: 3;
+    justify-content: flex-end;
+}
+
+nav > ul > li {
     position: relative;
 }
 
@@ -29,8 +117,9 @@ nav li a {
     display: block;
     color: #f4c430;
     text-align: center;
-    padding: 14px 16px;
+    padding: 8px 14px;
     text-decoration: none;
+    border-bottom: 2px solid transparent;
 }
 
 nav li a:link,
@@ -42,7 +131,26 @@ nav li a:hover {
     background-color: #111;
 }
 
-nav li .dropdown-content {
+/* Visible keyboard focus indicator */
+nav a:focus-visible,
+.nav-toggle-label:focus-visible {
+    outline: 2px solid #f4c430;
+    outline-offset: -2px;
+}
+
+/* Active page indicator */
+nav li a.active,
+nav .nav-main li a[aria-current="page"] {
+    border-bottom-color: #f4c430;
+    background-color: #1a1200;
+}
+
+.caret {
+    font-size: 0.75em;
+}
+
+/* Dropdown */
+nav li.dropdown .dropdown-content {
     display: none;
     position: absolute;
     background-color: #333;
@@ -51,22 +159,89 @@ nav li .dropdown-content {
     z-index: 1000;
     top: 100%;
     left: 0;
+    flex-direction: column;
 }
 
-nav li .dropdown-content a {
+/* Account dropdown aligns to the right edge so it doesn't overflow the viewport */
+nav li.dropdown .dropdown-content-right {
+    left: auto;
+    right: 0;
+}
+
+nav li.dropdown .dropdown-content a {
     color: antiquewhite;
     padding: 12px 16px;
     text-decoration: none;
     display: block;
     text-align: left;
+    border-bottom: none;
 }
 
-nav li .dropdown-content a:hover {
+nav li.dropdown .dropdown-content a:hover,
+nav li.dropdown .dropdown-content a[aria-current="page"] {
     background-color: #111;
 }
 
-nav li:hover .dropdown-content {
-    display: block;
+/* Open on hover AND keyboard focus (focus-within) for accessibility */
+nav li.dropdown:hover .dropdown-content,
+nav li.dropdown:focus-within .dropdown-content {
+    display: flex;
+}
+
+/* ── Mobile layout ───────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    /* Stack everything vertically; the top bar carries brand + hamburger */
+    nav {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .nav-bar {
+        display: flex;
+    }
+
+    .nav-toggle-label {
+        display: flex;
+    }
+
+    nav ul {
+        flex-direction: column;
+        display: none;
+    }
+
+    .nav-account {
+        margin-left: 0;
+    }
+
+    /* Reveal both menus when the toggle checkbox is checked */
+    .nav-toggle:checked ~ ul {
+        display: flex;
+    }
+
+    nav li a {
+        text-align: left;
+        border-bottom: none;
+        border-left: 3px solid transparent;
+    }
+
+    nav li a.active,
+    nav .nav-main li a[aria-current="page"] {
+        border-bottom-color: transparent;
+        border-left-color: #f4c430;
+    }
+
+    /* On mobile the dropdowns expand inline rather than floating */
+    nav li.dropdown .dropdown-content,
+    nav li.dropdown .dropdown-content-right {
+        position: static;
+        box-shadow: none;
+        min-width: 0;
+        background-color: #1a1200;
+    }
+
+    nav li.dropdown .dropdown-content a {
+        padding-left: 32px;
+    }
 }
 
 /* ── Main content area ───────────────────────────────────────────────────── */
