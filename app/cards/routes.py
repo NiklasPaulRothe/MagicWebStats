@@ -1,6 +1,6 @@
 from flask import render_template
 from flask_login import login_required
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 
 from app import db
 from app.cards import bp
@@ -17,11 +17,15 @@ from app.services.stats_service import get_card_usage_counts
 def card_meta():
     cards = get_card_usage_counts()
 
-    # Deck list for the sidebar: active decks with Archidekt-sourced decklists
+    # Deck list for the sidebar: active decks with a loaded decklist
+    # (Archidekt- or Moxfield-sourced)
     rows = (
         db.session.query(Deck.name, Deck.commander, Player.name)
         .join(Player, Player.id == Deck.player_id)
-        .filter(and_(Deck.decksite.contains('archidekt'), Deck.active == True))  # noqa: E712
+        .filter(and_(
+            or_(Deck.decksite.contains('archidekt'), Deck.decksite.contains('moxfield')),
+            Deck.active == True,  # noqa: E712
+        ))
         .all()
     )
     deck_list = [

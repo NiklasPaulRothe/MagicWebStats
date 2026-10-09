@@ -352,7 +352,7 @@ def compute_deck_performance(
 
 
 def get_card_usage_counts() -> list[dict[str, object]]:
-    """Compute card usage counts across active Archidekt-sourced decks.
+    """Compute card usage counts across active Archidekt- and Moxfield-sourced decks.
 
     Uses a single GROUP BY query instead of the O(n*m) nested Python loop
     in the original implementation.
@@ -362,7 +362,13 @@ def get_card_usage_counts() -> list[dict[str, object]]:
     """
     active_deck_ids = (
         sa.select(Deck.id)
-        .where(Deck.decksite.contains('archidekt'), Deck.active == True)  # noqa: E712
+        .where(
+            sa.or_(
+                Deck.decksite.contains('archidekt'),
+                Deck.decksite.contains('moxfield'),
+            ),
+            Deck.active == True,  # noqa: E712
+        )
         .scalar_subquery()
     )
 
