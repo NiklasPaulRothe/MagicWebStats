@@ -11,7 +11,11 @@ from sqlalchemy import func
 
 from app import db
 from app.models import Deck, DeckVersionHistory, Game, Participant, Player
-from app.third_party_data.deckbuilder import get_id_from_url, load_cards_from_archidekt
+from app.third_party_data.deckbuilder import (
+    get_id_from_url,
+    load_cards_from_archidekt,
+    load_cards_from_moxfield,
+)
 
 
 def version_change(deck: Deck, comment: str | None = None) -> str:
@@ -135,10 +139,11 @@ def dearchive_deck(deck: Deck) -> None:
 
 
 def update_decklist(deck: Deck, decklist_url: str) -> None:
-    """Parse Archidekt URL, update deck fields, and load cards.
+    """Parse an Archidekt or Moxfield URL, update deck fields, and load cards.
 
-    Parses the decklist URL to extract the deck site and archidekt ID,
-    updates the deck's fields, then triggers card loading from Archidekt.
+    Parses the decklist URL to extract the deck site and the site-specific deck
+    ID, updates the deck's fields, then triggers card loading from the matching
+    provider (Archidekt or Moxfield).
 
     On card-loading failure: rolls back the session and re-raises the exception.
     On success: deck.decklist, deck.decksite, deck.archidekt_id, and
@@ -146,10 +151,10 @@ def update_decklist(deck: Deck, decklist_url: str) -> None:
 
     Args:
         deck: The Deck model instance to update.
-        decklist_url: The Archidekt deck URL to parse and load from.
+        decklist_url: The Archidekt or Moxfield deck URL to parse and load from.
 
     Raises:
-        Exception: If card loading from Archidekt fails. The session is
+        Exception: If card loading from the provider fails. The session is
             rolled back before the exception propagates.
     """
     deckbuilder = get_id_from_url(decklist_url)
@@ -158,7 +163,10 @@ def update_decklist(deck: Deck, decklist_url: str) -> None:
     deck.archidekt_id = deckbuilder[1].strip()
 
     try:
-        load_cards_from_archidekt(deck.archidekt_id, deck.id)
+        if deck.decksite == 'moxfield':
+            load_cards_from_moxfield(deck.archidekt_id, deck.id)
+        else:
+            load_cards_from_archidekt(deck.archidekt_id, deck.id)
     except Exception:
         db.session.rollback()
         raise

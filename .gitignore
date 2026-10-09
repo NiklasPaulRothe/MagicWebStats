@@ -25,3 +25,4 @@ migrations/
 .hypothesis/
 .pytest_cache/
 test_results.txt
+changelog/
