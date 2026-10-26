@@ -213,29 +213,40 @@ def import_player_collection(
         # deck-tag re-import in deckbuilder.py).
         db.session.flush()
 
+    # Resolve EXACT printings in bulk: one query (chunked) for all distinct
+    # Scryfall ids in the file, instead of a per-entry round-trip. This keeps
+    # the import fast even against a remote database, where per-row latency
+    # would otherwise dominate (30k entries -> 30k round-trips). The matching
+    # semantics are unchanged: an id is kept only if that exact printing exists
+    # in our cards table; anything else goes to result.unimported.
+    scryfall_ids = {e.scryfall_id for e in entries}
+    known_ids = _existing_card_ids(scryfall_ids)
+
+    # For merge mode, load the player's current entries once, keyed by the dedup
+    # tuple, so matching is an in-memory lookup rather than a query per entry.
+    existing_by_key: dict[tuple, PlayerCollectionCard] = {}
+    if not replace:
+        for row in PlayerCollectionCard.query.filter(
+            PlayerCollectionCard.player_id == player_id
+        ).all():
+            existing_by_key[(
+                row.scryfall_id, row.finish, row.condition, row.language
+            )] = row
+
     for entry in entries:
-        # Match the EXACT printing by Scryfall id. Never fall back to another
-        # printing — if this exact printing isn't stored, the entry is left out
-        # and reported, not rewritten to a different card.
-        card_id = db.session.scalar(
-            sa.select(Card.id).where(Card.id == entry.scryfall_id)
-        )
-        if card_id is None:
+        # Never fall back to another printing — if this exact printing isn't
+        # stored, the entry is left out and reported, not rewritten.
+        if entry.scryfall_id not in known_ids:
             result.unimported.append(entry)
             continue
         result.imported += 1
+        card_id = entry.scryfall_id
 
         existing = None
         if not replace:
-            existing = db.session.scalar(
-                sa.select(PlayerCollectionCard).where(
-                    PlayerCollectionCard.player_id == player_id,
-                    PlayerCollectionCard.scryfall_id == entry.scryfall_id,
-                    PlayerCollectionCard.finish == entry.finish,
-                    PlayerCollectionCard.condition == entry.condition,
-                    PlayerCollectionCard.language == entry.language,
-                )
-            )
+            existing = existing_by_key.get((
+                entry.scryfall_id, entry.finish, entry.condition, entry.language
+            ))
 
         if existing is not None:
             existing.count += entry.count
@@ -257,4 +268,105 @@ def import_player_collection(
                 )
             )
 
+    return result
+
+
+# Postgres caps bind parameters per statement (~65535). Chunk IN (...) lookups
+# well under that so even a huge collection resolves in a handful of queries.
+_ID_LOOKUP_CHUNK = 10000
+
+
+def _existing_card_ids(scryfall_ids: Iterable[str]) -> set[str]:
+    """Return the subset of the given Scryfall ids that exist in cards.
+
+    Runs one `WHERE id IN (...)` query per chunk instead of one query per id.
+    """
+    ids = [i for i in set(scryfall_ids) if i]
+    found: set[str] = set()
+    for start in range(0, len(ids), _ID_LOOKUP_CHUNK):
+        chunk = ids[start:start + _ID_LOOKUP_CHUNK]
+        rows = db.session.scalars(
+            sa.select(Card.id).where(Card.id.in_(chunk))
+        ).all()
+        found.update(rows)
+    return found
+
+
+# Finish values (from the CSV `Finish` column) that denote a foil printing.
+# Everything else (Normal, etc.) uses the non-foil EUR price.
+_FOIL_FINISHES = {"foil", "etched"}
+
+
+def _is_foil(finish: str | None) -> bool:
+    return (finish or "").strip().lower() in _FOIL_FINISHES
+
+
+def get_player_collection(player_id: int) -> list[dict]:
+    """Return a player's collection as view-ready dicts for the collection page.
+
+    Joins each PlayerCollectionCard to its Card (for the image and EUR price).
+    The EUR price is chosen by finish: foil/etched entries use the card's
+    price_eur_foil, everything else uses price_eur. The card image is the front
+    face (face_index == 0) image_uri. Entries are sorted by card name, then set
+    code, then finish for a stable gallery order.
+
+    Each dict has: name, set_code, set_name, collector_number, finish,
+    condition, language, count, image (str|None), price (Decimal|None),
+    scryfall_id, card_id.
+    """
+    from app.models import CardFace
+
+    # Pull the front-face image for each collected card in one query, keyed by
+    # card_id, to avoid a per-row lookup.
+    entries = (
+        PlayerCollectionCard.query
+        .filter(PlayerCollectionCard.player_id == player_id)
+        .all()
+    )
+    card_ids = {e.card_id for e in entries if e.card_id}
+
+    images: dict[str, str] = {}
+    prices: dict[str, dict] = {}
+    if card_ids:
+        face_rows = db.session.execute(
+            sa.select(CardFace.card_id, CardFace.image_uri)
+            .where(CardFace.card_id.in_(card_ids), CardFace.face_index == 0)
+        ).all()
+        images = {cid: uri for cid, uri in face_rows}
+
+        price_rows = db.session.execute(
+            sa.select(Card.id, Card.price_eur, Card.price_eur_foil)
+            .where(Card.id.in_(card_ids))
+        ).all()
+        prices = {
+            cid: {"eur": eur, "eur_foil": eur_foil}
+            for cid, eur, eur_foil in price_rows
+        }
+
+    result: list[dict] = []
+    for e in entries:
+        foil = _is_foil(e.finish)
+        price = None
+        if e.card_id and e.card_id in prices:
+            price = prices[e.card_id]["eur_foil" if foil else "eur"]
+        result.append({
+            "name": e.name,
+            "set_code": e.set_code,
+            "set_name": e.set_name,
+            "collector_number": e.collector_number,
+            "finish": e.finish,
+            "condition": e.condition,
+            "language": e.language,
+            "count": e.count,
+            "image": images.get(e.card_id) if e.card_id else None,
+            "price": price,
+            "scryfall_id": e.scryfall_id,
+            "card_id": e.card_id,
+        })
+
+    result.sort(key=lambda r: (
+        (r["name"] or "").lower(),
+        (r["set_code"] or ""),
+        (r["finish"] or ""),
+    ))
     return result

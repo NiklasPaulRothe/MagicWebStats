@@ -50,6 +50,10 @@
                     <a href="{{ url_for('decks.my_decks') }}"
                        {% if request.endpoint == 'decks.my_decks' %}class="active" aria-current="page"{% endif %}>My Decks</a>
                 </li>
+                <li>
+                    <a href="{{ url_for('collection.collection') }}"
+                       {% if request.endpoint == 'collection.collection' %}class="active" aria-current="page"{% endif %}>Collection</a>
+                </li>
                 {% endif %}
 
                 {% if not current_user.is_anonymous and current_user.role == 'admin' %}

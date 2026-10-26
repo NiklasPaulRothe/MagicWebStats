@@ -252,6 +252,12 @@ class Card(db.Model):
     set_name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     rarity: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     released_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.Date)
+    # Daily Cardmarket (EUR) prices from Scryfall's `prices` object. price_eur is
+    # the non-foil price, price_eur_foil the foil price. Either may be NULL when
+    # Scryfall has no price for that printing/finish. Refreshed by the nightly
+    # fetch; used to show a current price on the collection page.
+    price_eur: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
+    price_eur_foil: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
 
     # Relationships
     faces: so.Mapped[list['CardFace']] = so.relationship(back_populates='card', order_by='CardFace.face_index', cascade='all, delete-orphan')

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/collection.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="collection" id="main-content">
+    <header class="collection-header">
+        <h1>My Collection</h1>
+        <p class="collection-sub">
+            {{ total_cards }} card{{ '' if total_cards == 1 else 's' }}
+            {% if total_value is not none %}
+            &middot; <span class="collection-total-value">{{ '%.2f'|format(total_value) }} &euro;</span> total
+            {% endif %}
+        </p>
+    </header>
+
+    {% if not has_player %}
+    <p class="collection-empty">
+        Your account isn't linked to a player yet, so there's no collection to
+        show. Link a player to your account to import a collection.
+    </p>
+    {% else %}
+
+    <section class="collection-import" aria-label="Import collection">
+        <form method="post"
+              action="{{ url_for('collection.import_collection') }}"
+              enctype="multipart/form-data"
+              class="collection-import-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="csv_file" class="collection-import-label">
+                Import collection CSV
+            </label>
+            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+            <button type="submit" class="collection-import-btn">Import</button>
+        </form>
+        <p class="collection-import-hint">
+            Expected columns: Quantity, Name, Finish, Condition, Date Added,
+            Language, Purchase Price, Tags, Edition Name, Edition Code,
+            Multiverse Id, Scryfall ID, Collector Number. Importing replaces your
+            current collection. Cards whose exact printing isn't in the database
+            yet are skipped and listed.
+        </p>
+    </section>
+
+    {% if cards %}
+    <ul class="collection-grid" role="list">
+        {% for card in cards %}
+        <li class="collection-card">
+            <div class="collection-card-art">
+                {% if card.image %}
+                <img class="collection-card-img"
+                     src="{{ card.image }}"
+                     alt="{{ card.name }}"
+                     loading="lazy">
+                {% else %}
+                <div class="collection-card-img collection-card-placeholder">
+                    <span>{{ card.name }}</span>
+                </div>
+                {% endif %}
+                {% if card.count > 1 %}
+                <span class="collection-card-qty" aria-hidden="true">{{ card.count }}</span>
+                {% endif %}
+                {% if card.finish and card.finish|lower in ['foil', 'etched'] %}
+                <span class="collection-card-foil" title="{{ card.finish }}">{{ card.finish }}</span>
+                {% endif %}
+            </div>
+            <div class="collection-card-info">
+                <span class="collection-card-name">{{ card.name }}</span>
+                <span class="collection-card-set">
+                    {{ card.set_name or card.set_code or '' }}
+                    {%- if card.collector_number %} &middot; #{{ card.collector_number }}{% endif %}
+                </span>
+                <span class="collection-card-footer">
+                    <span class="collection-card-count">x{{ card.count }}</span>
+                    <span class="collection-card-price">
+                        {% if card.price is not none %}{{ '%.2f'|format(card.price) }} &euro;{% else %}&mdash;{% endif %}
+                    </span>
+                </span>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="collection-empty">
+        Your collection is empty. Import a CSV above to get started.
+    </p>
+    {% endif %}
+
+    {% endif %}
+</main>
+{% endblock %}

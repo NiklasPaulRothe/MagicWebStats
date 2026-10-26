@@ -71,6 +71,39 @@ def card_type_line(card: dict) -> str:
     return ''
 
 
+def card_oracle_id(card: dict) -> str | None:
+    """Return a card's oracle_id, falling back to a face for reversible cards.
+
+    Most cards carry a top-level `oracle_id`. Reversible cards
+    (layout == 'reversible_card', e.g. Secret Lair double-sided reprints and
+    some special-frame lands) have NO top-level `oracle_id` — it lives on each
+    `card_faces` entry instead (both faces share the same oracle_id). We take
+    the first face's oracle_id so these printings are ingested instead of
+    skipped. Returns None only when no oracle_id can be found anywhere.
+    """
+    oid = card.get('oracle_id')
+    if oid:
+        return oid
+    for face in card.get('card_faces') or []:
+        face_oid = face.get('oracle_id')
+        if face_oid:
+            return face_oid
+    return None
+
+
+def card_price_eur(card: dict, foil: bool) -> str | None:
+    """Return the Scryfall EUR (Cardmarket) price string for a card, or None.
+
+    Scryfall exposes daily prices under `prices` as strings (e.g. "0.35"); we
+    pass the string straight through to psycopg2, which casts it to NUMERIC.
+    `foil=True` reads prices.eur_foil, otherwise prices.eur. Missing prices come
+    back as None so the column is left NULL.
+    """
+    prices = card.get('prices') or {}
+    value = prices.get('eur_foil' if foil else 'eur')
+    return value or None
+
+
 def should_skip_card(card: dict) -> bool:
     """Return True if the card should be excluded (art_series, non-paper,
     non-English, token-like).
@@ -109,8 +142,8 @@ def should_skip_card(card: dict) -> bool:
 def upsert_card(cur, card: dict) -> None:
     """INSERT ... ON CONFLICT UPDATE for the cards table."""
     cur.execute("""
-        INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at, price_eur, price_eur_foil)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (id) DO UPDATE SET
             oracle_id = EXCLUDED.oracle_id,
             name = EXCLUDED.name,
@@ -122,10 +155,12 @@ def upsert_card(cur, card: dict) -> None:
             set_code = EXCLUDED.set_code,
             set_name = EXCLUDED.set_name,
             rarity = EXCLUDED.rarity,
-            released_at = EXCLUDED.released_at
+            released_at = EXCLUDED.released_at,
+            price_eur = EXCLUDED.price_eur,
+            price_eur_foil = EXCLUDED.price_eur_foil
     """, (
         card['id'],
-        card['oracle_id'],
+        card_oracle_id(card),
         card['name'],
         card.get('mana_cost'),
         card.get('cmc', 0),
@@ -135,7 +170,9 @@ def upsert_card(cur, card: dict) -> None:
         card['set'],
         card['set_name'],
         card['rarity'],
-        card.get('released_at')
+        card.get('released_at'),
+        card_price_eur(card, foil=False),
+        card_price_eur(card, foil=True)
     ))
 
 
@@ -521,8 +558,11 @@ if __name__ == '__main__':
             if should_skip_card(card):
                 continue
 
-            # Skip cards missing required fields
-            if 'oracle_id' not in card or 'type_line' not in card:
+            # Skip cards for which we can't build the NOT-NULL columns. Both
+            # fields fall back to card_faces, so reversible_card printings
+            # (no top-level oracle_id/type_line) are still ingested.
+            oracle_id = card_oracle_id(card)
+            if not oracle_id or not card_type_line(card):
                 continue
 
             card_id = card['id']
@@ -531,7 +571,7 @@ if __name__ == '__main__':
             # Accumulate card row
             cards_batch.append((
                 card_id,
-                card['oracle_id'],
+                oracle_id,
                 card['name'],
                 card.get('mana_cost'),
                 card.get('cmc', 0),
@@ -541,7 +581,9 @@ if __name__ == '__main__':
                 card['set'],
                 card['set_name'],
                 card['rarity'],
-                card.get('released_at')
+                card.get('released_at'),
+                card_price_eur(card, foil=False),
+                card_price_eur(card, foil=True)
             ))
 
             # Accumulate faces
@@ -581,13 +623,14 @@ if __name__ == '__main__':
                 cur.execute("DELETE FROM magic_stats_owner.card_legalities WHERE card_id IN %s", (id_tuple,))
 
                 execute_values(cur, """
-                    INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
+                    INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at, price_eur, price_eur_foil)
                     VALUES %s
                     ON CONFLICT (id) DO UPDATE SET
                         oracle_id = EXCLUDED.oracle_id, name = EXCLUDED.name, mana_cost = EXCLUDED.mana_cost,
                         cmc = EXCLUDED.cmc, type_line = EXCLUDED.type_line, oracle_text = EXCLUDED.oracle_text,
                         layout = EXCLUDED.layout, set_code = EXCLUDED.set_code, set_name = EXCLUDED.set_name,
-                        rarity = EXCLUDED.rarity, released_at = EXCLUDED.released_at
+                        rarity = EXCLUDED.rarity, released_at = EXCLUDED.released_at,
+                        price_eur = EXCLUDED.price_eur, price_eur_foil = EXCLUDED.price_eur_foil
                 """, cards_batch)
 
                 if faces_batch:

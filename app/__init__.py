@@ -51,4 +51,7 @@ def create_app(config_class=Config):
     from app.cards import bp as cards_bp
     app.register_blueprint(cards_bp)
 
+    from app.collection import bp as collection_bp
+    app.register_blueprint(collection_bp)
+
     return app

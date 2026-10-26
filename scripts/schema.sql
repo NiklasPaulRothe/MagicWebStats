@@ -199,19 +199,27 @@ CREATE CONSTRAINT TRIGGER trg_check_participant_seat
 -- 7. cards and normalized card metadata (Scryfall-sourced)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS magic_stats_owner.cards (
-    id           TEXT PRIMARY KEY,
-    oracle_id    TEXT NOT NULL,
-    name         TEXT NOT NULL,
-    mana_cost    TEXT,
-    cmc          FLOAT NOT NULL DEFAULT 0,
-    type_line    TEXT NOT NULL,
-    oracle_text  TEXT,
-    layout       TEXT NOT NULL,
-    set_code     TEXT NOT NULL,
-    set_name     TEXT NOT NULL,
-    rarity       TEXT NOT NULL,
-    released_at  DATE
+    id             TEXT PRIMARY KEY,
+    oracle_id      TEXT NOT NULL,
+    name           TEXT NOT NULL,
+    mana_cost      TEXT,
+    cmc            FLOAT NOT NULL DEFAULT 0,
+    type_line      TEXT NOT NULL,
+    oracle_text    TEXT,
+    layout         TEXT NOT NULL,
+    set_code       TEXT NOT NULL,
+    set_name       TEXT NOT NULL,
+    rarity         TEXT NOT NULL,
+    released_at    DATE,
+    -- Daily Cardmarket (EUR) prices from Scryfall's `prices` object
+    -- (price_eur = non-foil, price_eur_foil = foil). Either may be NULL.
+    price_eur      NUMERIC(10, 2),
+    price_eur_foil NUMERIC(10, 2)
 );
+
+-- For an already-built database, add the price columns idempotently (no Alembic — ADR-001):
+ALTER TABLE magic_stats_owner.cards ADD COLUMN IF NOT EXISTS price_eur      NUMERIC(10, 2);
+ALTER TABLE magic_stats_owner.cards ADD COLUMN IF NOT EXISTS price_eur_foil NUMERIC(10, 2);
 
 CREATE INDEX IF NOT EXISTS idx_cards_oracle_id ON magic_stats_owner.cards (oracle_id);
 CREATE INDEX IF NOT EXISTS idx_cards_name ON magic_stats_owner.cards (name);

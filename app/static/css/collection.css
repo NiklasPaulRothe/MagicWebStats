@@ -1,0 +1,202 @@
+/* Collection page: import form + CardNexus-style card image gallery. */
+
+.collection {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.collection-header {
+    margin-bottom: 1.25rem;
+}
+
+.collection-header h1 {
+    margin: 0 0 0.25rem;
+}
+
+.collection-sub {
+    margin: 0;
+    color: #cfcfd4;
+}
+
+.collection-total-value {
+    font-weight: 700;
+    color: #f4c430;
+}
+
+/* --- Import form --- */
+.collection-import {
+    margin: 0 0 1.75rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.collection-import-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.collection-import-label {
+    font-weight: 600;
+}
+
+.collection-import-btn {
+    padding: 0.4rem 1.1rem;
+    border: none;
+    border-radius: 6px;
+    background: #f4c430;
+    color: #1b1b1f;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.collection-import-btn:hover {
+    filter: brightness(1.05);
+}
+
+.collection-import-hint {
+    margin: 0.75rem 0 0;
+    font-size: 0.82rem;
+    color: #a8a8b0;
+    line-height: 1.5;
+}
+
+/* --- Card gallery --- */
+.collection-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 1.25rem;
+}
+
+.collection-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.collection-card-art {
+    position: relative;
+    aspect-ratio: 488 / 680; /* standard MTG card ratio */
+}
+
+.collection-card-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4.75% / 3.5%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    background: #1b1b1f;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.collection-card:hover .collection-card-img {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    transform: translateY(-2px);
+}
+
+.collection-card-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #cfcfd4;
+    border: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+/* Quantity badge (top-right). */
+.collection-card-qty {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 2;
+    min-width: 1.5em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.4;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+/* Foil marker (bottom-left). */
+.collection-card-foil {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    z-index: 2;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #1b1b1f;
+    background: linear-gradient(135deg, #ffd86b, #9be7ff, #f6a6ff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+.collection-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    font-size: 0.85rem;
+}
+
+.collection-card-name {
+    font-weight: 600;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collection-card-set {
+    color: #a8a8b0;
+    font-size: 0.76rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collection-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 0.15rem;
+}
+
+.collection-card-count {
+    color: #cfcfd4;
+}
+
+.collection-card-price {
+    font-weight: 700;
+    color: #f4c430;
+}
+
+.collection-empty {
+    color: #a8a8b0;
+    padding: 1.5rem 0;
+}
+
+@media (max-width: 640px) {
+    .collection-grid {
+        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+        gap: 0.9rem;
+    }
+}
