@@ -27,7 +27,10 @@
                 {% for card in group.cards %}
                 {# A card with count > 1 is rendered as that many overlapping copies. #}
                 {% for _ in range(card.count) %}
-                <li class="stack-card" tabindex="0">
+                <li class="stack-card">
+                    <button type="button" class="stack-card-btn"
+                            data-card-id="{{ card.id }}"
+                            aria-label="View {{ card.name }}">
                     {% if card.image %}
                     <img class="stack-card-img"
                          src="{{ card.image }}"
@@ -38,6 +41,7 @@
                         <span>{{ card.name }}</span>
                     </div>
                     {% endif %}
+                    </button>
                 </li>
                 {% endfor %}
                 {% endfor %}
@@ -49,4 +53,31 @@
     <p class="deck-overview-empty">This deck has no cards to display yet.</p>
     {% endif %}
 </main>
+
+{# Card popup. Hidden until a card is clicked; populated client-side from the
+   /decks/card/<id> endpoint. #}
+<div class="card-modal" id="card-modal" hidden
+     role="dialog" aria-modal="true" aria-labelledby="card-modal-title">
+    <div class="card-modal-backdrop" data-close="1"></div>
+    <div class="card-modal-dialog" role="document">
+        <button type="button" class="card-modal-close" data-close="1"
+                aria-label="Close">&times;</button>
+        <div class="card-modal-body">
+            <div class="card-modal-image-wrap">
+                <img class="card-modal-image" id="card-modal-image" src="" alt="">
+            </div>
+            <div class="card-modal-info">
+                <h2 class="card-modal-title" id="card-modal-title"></h2>
+                <div class="card-modal-type" id="card-modal-type"></div>
+                <div class="card-modal-text" id="card-modal-text"></div>
+                <section class="card-modal-rulings" id="card-modal-rulings">
+                    <h3>Rulings</h3>
+                    <div class="card-modal-rulings-body" id="card-modal-rulings-body"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/card_modal.js') }}" defer></script>
 {% endblock %}

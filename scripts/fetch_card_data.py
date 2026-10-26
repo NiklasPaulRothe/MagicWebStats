@@ -196,6 +196,53 @@ def _execute_oracle_tags_batch(cur, batch: list) -> None:
     )
 
 
+def process_rulings(cur, rulings_url: str) -> int:
+    """Download the Scryfall rulings JSONL, replace card_rulings, batch insert.
+
+    Each entry in the rulings bulk file looks like:
+        {"object": "ruling", "oracle_id": "...", "source": "wotc",
+         "published_at": "2004-10-04", "comment": "..."}
+    Rulings key on oracle_id (shared across printings). We truncate and reload
+    so stale rulings are dropped, matching how oracle_tags is handled. Returns
+    the number of ruling rows inserted.
+    """
+    cur.execute("TRUNCATE magic_stats_owner.card_rulings")
+
+    inserted = 0
+    batch = []
+    for ruling in stream_jsonl_gz(rulings_url):
+        oracle_id = ruling.get('oracle_id')
+        comment = ruling.get('comment')
+        # comment is NOT NULL in the schema; skip malformed/empty entries.
+        if not oracle_id or not comment:
+            continue
+        batch.append((
+            oracle_id,
+            ruling.get('source'),
+            ruling.get('published_at'),
+            comment,
+        ))
+        if len(batch) >= 1000:
+            _execute_rulings_batch(cur, batch)
+            inserted += len(batch)
+            batch = []
+    if batch:
+        _execute_rulings_batch(cur, batch)
+        inserted += len(batch)
+    return inserted
+
+
+def _execute_rulings_batch(cur, batch: list) -> None:
+    """Helper to batch insert ruling rows."""
+    from psycopg2.extras import execute_values
+    execute_values(
+        cur,
+        "INSERT INTO magic_stats_owner.card_rulings "
+        "(oracle_id, source, published_at, comment) VALUES %s",
+        batch
+    )
+
+
 def expected_score(rating, opponent_rating):
     """Pairwise expected score (standard Elo formula)."""
     return 1 / (1 + 10 ** ((opponent_rating - rating) / 400))
@@ -535,7 +582,22 @@ if __name__ == '__main__':
         # Card data already committed, so we continue (Req 6.6)
 
     # =========================================================================
-    # Phase 4: Elo rating recalculation
+    # Phase 4: Card rulings (Gatherer/Scryfall)
+    # =========================================================================
+    print('Fetching card rulings...')
+    try:
+        rulings_url = get_bulk_data_uri("rulings")
+        cur = conn.cursor()
+        count = process_rulings(cur, rulings_url)
+        conn.commit()
+        cur.close()
+        print(f'Card rulings import complete: {count} rulings.')
+    except Exception as e:
+        print(f"Card rulings failed (non-fatal): {e}")
+        # Card data already committed, so we continue.
+
+    # =========================================================================
+    # Phase 5: Elo rating recalculation
     # =========================================================================
     print('Recalculating Elo ratings...')
     try:

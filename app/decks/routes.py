@@ -565,6 +565,7 @@ def deck_overview(deck_id):
             label = _classify_type(type_line)
 
         groups[label].append({
+            'id': comp.card_id,
             'name': card_name,
             'image': image_uri,
             'count': comp.count or 1,
@@ -603,6 +604,60 @@ def deck_overview(deck_id):
         card_groups=card_groups,
         total_cards=total_cards,
     )
+
+
+# --- Card detail JSON (powers the overview's card popup) ---
+# Public, like the overview it serves: returns a card's image(s), faces with
+# readable oracle text, and its rulings (by oracle_id). Rulings are empty until
+# the nightly fetch populates card_rulings. This is intentionally a small JSON
+# endpoint so a lightweight modal can render it now and a full card page can
+# reuse the same data later.
+@bp.route('/card/<card_id>', methods=['GET'], strict_slashes=False)
+def card_detail(card_id):
+    from flask import jsonify
+
+    card = db.session.get(models.Card, card_id)
+    if card is None:
+        return jsonify({'ok': False, 'message': 'Card not found.'}), 404
+
+    faces = [
+        {
+            'name': face.name,
+            'mana_cost': face.mana_cost,
+            'type_line': face.type_line,
+            'oracle_text': face.oracle_text,
+            'image': face.image_uri,
+        }
+        for face in sorted(card.faces, key=lambda f: f.face_index)
+    ]
+
+    # Rulings are shared across printings, so query by oracle_id. Ordered
+    # oldest-first (NULL dates last). Empty until the nightly fetch runs.
+    rulings = db.session.scalars(
+        sa.select(models.Ruling)
+        .where(models.Ruling.oracle_id == card.oracle_id)
+        .order_by(models.Ruling.published_at.asc().nulls_last())
+    ).all()
+
+    rulings_payload = [
+        {
+            'source': r.source,
+            'published_at': r.published_at.isoformat() if r.published_at else None,
+            'comment': r.comment,
+        }
+        for r in rulings
+    ]
+
+    return jsonify({
+        'ok': True,
+        'id': card.id,
+        'name': card.name,
+        'mana_cost': card.mana_cost,
+        'type_line': card.type_line,
+        'oracle_text': card.oracle_text,
+        'faces': faces,
+        'rulings': rulings_payload,
+    })
 
 
 # --- "My Decks" gallery: a responsive grid of deck cards (name + commander

@@ -362,6 +362,20 @@ class OracleTag(db.Model):
     tag: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
 
+class Ruling(db.Model):
+    __tablename__ = 'card_rulings'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    # Gatherer/Scryfall rulings, keyed by oracle_id so they apply to every
+    # printing of a card (mirrors OracleTag). Populated by fetch_card_data.py
+    # from Scryfall's separate "rulings" bulk file.
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    oracle_id: so.Mapped[str] = so.mapped_column(sa.String, nullable=False, index=True)
+    source: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    published_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.Date)
+    comment: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+
+
 class DeckComponent(db.Model):
     __tablename__ = 'deck_component'
     __table_args__ = {'schema': DB_SCHEMA}

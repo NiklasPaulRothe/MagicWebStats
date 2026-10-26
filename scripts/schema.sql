@@ -262,6 +262,19 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.oracle_tags (
 
 CREATE INDEX IF NOT EXISTS idx_oracle_tags_oracle_id ON magic_stats_owner.oracle_tags (oracle_id);
 
+-- Gatherer/Scryfall rulings. Rulings are shared across all printings of a
+-- card, so they key on oracle_id (like oracle_tags) rather than a printing id.
+-- Populated from Scryfall's separate "rulings" bulk file by fetch_card_data.py.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.card_rulings (
+    id           SERIAL PRIMARY KEY,
+    oracle_id    TEXT NOT NULL,
+    source       TEXT,
+    published_at DATE,
+    comment      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_rulings_oracle_id ON magic_stats_owner.card_rulings (oracle_id);
+
 -- ---------------------------------------------------------------------------
 -- 8. deck_component (cards belonging to a deck's decklist)
 -- ---------------------------------------------------------------------------

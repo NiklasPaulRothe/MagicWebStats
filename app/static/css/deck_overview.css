@@ -115,6 +115,21 @@
     margin-top: 0;
 }
 
+/* The clickable button wrapping each card image. Reset native button chrome so
+   it fills the card and doesn't disturb the overlap layout. */
+.stack-card-btn {
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 4.75% / 3.5%;
+    outline: none;
+}
+
 .stack-card-img {
     display: block;
     width: 100%;
@@ -135,14 +150,12 @@
    the cards after the hovered one simply slide down and off, progressively
    uncovering it from the bottom up — a smooth slide with no layer swap. */
 .stack-card:hover,
-.stack-card:focus-visible,
-.stack-card:focus {
+.stack-card:focus-within {
     margin-bottom: calc(var(--card-height) - var(--stack-peek) + var(--reveal-gap));
 }
 
 .stack-card:hover .stack-card-img,
-.stack-card:focus-visible .stack-card-img,
-.stack-card:focus .stack-card-img {
+.stack-card:focus-within .stack-card-img {
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
     outline-color: #f4c430;
 }
@@ -171,5 +184,186 @@
 @media (prefers-reduced-motion: reduce) {
     .stack-card {
         transition: none;
+    }
+}
+
+
+/* ---------------------------------------------------------------------------
+   Card popup modal
+   --------------------------------------------------------------------------- */
+
+body.modal-open {
+    overflow: hidden;
+}
+
+.card-modal[hidden] {
+    display: none;
+}
+
+.card-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(12px, 4vw, 48px);
+}
+
+.card-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    cursor: pointer;
+}
+
+.card-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(880px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+    background: #202024;
+    color: #e8e8ea;
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+    padding: clamp(16px, 2.5vw, 28px);
+}
+
+.card-modal-close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    border: none;
+    background: none;
+    color: #cfcfd4;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.card-modal-close:hover,
+.card-modal-close:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+}
+
+/* Image on the left, text + rulings on the right; stacks on narrow screens. */
+.card-modal-body {
+    display: flex;
+    gap: clamp(16px, 2.5vw, 28px);
+    align-items: flex-start;
+}
+
+.card-modal-image-wrap {
+    flex: 0 0 auto;
+    width: clamp(200px, 34%, 300px);
+}
+
+.card-modal-image {
+    width: 100%;
+    border-radius: 4.75% / 3.5%;
+    display: block;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.card-modal-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.card-modal-title {
+    margin: 0 0 2px;
+    font-size: 1.3rem;
+}
+
+.card-modal-type {
+    color: #9aa0a6;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+}
+
+.card-modal-text p {
+    margin: 0 0 8px;
+    line-height: 1.5;
+}
+
+.card-face-block {
+    padding: 10px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card-face-block:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.card-face-name {
+    margin: 0 0 2px;
+    font-size: 1.05rem;
+}
+
+.card-face-type {
+    color: #9aa0a6;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+}
+
+.card-modal-rulings {
+    margin-top: 18px;
+    border-top: 1px solid rgba(244, 196, 48, 0.3);
+    padding-top: 12px;
+}
+
+.card-modal-rulings h3 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    color: #f4c430;
+}
+
+.card-modal-rulings-body ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.card-modal-rulings-body li {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    line-height: 1.45;
+}
+
+.card-modal-rulings-body li:last-child {
+    border-bottom: none;
+}
+
+.card-ruling-date {
+    display: inline-block;
+    color: #9aa0a6;
+    font-size: 0.82rem;
+    margin-right: 8px;
+    white-space: nowrap;
+}
+
+.card-modal-rulings-empty {
+    color: #9aa0a6;
+    margin: 0;
+}
+
+@media (max-width: 620px) {
+    .card-modal-body {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .card-modal-image-wrap {
+        width: min(260px, 70%);
+    }
+
+    .card-modal-info {
+        width: 100%;
     }
 }
