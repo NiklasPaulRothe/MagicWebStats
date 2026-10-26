@@ -508,3 +508,64 @@ class AuditLog(db.Model):
     entity_type: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     entity_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     details: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+
+
+class PlayerCollectionCard(db.Model):
+    """A player's owned cards, collapsed to a count per distinct physical card.
+
+    Rows represent a *collapsed* collection: two source rows combine into one
+    (their quantities summed) only when the printing, finish, condition and
+    language are all identical. The dedup key is therefore
+    (player_id, scryfall_id, finish, condition, language) and is enforced by a
+    unique constraint.
+
+    `card_id` links to a Card (printing) in our DB when one can be resolved
+    (Scryfall id first, then by name — see resolve_card_id), and is NULL when no
+    matching card is stored. `scryfall_id`, `name`, `set_code`, `set_name` and
+    `collector_number` are kept from the import so the entry is still meaningful
+    even when `card_id` is NULL.
+    """
+
+    __tablename__ = 'player_collection'
+    __table_args__ = (
+        sa.UniqueConstraint(
+            'player_id', 'scryfall_id', 'finish', 'condition', 'language',
+            name='uq_player_collection_entry',
+        ),
+        sa.CheckConstraint('count > 0', name='ck_player_collection_count'),
+        {'schema': DB_SCHEMA},
+    )
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    player_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    # Resolved printing in our cards table; NULL when no match is stored.
+    card_id: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id', ondelete='SET NULL'),
+    )
+
+    # Identity columns (the dedup key, alongside player_id).
+    scryfall_id: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    finish: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    condition: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    language: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+
+    # Human-readable / descriptive fields carried from the source CSV.
+    name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    set_code: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    set_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    collector_number: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+
+    # Summed quantity of this distinct physical card.
+    count: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False, default=1)
+
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )

@@ -362,7 +362,47 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.audit_log (
 );
 
 -- ---------------------------------------------------------------------------
--- 13. Views
+-- 13. player_collection (a player's owned cards, collapsed to a count)
+-- ---------------------------------------------------------------------------
+-- One row per distinct physical card a player owns. Two source rows collapse
+-- into one (quantities summed) only when printing, finish, condition and
+-- language are all identical, so the dedup key is
+-- (player_id, scryfall_id, finish, condition, language).
+--
+-- card_id links to our cards (printing) table when the printing can be
+-- resolved (by Scryfall id, else by name — see resolve_card_id), and is NULL
+-- when no matching card is stored. The scryfall_id / name / set / collector
+-- columns are retained from the import so the entry stays meaningful even when
+-- card_id is NULL.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.player_collection (
+    id               SERIAL PRIMARY KEY,
+    player_id        INTEGER NOT NULL
+        REFERENCES magic_stats_owner.players(id) ON DELETE CASCADE,
+    card_id          TEXT
+        REFERENCES magic_stats_owner.cards(id) ON DELETE SET NULL,
+    scryfall_id      TEXT NOT NULL,
+    finish           TEXT NOT NULL,
+    condition        TEXT NOT NULL,
+    language         TEXT NOT NULL,
+    name             TEXT NOT NULL,
+    set_code         TEXT,
+    set_name         TEXT,
+    collector_number TEXT,
+    count            INTEGER NOT NULL DEFAULT 1 CHECK (count > 0),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_player_collection_entry
+        UNIQUE (player_id, scryfall_id, finish, condition, language)
+);
+
+CREATE INDEX IF NOT EXISTS idx_player_collection_player
+    ON magic_stats_owner.player_collection (player_id);
+
+CREATE INDEX IF NOT EXISTS idx_player_collection_card
+    ON magic_stats_owner.player_collection (card_id);
+
+-- ---------------------------------------------------------------------------
+-- 14. Views
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE VIEW magic_stats_owner.v_color_usage AS
