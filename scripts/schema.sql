@@ -291,6 +291,22 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_component (
     in_deck BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- Categories a deck component belongs to (Archidekt categories). Normalized:
+-- one row per (component, category). `position` is the ordinal from the source
+-- (0 = primary/main category); secondary categories are position >= 1 and are
+-- stored now for later features. Moxfield has no categories, so Moxfield
+-- components simply have no rows here.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_component_categories (
+    deck_component_id INTEGER NOT NULL
+        REFERENCES magic_stats_owner.deck_component(id) ON DELETE CASCADE,
+    category          TEXT NOT NULL,
+    position          INTEGER NOT NULL,
+    PRIMARY KEY (deck_component_id, category)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deck_component_categories_component
+    ON magic_stats_owner.deck_component_categories (deck_component_id);
+
 -- ---------------------------------------------------------------------------
 -- 9. achievements
 -- ---------------------------------------------------------------------------

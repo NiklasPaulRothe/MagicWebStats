@@ -395,8 +395,36 @@ class DeckComponent(db.Model):
     # excluded cards like Maybeboard / "Considered" / sideboard).
     in_deck: so.Mapped[bool] = so.mapped_column(sa.Boolean, nullable=False, default=True)
 
-    # Relationship
+    # Relationships
     deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='components')
+    categories: so.Mapped[list['DeckComponentCategory']] = so.relationship(
+        back_populates='component',
+        order_by='DeckComponentCategory.position',
+        cascade='all, delete-orphan',
+    )
+
+    @property
+    def primary_category(self):
+        """The main category (position 0), or None if unset (e.g. Moxfield)."""
+        return next((c.category for c in self.categories if c.position == 0), None)
+
+
+class DeckComponentCategory(db.Model):
+    __tablename__ = 'deck_component_categories'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    # Normalized categories for a deck component. position 0 = primary/main
+    # category; position >= 1 = secondary categories (stored for later use).
+    deck_component_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.deck_component.id', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    category: so.Mapped[str] = so.mapped_column(sa.String, primary_key=True)
+    position: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+
+    # Relationship
+    component: so.Mapped['DeckComponent'] = so.relationship(back_populates='categories')
 
 class Achievement(db.Model):
     __tablename__ = 'achievements'

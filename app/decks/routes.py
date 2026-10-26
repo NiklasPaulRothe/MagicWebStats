@@ -474,6 +474,7 @@ _TYPE_GROUP_ORDER = [
 ]
 _COMMANDER_GROUP = 'Commander'
 _OTHER_GROUP = 'Other'
+_UNCATEGORIZED_GROUP = 'Uncategorized'
 
 
 def _name_keys(name):
@@ -562,8 +563,11 @@ def deck_overview(deck_id):
     for n in (deck.commander, deck.partner):
         commander_keys |= _name_keys(n)
 
-    # Group label -> list of card dicts (name, image, count, type_line).
-    groups = defaultdict(list)
+    # Build a card entry per component, and record which type label and which
+    # category label it belongs to, so we can produce two groupings (by type
+    # and by category) from the same entries.
+    type_groups = defaultdict(list)
+    category_groups = defaultdict(list)
     for comp in components:
         card = cards_by_id.get(comp.card_id)
         type_line = card.type_line if card else None
@@ -577,52 +581,69 @@ def deck_overview(deck_id):
         card_name = comp.name or (card.name if card else 'Unknown')
 
         # A card matching the deck's commander/partner goes to the Commander
-        # column; everything else is grouped by its type_line. We also consider
-        # the resolved Card.name (another possible source of the full DFC name)
-        # so a match succeeds even if the component stored a single face.
+        # column in BOTH views; everything else is grouped by type / category.
         card_keys = _name_keys(card_name)
         if card is not None:
             card_keys |= _name_keys(card.name)
-        if card_keys & commander_keys:
-            label = _COMMANDER_GROUP
-            # Keep the commander art in sync with the image chosen on the deck
-            # stats page (deck.image_uri). Fall back to the component's
-            # front-face image when no art has been chosen.
-            if deck.image_uri:
-                image_uri = deck.image_uri
-        else:
-            label = _classify_type(type_line)
+        is_commander = bool(card_keys & commander_keys)
+        if is_commander and deck.image_uri:
+            # Keep commander art in sync with the deck stats page choice.
+            image_uri = deck.image_uri
 
-        groups[label].append({
+        entry = {
             'id': comp.card_id,
             'name': card_name,
             'image': image_uri,
             'count': comp.count or 1,
             'type_line': type_line or '',
-        })
+        }
 
-    # Emit Commander first, then the fixed type order, then Other; skip empties.
-    ordered_labels = (
+        # By-type grouping.
+        type_label = _COMMANDER_GROUP if is_commander else _classify_type(type_line)
+        type_groups[type_label].append(entry)
+
+        # By-category grouping (main category only for now; falls back when a
+        # card has no category, e.g. Moxfield imports).
+        category_label = _COMMANDER_GROUP if is_commander else (
+            comp.primary_category or _UNCATEGORIZED_GROUP
+        )
+        category_groups[category_label].append(entry)
+
+    def _emit(groups_map, ordered_labels):
+        """Turn a label->entries map into an ordered list of group dicts."""
+        seen = set()
+        out = []
+        for label in ordered_labels:
+            if label in seen:
+                continue
+            seen.add(label)
+            cards = groups_map.get(label)
+            if not cards:
+                continue
+            cards = sorted(cards, key=lambda c: c['name'].lower())
+            out.append({
+                'label': label,
+                'cards': cards,
+                'card_count': sum(c['count'] for c in cards),
+            })
+        return out
+
+    # Type view: Commander first, then the fixed type order, then Other.
+    type_order = (
         [_COMMANDER_GROUP]
         + [label for _, label in _TYPE_GROUP_ORDER]
         + [_OTHER_GROUP]
     )
-    seen = set()
-    card_groups = []
-    for label in ordered_labels:
-        if label in seen:
-            continue
-        seen.add(label)
-        cards = groups.get(label)
-        if not cards:
-            continue
-        cards.sort(key=lambda c: c['name'].lower())
-        card_count = sum(c['count'] for c in cards)
-        card_groups.append({
-            'label': label,
-            'cards': cards,
-            'card_count': card_count,
-        })
+    card_groups = _emit(type_groups, type_order)
+
+    # Category view: Commander first, then remaining categories alphabetically,
+    # with Uncategorized last.
+    other_categories = sorted(
+        label for label in category_groups
+        if label not in (_COMMANDER_GROUP, _UNCATEGORIZED_GROUP)
+    )
+    category_order = [_COMMANDER_GROUP] + other_categories + [_UNCATEGORIZED_GROUP]
+    category_card_groups = _emit(category_groups, category_order)
 
     total_cards = sum(g['card_count'] for g in card_groups)
 
@@ -632,6 +653,7 @@ def deck_overview(deck_id):
         deckname=deck.name,
         commander=deck.commander,
         card_groups=card_groups,
+        category_card_groups=category_card_groups,
         total_cards=total_cards,
     )
 

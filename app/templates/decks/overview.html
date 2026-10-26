@@ -5,18 +5,9 @@
 {% endblock %}
 
 {% block content %}
-<main class="deck-overview" id="main-content">
-    <header class="deck-overview-header">
-        <h1>{{ deckname }}</h1>
-        <p class="deck-overview-sub">
-            {% if commander %}<span class="deck-overview-commander">{{ commander }}</span> &middot; {% endif %}
-            {{ total_cards }} card{{ '' if total_cards == 1 else 's' }}
-        </p>
-    </header>
-
-    {% if card_groups %}
+{% macro stack_board(groups) %}
     <div class="stack-board">
-        {% for group in card_groups %}
+        {% for group in groups %}
         <section class="stack-column{% if group.label == 'Commander' %} stack-column-commander{% endif %}"
                  aria-label="{{ group.label }}">
             <h2 class="stack-heading">
@@ -50,6 +41,33 @@
             </ul>
         </section>
         {% endfor %}
+    </div>
+{% endmacro %}
+
+<main class="deck-overview" id="main-content">
+    <header class="deck-overview-header">
+        <h1>{{ deckname }}</h1>
+        <p class="deck-overview-sub">
+            {% if commander %}<span class="deck-overview-commander">{{ commander }}</span> &middot; {% endif %}
+            {{ total_cards }} card{{ '' if total_cards == 1 else 's' }}
+        </p>
+
+        {% if card_groups %}
+        <div class="view-toggle" role="group" aria-label="Group cards by">
+            <button type="button" class="view-toggle-btn is-active"
+                    data-view="type" aria-pressed="true">By type</button>
+            <button type="button" class="view-toggle-btn"
+                    data-view="category" aria-pressed="false">By category</button>
+        </div>
+        {% endif %}
+    </header>
+
+    {% if card_groups %}
+    <div class="deck-view" data-view="type">
+        {{ stack_board(card_groups) }}
+    </div>
+    <div class="deck-view" data-view="category" hidden>
+        {{ stack_board(category_card_groups) }}
     </div>
     {% else %}
     <p class="deck-overview-empty">This deck has no cards to display yet.</p>
@@ -94,6 +112,34 @@
         </div>
     </div>
 </div>
+
+<script>
+// Seamless toggle between the "by type" and "by category" groupings. Both
+// boards are rendered server-side; we just show one and hide the other.
+(function () {
+    'use strict';
+    var buttons = document.querySelectorAll('.view-toggle-btn');
+    var views = document.querySelectorAll('.deck-view');
+    if (!buttons.length || !views.length) {
+        return;
+    }
+    function show(view) {
+        views.forEach(function (v) {
+            v.hidden = (v.getAttribute('data-view') !== view);
+        });
+        buttons.forEach(function (b) {
+            var active = (b.getAttribute('data-view') === view);
+            b.classList.toggle('is-active', active);
+            b.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    }
+    buttons.forEach(function (b) {
+        b.addEventListener('click', function () {
+            show(b.getAttribute('data-view'));
+        });
+    });
+})();
+</script>
 
 <script src="{{ url_for('static', filename='js/card_modal.js') }}" defer></script>
 {% endblock %}

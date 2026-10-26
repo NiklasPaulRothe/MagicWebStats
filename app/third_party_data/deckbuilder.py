@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 from app import db, third_party_data
 from app.auth import role_required
-from app.models import DeckComponent, Deck, DeckTag, Card
+from app.models import DeckComponent, DeckComponentCategory, Deck, DeckTag, Card
 from app.third_party_data import bp
 
 logger = logging.getLogger(__name__)
@@ -113,6 +113,16 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
                 in_deck=in_deck,
             )
             db.session.add(component)
+            # Persist every category (ordered) in the normalized child table.
+            # position 0 = primary/main; position >= 1 = secondary (for later).
+            # Flush first so the component has an id to reference.
+            db.session.flush()
+            for position, category in enumerate(categories):
+                db.session.add(DeckComponentCategory(
+                    deck_component_id=component.id,
+                    category=category,
+                    position=position,
+                ))
         except Exception:
             name = getattr(getattr(getattr(card, 'card', None), 'oracle_card', None), 'name', '?')
             logger.error('%s could not be processed: %s', name, traceback.format_exc())
