@@ -51,6 +51,26 @@ def stream_jsonl_gz(url: str) -> Iterator[dict]:
             continue
 
 
+def card_type_line(card: dict) -> str:
+    """Return a non-null type_line for a card.
+
+    Most cards carry a top-level `type_line`, but reversible_card (and some
+    other multi-face layouts) have `type_line: null` at the top level, with the
+    real types living on each face. The `cards.type_line` column is NOT NULL, so
+    for those cards we synthesize a top-level value by joining the face type
+    lines with " // " (e.g. "Land // Land"), falling back to the first non-empty
+    face type, then to an empty string as a last resort.
+    """
+    tl = card.get('type_line')
+    if tl:
+        return tl
+    faces = card.get('card_faces') or []
+    face_types = [f.get('type_line') for f in faces if f.get('type_line')]
+    if face_types:
+        return ' // '.join(face_types)
+    return ''
+
+
 def should_skip_card(card: dict) -> bool:
     """Return True if the card should be excluded (art_series, non-paper,
     non-English, token-like).
@@ -109,7 +129,7 @@ def upsert_card(cur, card: dict) -> None:
         card['name'],
         card.get('mana_cost'),
         card.get('cmc', 0),
-        card['type_line'],
+        card_type_line(card),
         card.get('oracle_text'),
         card['layout'],
         card['set'],
@@ -212,6 +232,53 @@ def _execute_oracle_tags_batch(cur, batch: list) -> None:
     execute_values(
         cur,
         "INSERT INTO magic_stats_owner.oracle_tags (oracle_id, tag) VALUES %s",
+        batch
+    )
+
+
+def process_rulings(cur, rulings_url: str) -> int:
+    """Download the Scryfall rulings JSONL, replace card_rulings, batch insert.
+
+    Each entry in the rulings bulk file looks like:
+        {"object": "ruling", "oracle_id": "...", "source": "wotc",
+         "published_at": "2004-10-04", "comment": "..."}
+    Rulings key on oracle_id (shared across printings). We truncate and reload
+    so stale rulings are dropped, matching how oracle_tags is handled. Returns
+    the number of ruling rows inserted.
+    """
+    cur.execute("TRUNCATE magic_stats_owner.card_rulings")
+
+    inserted = 0
+    batch = []
+    for ruling in stream_jsonl_gz(rulings_url):
+        oracle_id = ruling.get('oracle_id')
+        comment = ruling.get('comment')
+        # comment is NOT NULL in the schema; skip malformed/empty entries.
+        if not oracle_id or not comment:
+            continue
+        batch.append((
+            oracle_id,
+            ruling.get('source'),
+            ruling.get('published_at'),
+            comment,
+        ))
+        if len(batch) >= 1000:
+            _execute_rulings_batch(cur, batch)
+            inserted += len(batch)
+            batch = []
+    if batch:
+        _execute_rulings_batch(cur, batch)
+        inserted += len(batch)
+    return inserted
+
+
+def _execute_rulings_batch(cur, batch: list) -> None:
+    """Helper to batch insert ruling rows."""
+    from psycopg2.extras import execute_values
+    execute_values(
+        cur,
+        "INSERT INTO magic_stats_owner.card_rulings "
+        "(oracle_id, source, published_at, comment) VALUES %s",
         batch
     )
 
@@ -320,6 +387,48 @@ def calculate_elo_ratings(conn):
     print(f"  Updated {updated} decks with Elo ratings ({len(games)} games processed)")
 
 
+def reload_all_decks():
+    """Re-import every deck's cards from its source site (Archidekt/Moxfield).
+
+    Reuses the application's import functions so the nightly run applies the
+    same logic as a manual import: all cards are stored with an in_deck flag
+    (derived from the card's primary category / board), and card ids that
+    aren't present as that exact printing fall back to another printing by
+    name. Must run AFTER the Scryfall card-data phase so the name fallback can
+    resolve against fresh card rows.
+
+    Runs inside a Flask app context because the import functions use the ORM.
+    """
+    # Imported lazily so the card-data phases don't depend on the app package.
+    from app import create_app
+    from app.models import Deck
+    from app.third_party_data.deckbuilder import (
+        load_cards_from_archidekt,
+        load_cards_from_moxfield,
+    )
+
+    app = create_app()
+    with app.app_context():
+        decks = Deck.query.all()
+        reloaded = 0
+        for deck in decks:
+            if not deck.decksite or not deck.archidekt_id:
+                continue
+            try:
+                if 'archidekt' in deck.decksite:
+                    load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
+                    reloaded += 1
+                    time.sleep(1)
+                elif 'moxfield' in deck.decksite:
+                    load_cards_from_moxfield(deck.archidekt_id.strip(), deck.id)
+                    reloaded += 1
+                    time.sleep(1)
+            except Exception as e:
+                print(f"  Error reloading deck {deck.id} ({deck.name}): {e}")
+                continue
+        print(f"  Reloaded {reloaded} decks")
+
+
 if __name__ == '__main__':
     print('Fetching Card Data...')
     load_dotenv()
@@ -426,7 +535,7 @@ if __name__ == '__main__':
                 card['name'],
                 card.get('mana_cost'),
                 card.get('cmc', 0),
-                card['type_line'],
+                card_type_line(card),
                 card.get('oracle_text'),
                 card['layout'],
                 card['set'],
@@ -560,7 +669,34 @@ if __name__ == '__main__':
         # Card data already committed, so we continue (Req 6.6)
 
     # =========================================================================
-    # Phase 4: Elo rating recalculation
+    # Phase 4: Card rulings (Gatherer/Scryfall)
+    # =========================================================================
+    print('Fetching card rulings...')
+    try:
+        rulings_url = get_bulk_data_uri("rulings")
+        cur = conn.cursor()
+        count = process_rulings(cur, rulings_url)
+        conn.commit()
+        cur.close()
+        print(f'Card rulings import complete: {count} rulings.')
+    except Exception as e:
+        print(f"Card rulings failed (non-fatal): {e}")
+        # Card data already committed, so we continue.
+
+    # =========================================================================
+    # Phase 5: Re-import decks from their source sites
+    # =========================================================================
+    # Runs after card data so the name-based printing fallback resolves against
+    # fresh card rows. Refreshes each deck's cards + the in_deck flags.
+    print('Reloading decks from source sites...')
+    try:
+        reload_all_decks()
+        print('Deck reload complete.')
+    except Exception as e:
+        print(f"Deck reload failed (non-fatal): {e}")
+
+    # =========================================================================
+    # Phase 6: Elo rating recalculation
     # =========================================================================
     print('Recalculating Elo ratings...')
     try:
