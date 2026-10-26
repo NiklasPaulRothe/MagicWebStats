@@ -8,12 +8,34 @@ from flask import redirect, url_for
 from flask_login import login_required
 from pyrchidekt.api import getDeckById
 
+import sqlalchemy as sa
+
 from app import db, third_party_data
 from app.auth import role_required
-from app.models import DeckComponent, Deck, DeckTag
+from app.models import DeckComponent, Deck, DeckTag, Card
 from app.third_party_data import bp
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_card_id(uid, name):
+    """Return a card_id that exists in our cards table.
+
+    Prefers the exact printing uid from the source site. When that printing is
+    not in our DB (we store one printing per card from Scryfall's default_cards
+    bulk), fall back to any printing of the same name so the component still
+    links to a real card instead of storing NULL. Returns None only when the
+    card cannot be found at all.
+    """
+    if uid and db.session.get(Card, uid) is not None:
+        return uid
+    if name:
+        fallback = db.session.scalar(
+            sa.select(Card.id).where(Card.name == name).limit(1)
+        )
+        if fallback is not None:
+            return fallback
+    return None
 
 MOXFIELD_API_BASE = 'https://api2.moxfield.com/v2'
 # Moxfield sits behind Cloudflare and rejects requests without a browser-like
@@ -63,24 +85,37 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
     for card in Cards:
         db.session.delete(card)
 
+    # Which category names count as "in deck". A card's inclusion is decided by
+    # its PRIMARY (first) category only — Archidekt lets a card carry several
+    # categories (e.g. "Considered,Burn"), but the first one is authoritative.
+    included_categories = {
+        dc.name for dc in deck_categories if dc.included_in_deck
+    }
+
     for card in deck.cards:
         try:
-            in_deck = False
-            for category in card.categories:
-                for deck_category in deck_categories:
-                    if category == deck_category.name and deck_category.included_in_deck:
-                        in_deck = True
-            if in_deck:
-                component = DeckComponent(
-                    deck_id = deck_id,
-                    card_id = card.card.uid,
-                    name = card.card.oracle_card.name,
-                    count = card.quantity
-                )
-                db.session.add(component)
-        except Exception as e:
             name = card.card.oracle_card.name
-            logger.error('%s could not be found: %s', name, traceback.format_exc())
+            categories = list(card.categories)
+            primary_category = categories[0] if categories else None
+            in_deck = primary_category in included_categories
+
+            # Resolve to a card_id that exists in our DB (falls back to another
+            # printing by name when the exact printing isn't stored).
+            card_id = resolve_card_id(card.card.uid, name)
+
+            # Import ALL cards (in-deck and excluded alike); the in_deck flag
+            # records which ones are part of the actual deck.
+            component = DeckComponent(
+                deck_id=deck_id,
+                card_id=card_id,
+                name=name,
+                count=card.quantity,
+                in_deck=in_deck,
+            )
+            db.session.add(component)
+        except Exception:
+            name = getattr(getattr(getattr(card, 'card', None), 'oracle_card', None), 'name', '?')
+            logger.error('%s could not be processed: %s', name, traceback.format_exc())
             continue
     
     # Handle deck tags
@@ -88,22 +123,24 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
         # Get tags from the Archidekt deck object
         deck_tags = getattr(deck, 'deck_tags', [])
         logger.info(deck_tags)
-        
-        # Delete all existing tags for this deck
-        existing_tags = DeckTag.query.filter(DeckTag.deck_id == deck_id).all()
-        for tag in existing_tags:
-            db.session.delete(tag)
-        
-        # Add new tags
+
+        # Delete all existing tags for this deck, then FLUSH so the DELETEs hit
+        # the DB before the new INSERTs. Without this, SQLAlchemy's unit of work
+        # orders INSERTs before DELETEs within a single flush, so re-adding the
+        # same (deck_id, tag) pairs violates the unique constraint.
+        DeckTag.query.filter(DeckTag.deck_id == deck_id).delete(synchronize_session=False)
+        db.session.flush()
+
+        # Add new tags, de-duplicated (the source payload may repeat a name).
         if deck_tags:
+            seen = set()
             for tag in deck_tags:
-                logger.info(tag)
-                deck_tag = DeckTag(
-                    deck_id=deck_id,
-                    tag=tag['name'].strip()
-                )
-                db.session.add(deck_tag)
-            logger.info('Saved %d tags for deck %s', len(deck_tags), deck_id)
+                name = tag['name'].strip()
+                if not name or name in seen:
+                    continue
+                seen.add(name)
+                db.session.add(DeckTag(deck_id=deck_id, tag=name))
+            logger.info('Saved %d tags for deck %s', len(seen), deck_id)
     except Exception as e:
         logger.error('Error saving tags for deck %s: %s%s', deck_id, str(e), traceback.format_exc())
     
@@ -136,27 +173,33 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
         db.session.delete(card)
 
     # Moxfield splits a deck into several named "boards", each a dict keyed by
-    # card name whose value holds `quantity` and a nested `card` object. Unlike
-    # Archidekt (where every card carries categories and we filter by
-    # `included_in_deck`), Moxfield already separates the real deck from
-    # non-deck piles via these board names. The boards that make up the actual
-    # deck are commanders, mainboard, companions and signatureSpells; the
-    # sideboard, maybeboard, attractions, stickers and tokens are intentionally
-    # excluded.
-    for board_name in ('commanders', 'mainboard', 'companions', 'signatureSpells'):
+    # card name whose value holds `quantity` and a nested `card` object. The
+    # boards that make up the actual deck are commanders, mainboard, companions
+    # and signatureSpells; sideboard, maybeboard, attractions, stickers and
+    # tokens are NOT part of the deck. We import every board now (so excluded
+    # cards still land in the DB for later features) and record which ones are
+    # in the deck via the in_deck flag.
+    in_deck_boards = {'commanders', 'mainboard', 'companions', 'signatureSpells'}
+    other_boards = {'sideboard', 'maybeboard', 'attractions', 'stickers', 'tokens'}
+
+    for board_name in in_deck_boards | other_boards:
         board = deck.get(board_name) or {}
+        is_in_deck = board_name in in_deck_boards
         for card_name, entry in board.items():
             try:
                 card = entry.get('card', {})
+                name = card.get('name', card_name)
+                card_id = resolve_card_id(card.get('scryfall_id'), name)
                 component = DeckComponent(
                     deck_id=deck_id,
-                    card_id=card.get('scryfall_id'),
-                    name=card.get('name', card_name),
-                    count=entry.get('quantity', 1)
+                    card_id=card_id,
+                    name=name,
+                    count=entry.get('quantity', 1),
+                    in_deck=is_in_deck,
                 )
                 db.session.add(component)
-            except Exception as e:
-                logger.error('%s could not be found: %s', card_name, traceback.format_exc())
+            except Exception:
+                logger.error('%s could not be processed: %s', card_name, traceback.format_exc())
                 continue
 
     # Handle deck tags
@@ -190,10 +233,11 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
 
         logger.info(deck_tags)
 
-        # Delete all existing tags for this deck
-        existing_tags = DeckTag.query.filter(DeckTag.deck_id == deck_id).all()
-        for tag in existing_tags:
-            db.session.delete(tag)
+        # Delete all existing tags for this deck, then FLUSH so the DELETEs hit
+        # the DB before the new INSERTs (otherwise re-adding the same
+        # (deck_id, tag) pairs violates the unique constraint).
+        DeckTag.query.filter(DeckTag.deck_id == deck_id).delete(synchronize_session=False)
+        db.session.flush()
 
         # Add new tags (de-duplicated, preserving order)
         seen = set()

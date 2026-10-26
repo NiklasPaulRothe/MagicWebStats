@@ -283,7 +283,12 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_component (
     deck_id INTEGER REFERENCES magic_stats_owner.decks(id) ON DELETE CASCADE,
     card_id TEXT REFERENCES magic_stats_owner.cards(id) ON DELETE SET NULL,
     count   INTEGER,
-    name    TEXT
+    name    TEXT,
+    -- Whether this card counts as part of the actual deck. Driven by the
+    -- card's PRIMARY category on import (Archidekt) or its board (Moxfield).
+    -- Cards that are imported but excluded (Maybeboard / "Considered" /
+    -- sideboard, etc.) are stored with in_deck = FALSE for later features.
+    in_deck BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- ---------------------------------------------------------------------------

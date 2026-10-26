@@ -391,6 +391,9 @@ class DeckComponent(db.Model):
     )
     count: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
     name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    # Whether this card counts as part of the actual deck (vs. imported-but-
+    # excluded cards like Maybeboard / "Considered" / sideboard).
+    in_deck: so.Mapped[bool] = so.mapped_column(sa.Boolean, nullable=False, default=True)
 
     # Relationship
     deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='components')

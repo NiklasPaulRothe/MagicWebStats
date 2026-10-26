@@ -25,12 +25,12 @@
             </h2>
             <ul class="card-stack" role="list">
                 {% for card in group.cards %}
-                {# A card with count > 1 is rendered as that many overlapping copies. #}
-                {% for _ in range(card.count) %}
+                {# Each distinct card is shown once; multiples get a quantity
+                   badge on the visible part of the card. #}
                 <li class="stack-card">
                     <button type="button" class="stack-card-btn"
                             data-card-id="{{ card.id }}"
-                            aria-label="View {{ card.name }}">
+                            aria-label="View {{ card.name }}{% if card.count > 1 %} (x{{ card.count }}){% endif %}">
                     {% if card.image %}
                     <img class="stack-card-img"
                          src="{{ card.image }}"
@@ -41,9 +41,11 @@
                         <span>{{ card.name }}</span>
                     </div>
                     {% endif %}
+                    {% if card.count > 1 %}
+                    <span class="stack-card-qty" aria-hidden="true">{{ card.count }}</span>
+                    {% endif %}
                     </button>
                 </li>
-                {% endfor %}
                 {% endfor %}
             </ul>
         </section>

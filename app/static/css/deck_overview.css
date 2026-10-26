@@ -118,6 +118,7 @@
 /* The clickable button wrapping each card image. Reset native button chrome so
    it fills the card and doesn't disturb the overlap layout. */
 .stack-card-btn {
+    position: relative;
     display: block;
     width: 100%;
     height: 100%;
@@ -158,6 +159,26 @@
 .stack-card:focus-within .stack-card-img {
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
     outline-color: #f4c430;
+}
+
+/* Quantity badge for cards present more than once. Positioned on the visible
+   peek sliver at the top-right so it's readable without hovering. */
+.stack-card-qty {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    z-index: 2;
+    min-width: 1.5em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.4;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
 }
 
 /* Placeholder shown when a card has no stored image. */

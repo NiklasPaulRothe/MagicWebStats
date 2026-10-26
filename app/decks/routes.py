@@ -514,8 +514,13 @@ def deck_overview(deck_id):
     """Public, link-only overview of a deck's cards as type-grouped stacks."""
     deck = db.get_or_404(models.Deck, deck_id)
 
+    # Only cards that are actually part of the deck (excludes Maybeboard /
+    # "Considered" / sideboard rows imported with in_deck = False).
     components = db.session.scalars(
-        sa.select(models.DeckComponent).where(models.DeckComponent.deck_id == deck.id)
+        sa.select(models.DeckComponent).where(
+            models.DeckComponent.deck_id == deck.id,
+            models.DeckComponent.in_deck.is_(True),
+        )
     ).all()
 
     # Resolve the cards referenced by the components in one query, then index

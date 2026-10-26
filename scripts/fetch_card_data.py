@@ -51,6 +51,26 @@ def stream_jsonl_gz(url: str) -> Iterator[dict]:
             continue
 
 
+def card_type_line(card: dict) -> str:
+    """Return a non-null type_line for a card.
+
+    Most cards carry a top-level `type_line`, but reversible_card (and some
+    other multi-face layouts) have `type_line: null` at the top level, with the
+    real types living on each face. The `cards.type_line` column is NOT NULL, so
+    for those cards we synthesize a top-level value by joining the face type
+    lines with " // " (e.g. "Land // Land"), falling back to the first non-empty
+    face type, then to an empty string as a last resort.
+    """
+    tl = card.get('type_line')
+    if tl:
+        return tl
+    faces = card.get('card_faces') or []
+    face_types = [f.get('type_line') for f in faces if f.get('type_line')]
+    if face_types:
+        return ' // '.join(face_types)
+    return ''
+
+
 def should_skip_card(card: dict) -> bool:
     """Return True if the card should be excluded (art_series, non-paper, token-like)."""
     # Skip art series
@@ -59,8 +79,10 @@ def should_skip_card(card: dict) -> bool:
     # Skip non-paper cards
     if 'paper' not in card.get('games', []):
         return True
-    # Skip token-like entries with "Card" in type_line
-    type_line = card.get('type_line', '')
+    # Skip token-like entries with "Card" in type_line. Use the derived type
+    # line so reversible/multi-face cards (top-level type_line == None) are
+    # handled without raising on a None value.
+    type_line = card_type_line(card)
     if 'Card' in type_line:
         return True
     return False
@@ -89,7 +111,7 @@ def upsert_card(cur, card: dict) -> None:
         card['name'],
         card.get('mana_cost'),
         card.get('cmc', 0),
-        card['type_line'],
+        card_type_line(card),
         card.get('oracle_text'),
         card['layout'],
         card['set'],
@@ -347,6 +369,48 @@ def calculate_elo_ratings(conn):
     print(f"  Updated {updated} decks with Elo ratings ({len(games)} games processed)")
 
 
+def reload_all_decks():
+    """Re-import every deck's cards from its source site (Archidekt/Moxfield).
+
+    Reuses the application's import functions so the nightly run applies the
+    same logic as a manual import: all cards are stored with an in_deck flag
+    (derived from the card's primary category / board), and card ids that
+    aren't present as that exact printing fall back to another printing by
+    name. Must run AFTER the Scryfall card-data phase so the name fallback can
+    resolve against fresh card rows.
+
+    Runs inside a Flask app context because the import functions use the ORM.
+    """
+    # Imported lazily so the card-data phases don't depend on the app package.
+    from app import create_app
+    from app.models import Deck
+    from app.third_party_data.deckbuilder import (
+        load_cards_from_archidekt,
+        load_cards_from_moxfield,
+    )
+
+    app = create_app()
+    with app.app_context():
+        decks = Deck.query.all()
+        reloaded = 0
+        for deck in decks:
+            if not deck.decksite or not deck.archidekt_id:
+                continue
+            try:
+                if 'archidekt' in deck.decksite:
+                    load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
+                    reloaded += 1
+                    time.sleep(1)
+                elif 'moxfield' in deck.decksite:
+                    load_cards_from_moxfield(deck.archidekt_id.strip(), deck.id)
+                    reloaded += 1
+                    time.sleep(1)
+            except Exception as e:
+                print(f"  Error reloading deck {deck.id} ({deck.name}): {e}")
+                continue
+        print(f"  Reloaded {reloaded} decks")
+
+
 if __name__ == '__main__':
     print('Fetching Card Data...')
     load_dotenv()
@@ -448,7 +512,7 @@ if __name__ == '__main__':
                 card['name'],
                 card.get('mana_cost'),
                 card.get('cmc', 0),
-                card['type_line'],
+                card_type_line(card),
                 card.get('oracle_text'),
                 card['layout'],
                 card['set'],
@@ -597,7 +661,19 @@ if __name__ == '__main__':
         # Card data already committed, so we continue.
 
     # =========================================================================
-    # Phase 5: Elo rating recalculation
+    # Phase 5: Re-import decks from their source sites
+    # =========================================================================
+    # Runs after card data so the name-based printing fallback resolves against
+    # fresh card rows. Refreshes each deck's cards + the in_deck flags.
+    print('Reloading decks from source sites...')
+    try:
+        reload_all_decks()
+        print('Deck reload complete.')
+    except Exception as e:
+        print(f"Deck reload failed (non-fatal): {e}")
+
+    # =========================================================================
+    # Phase 6: Elo rating recalculation
     # =========================================================================
     print('Recalculating Elo ratings...')
     try:
