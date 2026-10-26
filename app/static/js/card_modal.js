@@ -14,8 +14,34 @@
     var textEl = document.getElementById('card-modal-text');
     var rulingsSection = document.getElementById('card-modal-rulings');
     var rulingsBody = document.getElementById('card-modal-rulings-body');
+    var printingBtn = document.getElementById('card-modal-printing-btn');
+    var printingPicker = document.getElementById('card-printing-picker');
+    var printingList = document.getElementById('card-printing-list');
+    var printingTitle = document.getElementById('card-printing-title');
+    var printingBack = document.getElementById('card-printing-back');
+    var modalBody = document.getElementById('card-modal-body');
 
     var lastFocused = null;
+    var deckId = modal.getAttribute('data-deck-id') || '';
+    // The card currently shown, and the stack button it was opened from, so we
+    // can update that button's image in place after a printing change.
+    var currentCardId = null;
+    var currentTriggerBtn = null;
+
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function deckBase() {
+        // /decks/ prefix, shared by the card/printing endpoints.
+        var marker = '/decks/';
+        var idx = window.location.pathname.indexOf(marker);
+        if (idx !== -1) {
+            return window.location.pathname.slice(0, idx + marker.length);
+        }
+        return '/decks/';
+    }
 
     function buildBase() {
         // Prefer the data endpoint path relative to the decks blueprint. The
@@ -145,7 +171,22 @@
         imageEl.alt = '';
     }
 
+    // Picker mode replaces the whole dialog content with the printing grid;
+    // card mode shows the normal image + text + rulings view.
+    function enterPickerMode() {
+        modalBody.hidden = true;
+        printingPicker.hidden = false;
+        loadPrintings();
+    }
+
+    function exitPickerMode() {
+        printingPicker.hidden = true;
+        clearText(printingList);
+        modalBody.hidden = false;
+    }
+
     function populate(data) {
+        currentCardId = data.id || null;
         titleEl.textContent = data.name || '';
         typeEl.textContent = data.type_line || '';
 
@@ -163,10 +204,18 @@
 
         renderFaces(data.faces, data.oracle_text);
         renderRulings(data.rulings);
+
+        // The printing button only makes sense when we know the deck and the
+        // card is actually in it (opened from a stack card).
+        var canChange = !!(deckId && currentTriggerBtn && currentCardId);
+        printingBtn.hidden = !canChange;
     }
 
-    function loadCard(cardId) {
+    function loadCard(cardId, triggerBtn) {
+        currentTriggerBtn = triggerBtn || null;
         showLoading();
+        printingBtn.hidden = true;
+        exitPickerMode();
         openModal();
         fetch(cardBase + encodeURIComponent(cardId), {
             headers: { 'Accept': 'application/json' }
@@ -193,14 +242,144 @@
             });
     }
 
+    function renderPrintings(printings) {
+        clearText(printingList);
+        if (!printings || printings.length === 0) {
+            var none = document.createElement('p');
+            none.className = 'card-printing-empty';
+            none.textContent = 'No printings available.';
+            printingList.appendChild(none);
+            return;
+        }
+        printings.forEach(function (p) {
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'card-printing-option' + (p.current ? ' is-current' : '');
+            item.setAttribute('data-printing-id', p.id);
+            item.title = p.set_name || p.set_code || '';
+
+            if (p.image) {
+                var img = document.createElement('img');
+                img.src = p.image;
+                img.alt = p.set_name || p.set_code || '';
+                img.loading = 'lazy';
+                item.appendChild(img);
+            }
+            var label = document.createElement('span');
+            label.className = 'card-printing-set';
+            label.textContent = (p.set_code || '').toUpperCase();
+            item.appendChild(label);
+
+            printingList.appendChild(item);
+        });
+    }
+
+    function loadPrintings() {
+        if (!deckId || !currentCardId) {
+            return;
+        }
+        if (printingTitle) {
+            printingTitle.textContent = titleEl.textContent
+                ? ('Choose a printing \u2014 ' + titleEl.textContent)
+                : 'Choose a printing';
+        }
+        clearText(printingList);
+        var loading = document.createElement('p');
+        loading.className = 'card-printing-empty';
+        loading.textContent = 'Loading printings\u2026';
+        printingList.appendChild(loading);
+
+        var url = deckBase() + encodeURIComponent(deckId) + '/card/' +
+            encodeURIComponent(currentCardId) + '/printings';
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(function (resp) {
+                if (!resp.ok) { throw new Error('HTTP ' + resp.status); }
+                return resp.json();
+            })
+            .then(function (data) {
+                if (!data || !data.ok) { throw new Error('Could not load printings'); }
+                renderPrintings(data.printings);
+            })
+            .catch(function (err) {
+                clearText(printingList);
+                var p = document.createElement('p');
+                p.className = 'card-printing-empty';
+                p.textContent = String(err.message || err);
+                printingList.appendChild(p);
+            });
+    }
+
+    function selectPrinting(printingId) {
+        if (!deckId || !currentCardId || !printingId) {
+            return;
+        }
+        var url = deckBase() + encodeURIComponent(deckId) + '/card/' +
+            encodeURIComponent(currentCardId) + '/printing';
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken()
+            },
+            body: JSON.stringify({ printing_id: printingId })
+        })
+            .then(function (resp) {
+                if (!resp.ok) { throw new Error('HTTP ' + resp.status); }
+                return resp.json();
+            })
+            .then(function (data) {
+                if (!data || !data.ok) { throw new Error('Could not change printing'); }
+                // Update the originating stack card image + id to the new
+                // printing, re-point state, then return to the card view
+                // showing the freshly chosen printing.
+                if (data.image && currentTriggerBtn) {
+                    var stackImg = currentTriggerBtn.querySelector('.stack-card-img');
+                    if (stackImg && stackImg.tagName === 'IMG') {
+                        stackImg.src = data.image;
+                    }
+                }
+                if (currentTriggerBtn) {
+                    currentTriggerBtn.setAttribute('data-card-id', data.card_id);
+                }
+                currentCardId = data.card_id;
+                // Reload the full card detail for the new printing, then flip
+                // back from the picker to the card view.
+                loadCard(data.card_id, currentTriggerBtn);
+            })
+            .catch(function (err) {
+                clearText(printingList);
+                var p = document.createElement('p');
+                p.className = 'card-printing-empty';
+                p.textContent = String(err.message || err);
+                printingList.appendChild(p);
+            });
+    }
+
+    printingBtn.addEventListener('click', function () {
+        enterPickerMode();
+    });
+
+    if (printingBack) {
+        printingBack.addEventListener('click', function () {
+            exitPickerMode();
+        });
+    }
+
     // Delegate clicks from any card button in the stacks.
     document.addEventListener('click', function (e) {
         var btn = e.target.closest ? e.target.closest('.stack-card-btn') : null;
         if (btn) {
             var cardId = btn.getAttribute('data-card-id');
             if (cardId) {
-                loadCard(cardId);
+                loadCard(cardId, btn);
             }
+            return;
+        }
+        // Printing option chosen.
+        var opt = e.target.closest ? e.target.closest('.card-printing-option') : null;
+        if (opt) {
+            selectPrinting(opt.getAttribute('data-printing-id'));
             return;
         }
         // Close when clicking the backdrop or an element marked data-close.

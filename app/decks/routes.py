@@ -561,6 +561,11 @@ def deck_overview(deck_id):
             card_keys |= _name_keys(card.name)
         if card_keys & commander_keys:
             label = _COMMANDER_GROUP
+            # Keep the commander art in sync with the image chosen on the deck
+            # stats page (deck.image_uri). Fall back to the component's
+            # front-face image when no art has been chosen.
+            if deck.image_uri:
+                image_uri = deck.image_uri
         else:
             label = _classify_type(type_line)
 
@@ -599,6 +604,7 @@ def deck_overview(deck_id):
 
     return render_template(
         'decks/overview.html',
+        deck_id=deck.id,
         deckname=deck.name,
         commander=deck.commander,
         card_groups=card_groups,
@@ -657,6 +663,102 @@ def card_detail(card_id):
         'oracle_text': card.oracle_text,
         'faces': faces,
         'rulings': rulings_payload,
+    })
+
+
+def _front_image(card):
+    """Front-face image_uri for a Card, or None."""
+    front = next((f for f in card.faces if f.face_index == 0), None)
+    return front.image_uri if front else None
+
+
+# --- Printings for a card, in a deck context (powers the popup's printing
+# picker). All printings share the same name; each Card row is one printing. ---
+@bp.route('/<int:deck_id>/card/<card_id>/printings', methods=['GET'], strict_slashes=False)
+def card_printings(deck_id, card_id):
+    from flask import jsonify
+
+    card = db.session.get(models.Card, card_id)
+    if card is None:
+        return jsonify({'ok': False, 'message': 'Card not found.'}), 404
+
+    printings = db.session.scalars(
+        sa.select(models.Card)
+        .where(models.Card.name == card.name)
+        .order_by(models.Card.released_at.asc().nulls_last(), models.Card.set_code.asc())
+    ).all()
+
+    payload = [
+        {
+            'id': p.id,
+            'set_code': p.set_code,
+            'set_name': p.set_name,
+            'image': _front_image(p),
+            'current': (p.id == card_id),
+        }
+        for p in printings
+    ]
+
+    return jsonify({
+        'ok': True,
+        'deck_id': deck_id,
+        'card_id': card_id,
+        'name': card.name,
+        'printings': payload,
+    })
+
+
+# --- Set the printing used for a card in THIS deck only. Updates the matching
+# DeckComponent.card_id to the chosen printing. CSRF via X-CSRFToken header. ---
+@bp.route('/<int:deck_id>/card/<card_id>/printing', methods=['POST'], strict_slashes=False)
+@login_required
+def set_card_printing(deck_id, card_id):
+    from flask import request, jsonify
+
+    deck = db.get_or_404(models.Deck, deck_id)
+
+    # Only the deck owner may change its printings.
+    user = db.session.execute(
+        sa.select(models.User).where(models.User.username == current_user.username)
+    ).scalar_one()
+    if deck.player_id != user.player_id:
+        return jsonify({'ok': False, 'message': 'Nicht berechtigt.'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    new_card_id = (payload.get('printing_id') or '').strip()
+    if not new_card_id:
+        return jsonify({'ok': False, 'message': 'printing_id is required.'}), 400
+
+    # The component currently pointing at the old printing in this deck.
+    component = db.session.scalar(
+        sa.select(models.DeckComponent).where(
+            models.DeckComponent.deck_id == deck.id,
+            models.DeckComponent.card_id == card_id,
+        )
+    )
+    if component is None:
+        return jsonify({'ok': False, 'message': 'Card is not in this deck.'}), 404
+
+    old_card = db.session.get(models.Card, card_id)
+    new_card = db.session.get(models.Card, new_card_id)
+    if new_card is None:
+        return jsonify({'ok': False, 'message': 'Chosen printing not found.'}), 404
+
+    # Guard: the new printing must be the same card (same name), so we only ever
+    # swap art/set, never change which card is in the deck.
+    if old_card is not None and new_card.name != old_card.name:
+        return jsonify({'ok': False, 'message': 'Printing does not match the card.'}), 400
+
+    component.card_id = new_card_id
+    db.session.commit()
+
+    return jsonify({
+        'ok': True,
+        'deck_id': deck.id,
+        'card_id': new_card_id,
+        'image': _front_image(new_card),
+        'set_code': new_card.set_code,
+        'set_name': new_card.set_name,
     })
 
 

@@ -57,14 +57,17 @@
 {# Card popup. Hidden until a card is clicked; populated client-side from the
    /decks/card/<id> endpoint. #}
 <div class="card-modal" id="card-modal" hidden
+     data-deck-id="{{ deck_id }}"
      role="dialog" aria-modal="true" aria-labelledby="card-modal-title">
     <div class="card-modal-backdrop" data-close="1"></div>
     <div class="card-modal-dialog" role="document">
         <button type="button" class="card-modal-close" data-close="1"
                 aria-label="Close">&times;</button>
-        <div class="card-modal-body">
+        <div class="card-modal-body" id="card-modal-body">
             <div class="card-modal-image-wrap">
                 <img class="card-modal-image" id="card-modal-image" src="" alt="">
+                <button type="button" class="card-modal-printing-btn"
+                        id="card-modal-printing-btn" hidden>Change printing</button>
             </div>
             <div class="card-modal-info">
                 <h2 class="card-modal-title" id="card-modal-title"></h2>
@@ -75,6 +78,17 @@
                     <div class="card-modal-rulings-body" id="card-modal-rulings-body"></div>
                 </section>
             </div>
+        </div>
+
+        {# Printing picker takes over the whole dialog while active; hidden
+           otherwise. Picking a printing returns to the card view. #}
+        <div class="card-printing-picker" id="card-printing-picker" hidden>
+            <div class="card-printing-header">
+                <button type="button" class="card-printing-back" id="card-printing-back"
+                        aria-label="Back to card">&larr;</button>
+                <h2 class="card-printing-title" id="card-printing-title">Choose a printing</h2>
+            </div>
+            <div class="card-printing-list" id="card-printing-list"></div>
         </div>
     </div>
 </div>
