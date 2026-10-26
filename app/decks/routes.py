@@ -495,15 +495,34 @@ def _name_keys(name):
     return keys
 
 
+# Classification priority for cards that carry more than one type. A card is
+# placed in the FIRST bucket here whose keyword is in its type_line. This is a
+# separate concern from the column DISPLAY order (_TYPE_GROUP_ORDER): e.g. an
+# "Artifact Creature" is classified as Creature, a "Land Creature" (Dryad
+# Arbor) as Creature, an "Artifact Land" as Land. The user-specified hierarchy
+# is Creature > Land > Planeswalker > Artifact > Enchantment; the remaining
+# single-type buckets (Battle, Sorcery, Instant) follow for completeness.
+_TYPE_PRIORITY = [
+    ('Creature', 'Creature'),
+    ('Land', 'Land'),
+    ('Planeswalker', 'Planeswalker'),
+    ('Battle', 'Battle'),
+    ('Artifact', 'Artifact'),
+    ('Enchantment', 'Enchantment'),
+    ('Sorcery', 'Sorcery'),
+    ('Instant', 'Instant'),
+]
+
+
 def _classify_type(type_line):
-    """Map a Scryfall type_line string to one Archidekt-style group label."""
+    """Map a Scryfall type_line to one group label using the type hierarchy.
+
+    When a card has multiple types, the highest-priority type wins
+    (Creature > Land > Planeswalker > Artifact > Enchantment, then
+    Battle/Sorcery/Instant).
+    """
     tl = (type_line or '')
-    # Land first so "Artifact Land", "Enchantment Land" group under Land.
-    if 'Land' in tl:
-        return 'Land'
-    for keyword, label in _TYPE_GROUP_ORDER:
-        if keyword == 'Land':
-            continue
+    for keyword, label in _TYPE_PRIORITY:
         if keyword in tl:
             return label
     return _OTHER_GROUP
