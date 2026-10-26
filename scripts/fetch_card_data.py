@@ -52,15 +52,35 @@ def stream_jsonl_gz(url: str) -> Iterator[dict]:
 
 
 def should_skip_card(card: dict) -> bool:
-    """Return True if the card should be excluded (art_series, non-paper, token-like)."""
+    """Return True if the card should be excluded (art_series, non-paper,
+    non-English, token-like).
+
+    We stream Scryfall's `all_cards` bulk (every printing in every language) so
+    that EVERY paper printing of a card is stored — one `cards` row per Scryfall
+    printing id, sharing an `oracle_id`. Two filters narrow that firehose:
+
+      * paper only — a physical collection never references MTGO/Arena-only
+        objects, and those have no set/collector number a player could own.
+      * English only (`lang == 'en'`) — `all_cards` repeats each printing once
+        per language; without this guard every printing would be duplicated
+        across ~10+ languages. We key the printings table on the English
+        printing of each set/collector number. (Collection CSVs carry their own
+        Language column on the owned copy; that's recorded on the collection
+        entry, not by storing a separate card row per language.)
+    """
     # Skip art series
     if card.get('layout') == 'art_series':
         return True
     # Skip non-paper cards
     if 'paper' not in card.get('games', []):
         return True
-    # Skip token-like entries with "Card" in type_line
-    type_line = card.get('type_line', '')
+    # Skip non-English printings (all_cards includes every language).
+    if card.get('lang') != 'en':
+        return True
+    # Skip token-like entries with "Card" in type_line. Use the derived type
+    # line so reversible/multi-face cards (top-level type_line == None) are
+    # handled without raising on a None value.
+    type_line = card_type_line(card)
     if 'Card' in type_line:
         return True
     return False
@@ -365,7 +385,12 @@ if __name__ == '__main__':
     try:
         from psycopg2.extras import execute_values
 
-        cards_url = get_bulk_data_uri("default_cards")
+        # `all_cards` contains every printing in every language (unlike
+        # `default_cards`, which is a single representative printing per card).
+        # should_skip_card() narrows this to English paper printings so we store
+        # every paper set/collector-number printing without duplicating each
+        # across languages.
+        cards_url = get_bulk_data_uri("all_cards")
         print(f'Streaming card data from: {cards_url}')
 
         cur = conn.cursor()
