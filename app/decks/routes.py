@@ -448,3 +448,186 @@ def calculate_elo():
 
     db.session.commit()
     return redirect(url_for('main.index'), code=302)
+
+
+# --- Archidekt-style deck overview (link-only, no auth) ---
+#
+# This page is intentionally NOT @login_required: it is reachable by anyone who
+# holds the deck link (the deck id acts as the shareable handle for now; a
+# dedicated share-token can replace it later without changing the template).
+# It renders the deck's cards as image stacks grouped by card type, mirroring
+# the Archidekt deck view.
+
+# Display order of type groups. A card is placed in the first bucket whose
+# keyword appears in its Scryfall type_line. "Land" is checked early so e.g.
+# "Artifact Land" lands in Land. The Commander column (see below) is emitted
+# before all of these.
+_TYPE_GROUP_ORDER = [
+    ('Artifact', 'Artifact'),
+    ('Creature', 'Creature'),
+    ('Planeswalker', 'Planeswalker'),
+    ('Battle', 'Battle'),
+    ('Enchantment', 'Enchantment'),
+    ('Sorcery', 'Sorcery'),
+    ('Instant', 'Instant'),
+    ('Land', 'Land'),
+]
+_COMMANDER_GROUP = 'Commander'
+_OTHER_GROUP = 'Other'
+
+
+def _name_keys(name):
+    """Return the set of comparable keys for a card name.
+
+    Double-faced cards use the Scryfall "Front // Back" format, but a deck's
+    commander field and a DeckComponent may each store either the full name or
+    just the front-face name (e.g. "Etali, Primal Conqueror //
+    Etali, Primal Sickness" vs. "Etali, Primal Conqueror"). We key on the full
+    normalized name plus each face so a match succeeds regardless of which form
+    either side stored.
+    """
+    if not name:
+        return set()
+    full = name.strip().lower()
+    keys = {full}
+    if '//' in full:
+        keys.update(part.strip() for part in full.split('//') if part.strip())
+    return keys
+
+
+def _classify_type(type_line):
+    """Map a Scryfall type_line string to one Archidekt-style group label."""
+    tl = (type_line or '')
+    # Land first so "Artifact Land", "Enchantment Land" group under Land.
+    if 'Land' in tl:
+        return 'Land'
+    for keyword, label in _TYPE_GROUP_ORDER:
+        if keyword == 'Land':
+            continue
+        if keyword in tl:
+            return label
+    return _OTHER_GROUP
+
+
+@bp.route('/overview/<int:deck_id>', methods=['GET'], strict_slashes=False)
+def deck_overview(deck_id):
+    """Public, link-only overview of a deck's cards as type-grouped stacks."""
+    deck = db.get_or_404(models.Deck, deck_id)
+
+    components = db.session.scalars(
+        sa.select(models.DeckComponent).where(models.DeckComponent.deck_id == deck.id)
+    ).all()
+
+    # Resolve the cards referenced by the components in one query, then index
+    # them so we can attach type_line + front-face image to each component.
+    card_ids = [c.card_id for c in components if c.card_id]
+    cards_by_id = {}
+    if card_ids:
+        cards_by_id = {
+            card.id: card
+            for card in db.session.scalars(
+                sa.select(models.Card).where(models.Card.id.in_(card_ids))
+            ).all()
+        }
+
+    # Commander name key(s) for this deck, used to split commanders into their
+    # own leftmost column. Keys include each face of a double-faced name so
+    # matching works whether the full "Front // Back" name or just a face is
+    # stored on either side.
+    commander_keys = set()
+    for n in (deck.commander, deck.partner):
+        commander_keys |= _name_keys(n)
+
+    # Group label -> list of card dicts (name, image, count, type_line).
+    groups = defaultdict(list)
+    for comp in components:
+        card = cards_by_id.get(comp.card_id)
+        type_line = card.type_line if card else None
+
+        image_uri = None
+        if card:
+            front_face = next((f for f in card.faces if f.face_index == 0), None)
+            if front_face and front_face.image_uri:
+                image_uri = front_face.image_uri
+
+        card_name = comp.name or (card.name if card else 'Unknown')
+
+        # A card matching the deck's commander/partner goes to the Commander
+        # column; everything else is grouped by its type_line. We also consider
+        # the resolved Card.name (another possible source of the full DFC name)
+        # so a match succeeds even if the component stored a single face.
+        card_keys = _name_keys(card_name)
+        if card is not None:
+            card_keys |= _name_keys(card.name)
+        if card_keys & commander_keys:
+            label = _COMMANDER_GROUP
+        else:
+            label = _classify_type(type_line)
+
+        groups[label].append({
+            'name': card_name,
+            'image': image_uri,
+            'count': comp.count or 1,
+            'type_line': type_line or '',
+        })
+
+    # Emit Commander first, then the fixed type order, then Other; skip empties.
+    ordered_labels = (
+        [_COMMANDER_GROUP]
+        + [label for _, label in _TYPE_GROUP_ORDER]
+        + [_OTHER_GROUP]
+    )
+    seen = set()
+    card_groups = []
+    for label in ordered_labels:
+        if label in seen:
+            continue
+        seen.add(label)
+        cards = groups.get(label)
+        if not cards:
+            continue
+        cards.sort(key=lambda c: c['name'].lower())
+        card_count = sum(c['count'] for c in cards)
+        card_groups.append({
+            'label': label,
+            'cards': cards,
+            'card_count': card_count,
+        })
+
+    total_cards = sum(g['card_count'] for g in card_groups)
+
+    return render_template(
+        'decks/overview.html',
+        deckname=deck.name,
+        commander=deck.commander,
+        card_groups=card_groups,
+        total_cards=total_cards,
+    )
+
+
+# --- "My Decks" gallery: a responsive grid of deck cards (name + commander
+# image), Archidekt-style. Each card links to the deck overview page. Scoped to
+# the logged-in user's player, matching the existing My Decks semantics. ---
+@bp.route('/mine', methods=['GET'], strict_slashes=False)
+@login_required
+def my_decks():
+    player_id = getattr(current_user, 'player_id', None)
+    decks = []
+    if player_id is not None:
+        decks = db.session.scalars(
+            sa.select(models.Deck)
+            .where(models.Deck.player_id == player_id, models.Deck.active.is_(True))
+            .order_by(models.Deck.name.asc())
+        ).all()
+
+    deck_cards = [
+        {
+            'id': deck.id,
+            'name': deck.name,
+            'commander': deck.commander,
+            'image': deck.image_uri,
+        }
+        for deck in decks
+    ]
+
+    return render_template('decks/my_decks.html', deck_cards=deck_cards)

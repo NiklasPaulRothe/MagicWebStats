@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/my_decks.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="my-decks" id="main-content">
+    <header class="my-decks-header">
+        <h1>My Decks</h1>
+        <p class="my-decks-sub">
+            {{ deck_cards|length }} deck{{ '' if deck_cards|length == 1 else 's' }}
+        </p>
+    </header>
+
+    {% if deck_cards %}
+    <ul class="deck-grid" role="list">
+        {% for deck in deck_cards %}
+        <li class="deck-card">
+            <a class="deck-card-link" href="{{ url_for('decks.deck_overview', deck_id=deck.id) }}">
+                <div class="deck-card-art">
+                    {% if deck.image %}
+                    <img class="deck-card-img"
+                         src="{{ deck.image }}"
+                         alt="{{ deck.commander }}"
+                         loading="lazy">
+                    {% else %}
+                    <div class="deck-card-img deck-card-placeholder">
+                        <span>{{ deck.commander }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="deck-card-overlay">
+                        <span class="deck-card-name">{{ deck.name }}</span>
+                        <span class="deck-card-commander">{{ deck.commander }}</span>
+                    </div>
+                </div>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="my-decks-empty">You don't have any decks yet.</p>
+    {% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/deck_overview.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="deck-overview" id="main-content">
+    <header class="deck-overview-header">
+        <h1>{{ deckname }}</h1>
+        <p class="deck-overview-sub">
+            {% if commander %}<span class="deck-overview-commander">{{ commander }}</span> &middot; {% endif %}
+            {{ total_cards }} card{{ '' if total_cards == 1 else 's' }}
+        </p>
+    </header>
+
+    {% if card_groups %}
+    <div class="stack-board">
+        {% for group in card_groups %}
+        <section class="stack-column{% if group.label == 'Commander' %} stack-column-commander{% endif %}"
+                 aria-label="{{ group.label }}">
+            <h2 class="stack-heading">
+                {{ group.label }}
+                <span class="stack-count">{{ group.card_count }}</span>
+            </h2>
+            <ul class="card-stack" role="list">
+                {% for card in group.cards %}
+                {# A card with count > 1 is rendered as that many overlapping copies. #}
+                {% for _ in range(card.count) %}
+                <li class="stack-card" tabindex="0">
+                    {% if card.image %}
+                    <img class="stack-card-img"
+                         src="{{ card.image }}"
+                         alt="{{ card.name }}"
+                         loading="lazy">
+                    {% else %}
+                    <div class="stack-card-img stack-card-placeholder">
+                        <span>{{ card.name }}</span>
+                    </div>
+                    {% endif %}
+                </li>
+                {% endfor %}
+                {% endfor %}
+            </ul>
+        </section>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="deck-overview-empty">This deck has no cards to display yet.</p>
+    {% endif %}
+</main>
+{% endblock %}

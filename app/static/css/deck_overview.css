@@ -1,0 +1,175 @@
+/* Archidekt-style deck overview: card images shown as vertical stacks,
+   grouped by card type. Cards overlap (only a sliver of each shows); hovering
+   or focusing a card pushes the cards below it down so it is fully revealed. */
+
+:root {
+    /* How much of each card peeks out below the one in front of it. */
+    --stack-peek: 34px;
+    /* Rendered card width. Cards keep MTG's 63:88 aspect ratio. */
+    --card-width: 180px;
+    --card-height: calc(var(--card-width) * 88 / 63);
+    /* Extra vertical room created below a hovered/focused card. */
+    --reveal-gap: 10px;
+    /* Shared, gentle reveal timing. */
+    --reveal-ease: 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.deck-overview {
+    padding: 20px clamp(12px, 3vw, 32px) 64px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.deck-overview-header {
+    margin-bottom: 24px;
+}
+
+.deck-overview-header h1 {
+    margin: 0 0 4px;
+}
+
+.deck-overview-sub {
+    margin: 0;
+    color: #9aa0a6;
+    font-size: 0.95rem;
+}
+
+.deck-overview-commander {
+    color: #f4c430;
+    font-weight: 600;
+}
+
+.deck-overview-empty {
+    color: #9aa0a6;
+    margin-top: 40px;
+}
+
+/* Columns laid out left-to-right, one per card type, wrapping as needed. */
+.stack-board {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: clamp(16px, 2.5vw, 40px);
+}
+
+.stack-column {
+    flex: 0 0 var(--card-width);
+    width: var(--card-width);
+}
+
+/* The commander sits apart to the left of the deck, separated by extra space
+   and a divider so it reads as its own section. */
+.stack-column-commander {
+    margin-right: clamp(12px, 2vw, 32px);
+    padding-right: clamp(12px, 2vw, 32px);
+    border-right: 1px solid rgba(244, 196, 48, 0.3);
+}
+
+.stack-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(244, 196, 48, 0.4);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.stack-count {
+    min-width: 1.6em;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(244, 196, 48, 0.15);
+    color: #f4c430;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+/* The stack itself. Each card after the first is pulled up over its
+   predecessor so only --stack-peek of the predecessor remains visible. */
+.card-stack {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+.stack-card {
+    position: relative;
+    width: var(--card-width);
+    height: var(--card-height);
+    /* Collapse each card up onto the previous one, leaving a peek sliver. */
+    margin-top: calc(-1 * (var(--card-height) - var(--stack-peek)));
+    border-radius: 4.75% / 3.5%;
+    transition: margin-bottom var(--reveal-ease),
+                transform var(--reveal-ease),
+                box-shadow var(--reveal-ease);
+    outline: none;
+}
+
+/* First card sits flush at the top of its column. */
+.stack-card:first-child {
+    margin-top: 0;
+}
+
+.stack-card-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4.75% / 3.5%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    background: #1b1b1f;
+    transition: box-shadow var(--reveal-ease), outline-color var(--reveal-ease);
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+}
+
+/* Reveal: when a card is hovered or focused, add margin below it. The
+   following siblings are pulled up by negative margin-top, so increasing this
+   card's margin-bottom slides all of them down together. We do NOT change the
+   hovered card's z-index: in natural DOM order later cards paint on top, so
+   the cards after the hovered one simply slide down and off, progressively
+   uncovering it from the bottom up — a smooth slide with no layer swap. */
+.stack-card:hover,
+.stack-card:focus-visible,
+.stack-card:focus {
+    margin-bottom: calc(var(--card-height) - var(--stack-peek) + var(--reveal-gap));
+}
+
+.stack-card:hover .stack-card-img,
+.stack-card:focus-visible .stack-card-img,
+.stack-card:focus .stack-card-img {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    outline-color: #f4c430;
+}
+
+/* Placeholder shown when a card has no stored image. */
+.stack-card-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #cfcfd4;
+    border: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+/* On small screens shrink cards so columns still fit side by side. */
+@media (max-width: 640px) {
+    :root {
+        --card-width: 132px;
+        --stack-peek: 26px;
+    }
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+    .stack-card {
+        transition: none;
+    }
+}
