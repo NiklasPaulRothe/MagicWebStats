@@ -1,9 +1,26 @@
 /* Collection page: import form + CardNexus-style card image gallery. */
 
 .collection {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1.5rem 1rem 3rem;
+    /* The global `main` rule is a centered flex column (align-items: center),
+       which otherwise shrinks this page (and the grid) to content width.
+       `align-self: stretch` makes this flex item span main's full width; it
+       then lays out its own children as a block-stretch flex column so the
+       grid fills the full width instead of shrinking to its tracks. */
+    align-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0;
+    /* main already adds 20px padding; keep a bit more as the side gutter. */
+    padding: 1.5rem clamp(0.5rem, 3vw, 3rem) 3rem;
+}
+
+/* Make sure the gallery itself spans the full container width (a bare <ul>
+   grid can otherwise be shrink-wrapped inside a centering flex ancestor). */
+.collection-grid {
+    width: 100%;
 }
 
 .collection-header {
@@ -24,28 +41,73 @@
     color: #f4c430;
 }
 
-/* --- Import form --- */
+/* --- Toolbar: import toggle + sort controls on one row --- */
+.collection-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0 0 1.25rem;
+}
+
+/* --- Collapsible import (native <details>) --- */
 .collection-import {
-    margin: 0 0 1.75rem;
-    padding: 1rem 1.25rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
+    border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
+    /* Only as wide as its content when collapsed; widens when open. */
+    align-self: flex-start;
+}
+
+.collection-import-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #cfcfd4;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.collection-import-summary::-webkit-details-marker {
+    display: none;
+}
+
+.collection-import-summary::before {
+    content: "\2191\2193  ";   /* up/down arrows to hint "import" */
+    color: #f4c430;
+}
+
+.collection-import[open] {
+    /* Give the open panel a comfortable but bounded width. */
+    width: min(520px, 100%);
+}
+
+.collection-import[open] .collection-import-summary {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: antiquewhite;
+}
+
+.collection-import-body {
+    padding: 0.85rem 0.9rem;
 }
 
 .collection-import-form {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.75rem;
-}
-
-.collection-import-label {
-    font-weight: 600;
+    gap: 0.6rem;
+    /* Override the global form { max-width:1000px; margin:0 auto } cap. */
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    background: none;
 }
 
 .collection-import-btn {
-    padding: 0.4rem 1.1rem;
+    padding: 0.35rem 1rem;
     border: none;
     border-radius: 6px;
     background: #f4c430;
@@ -56,6 +118,46 @@
 
 .collection-import-btn:hover {
     filter: brightness(1.05);
+}
+
+/* --- Sort controls --- */
+.collection-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.collection-sort-label {
+    font-size: 0.85rem;
+    color: #a8a8b0;
+}
+
+.collection-sort-select {
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #1a1a1a;
+    color: antiquewhite;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.collection-sort-dir {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #1a1a1a;
+    color: #f4c430;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.collection-sort-dir:hover {
+    border-color: #f4c430;
 }
 
 .collection-import-hint {

@@ -335,20 +335,24 @@ def get_player_collection(player_id: int) -> list[dict]:
         images = {cid: uri for cid, uri in face_rows}
 
         price_rows = db.session.execute(
-            sa.select(Card.id, Card.price_eur, Card.price_eur_foil)
+            sa.select(
+                Card.id, Card.price_eur, Card.price_eur_foil, Card.type_line
+            )
             .where(Card.id.in_(card_ids))
         ).all()
         prices = {
-            cid: {"eur": eur, "eur_foil": eur_foil}
-            for cid, eur, eur_foil in price_rows
+            cid: {"eur": eur, "eur_foil": eur_foil, "type_line": type_line}
+            for cid, eur, eur_foil, type_line in price_rows
         }
 
     result: list[dict] = []
     for e in entries:
         foil = _is_foil(e.finish)
         price = None
+        type_line = None
         if e.card_id and e.card_id in prices:
             price = prices[e.card_id]["eur_foil" if foil else "eur"]
+            type_line = prices[e.card_id]["type_line"]
         result.append({
             "name": e.name,
             "set_code": e.set_code,
@@ -360,6 +364,7 @@ def get_player_collection(player_id: int) -> list[dict]:
             "count": e.count,
             "image": images.get(e.card_id) if e.card_id else None,
             "price": price,
+            "type_line": type_line,
             "scryfall_id": e.scryfall_id,
             "card_id": e.card_id,
         })

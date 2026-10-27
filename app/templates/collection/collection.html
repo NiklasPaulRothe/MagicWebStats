@@ -23,31 +23,55 @@
     </p>
     {% else %}
 
-    <section class="collection-import" aria-label="Import collection">
-        <form method="post"
-              action="{{ url_for('collection.import_collection') }}"
-              enctype="multipart/form-data"
-              class="collection-import-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label for="csv_file" class="collection-import-label">
-                Import collection CSV
-            </label>
-            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
-            <button type="submit" class="collection-import-btn">Import</button>
-        </form>
-        <p class="collection-import-hint">
-            Expected columns: Quantity, Name, Finish, Condition, Date Added,
-            Language, Purchase Price, Tags, Edition Name, Edition Code,
-            Multiverse Id, Scryfall ID, Collector Number. Importing replaces your
-            current collection. Cards whose exact printing isn't in the database
-            yet are skipped and listed.
-        </p>
-    </section>
+    <div class="collection-toolbar">
+        {# Collapsible import: just a small button until expanded. Uses native
+           <details> so it needs no JS. #}
+        <details class="collection-import">
+            <summary class="collection-import-summary">Import CSV</summary>
+            <div class="collection-import-body">
+                <form method="post"
+                      action="{{ url_for('collection.import_collection') }}"
+                      enctype="multipart/form-data"
+                      class="collection-import-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+                    <button type="submit" class="collection-import-btn">Import</button>
+                </form>
+                <p class="collection-import-hint">
+                    Expected columns: Quantity, Name, Finish, Condition, Date
+                    Added, Language, Purchase Price, Tags, Edition Name, Edition
+                    Code, Multiverse Id, Scryfall ID, Collector Number.
+                    Importing replaces your current collection. Cards whose
+                    exact printing isn't in the database yet are skipped and
+                    listed.
+                </p>
+            </div>
+        </details>
+
+        {% if cards %}
+        <div class="collection-sort">
+            <label for="sort-field" class="collection-sort-label">Sort</label>
+            <select id="sort-field" class="collection-sort-select">
+                <option value="name">Alphabetic</option>
+                <option value="price">Price</option>
+                <option value="edition">Edition</option>
+                <option value="type">Type</option>
+            </select>
+            <button type="button" id="sort-dir" class="collection-sort-dir"
+                    data-dir="asc" aria-label="Toggle sort direction"
+                    title="Ascending">&#9650;</button>
+        </div>
+        {% endif %}
+    </div>
 
     {% if cards %}
-    <ul class="collection-grid" role="list">
+    <ul class="collection-grid" role="list" id="collection-grid">
         {% for card in cards %}
-        <li class="collection-card">
+        <li class="collection-card"
+            data-name="{{ card.name|lower }}"
+            data-price="{{ '%.2f'|format(card.price) if card.price is not none else '' }}"
+            data-edition="{{ (card.set_name or card.set_code or '')|lower }}"
+            data-type="{{ (card.type_line or '')|lower }}">
             <div class="collection-card-art">
                 {% if card.image %}
                 <img class="collection-card-img"
@@ -84,10 +108,58 @@
     </ul>
     {% else %}
     <p class="collection-empty">
-        Your collection is empty. Import a CSV above to get started.
+        Your collection is empty. Use "Import CSV" above to get started.
     </p>
     {% endif %}
 
     {% endif %}
 </main>
+
+<script>
+(function () {
+    'use strict';
+    var grid = document.getElementById('collection-grid');
+    var field = document.getElementById('sort-field');
+    var dirBtn = document.getElementById('sort-dir');
+    if (!grid || !field || !dirBtn) {
+        return;
+    }
+
+    // Numeric for price (blank prices sort last regardless of direction),
+    // string compare for the rest.
+    function sortCards() {
+        var key = field.value;
+        var asc = dirBtn.getAttribute('data-dir') === 'asc';
+        var cards = Array.prototype.slice.call(
+            grid.querySelectorAll('.collection-card'));
+
+        cards.sort(function (a, b) {
+            if (key === 'price') {
+                var av = a.getAttribute('data-price');
+                var bv = b.getAttribute('data-price');
+                var aEmpty = av === '';
+                var bEmpty = bv === '';
+                if (aEmpty && bEmpty) return 0;
+                if (aEmpty) return 1;   // missing price always last
+                if (bEmpty) return -1;
+                return (asc ? 1 : -1) * (parseFloat(av) - parseFloat(bv));
+            }
+            var as = a.getAttribute('data-' + key) || '';
+            var bs = b.getAttribute('data-' + key) || '';
+            return (asc ? 1 : -1) * as.localeCompare(bs);
+        });
+
+        cards.forEach(function (c) { grid.appendChild(c); });
+    }
+
+    field.addEventListener('change', sortCards);
+    dirBtn.addEventListener('click', function () {
+        var asc = dirBtn.getAttribute('data-dir') === 'asc';
+        dirBtn.setAttribute('data-dir', asc ? 'desc' : 'asc');
+        dirBtn.innerHTML = asc ? '&#9660;' : '&#9650;';
+        dirBtn.title = asc ? 'Descending' : 'Ascending';
+        sortCards();
+    });
+})();
+</script>
 {% endblock %}
