@@ -375,3 +375,63 @@ def get_player_collection(player_id: int) -> list[dict]:
         (r["finish"] or ""),
     ))
     return result
+
+
+# Ownership classification labels for the deck "collection" view.
+OWNERSHIP_EXACT = "exact"       # player owns this exact printing (same card_id)
+OWNERSHIP_OTHER = "other"       # player owns a different printing (same oracle)
+OWNERSHIP_NONE = "none"         # player owns no printing of this card
+
+
+def classify_deck_ownership(player_id: int, card_ids: Iterable[str]) -> dict[str, str]:
+    """Classify each deck card_id by how the player owns it.
+
+    Returns a mapping card_id -> one of OWNERSHIP_EXACT / OWNERSHIP_OTHER /
+    OWNERSHIP_NONE:
+
+      * EXACT  — the player's collection contains this exact printing (the same
+                 card_id / Scryfall printing).
+      * OTHER  — the player owns a *different* printing of the same card (matched
+                 by the card's oracle_id, shared across printings), but not this
+                 exact one.
+      * NONE   — the player owns no printing of this card.
+
+    Done in two bulk queries (not per card): the player's owned printing ids,
+    and the oracle_ids spanning both the owned printings and the deck's cards.
+    card_ids that don't resolve to a Card row are classified NONE.
+    """
+    card_ids = [c for c in dict.fromkeys(card_ids) if c]  # de-dup, keep order
+    if not card_ids:
+        return {}
+
+    # Owned exact printing ids for this player (card_id is the printing id).
+    owned_ids: set[str] = set(db.session.scalars(
+        sa.select(PlayerCollectionCard.card_id).where(
+            PlayerCollectionCard.player_id == player_id,
+            PlayerCollectionCard.card_id.is_not(None),
+        )
+    ).all())
+
+    # oracle_id for every deck card and every owned printing, so we can detect
+    # "owns a different printing of the same card".
+    relevant_ids = set(card_ids) | owned_ids
+    oracle_by_card: dict[str, str] = {}
+    if relevant_ids:
+        rows = db.session.execute(
+            sa.select(Card.id, Card.oracle_id).where(Card.id.in_(relevant_ids))
+        ).all()
+        oracle_by_card = {cid: oid for cid, oid in rows}
+
+    owned_oracles = {
+        oracle_by_card[cid] for cid in owned_ids if cid in oracle_by_card
+    }
+
+    result: dict[str, str] = {}
+    for cid in card_ids:
+        if cid in owned_ids:
+            result[cid] = OWNERSHIP_EXACT
+        elif oracle_by_card.get(cid) in owned_oracles:
+            result[cid] = OWNERSHIP_OTHER
+        else:
+            result[cid] = OWNERSHIP_NONE
+    return result

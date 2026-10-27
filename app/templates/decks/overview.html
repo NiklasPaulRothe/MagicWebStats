@@ -58,6 +58,10 @@
                     data-view="type" aria-pressed="true">By type</button>
             <button type="button" class="view-toggle-btn"
                     data-view="category" aria-pressed="false">By category</button>
+            {% if ownership_card_groups %}
+            <button type="button" class="view-toggle-btn"
+                    data-view="collection" aria-pressed="false">By collection</button>
+            {% endif %}
         </div>
         {% endif %}
     </header>
@@ -69,6 +73,11 @@
     <div class="deck-view" data-view="category" hidden>
         {{ stack_board(category_card_groups) }}
     </div>
+    {% if ownership_card_groups %}
+    <div class="deck-view" data-view="collection" hidden>
+        {{ stack_board(ownership_card_groups) }}
+    </div>
+    {% endif %}
     {% else %}
     <p class="deck-overview-empty">This deck has no cards to display yet.</p>
     {% endif %}

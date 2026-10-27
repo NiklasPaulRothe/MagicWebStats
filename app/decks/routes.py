@@ -568,6 +568,7 @@ def deck_overview(deck_id):
     # and by category) from the same entries.
     type_groups = defaultdict(list)
     category_groups = defaultdict(list)
+    all_entries = []  # flat list, reused for the ownership (collection) view
     for comp in components:
         card = cards_by_id.get(comp.card_id)
         type_line = card.type_line if card else None
@@ -597,6 +598,7 @@ def deck_overview(deck_id):
             'count': comp.count or 1,
             'type_line': type_line or '',
         }
+        all_entries.append(entry)
 
         # By-type grouping.
         type_label = _COMMANDER_GROUP if is_commander else _classify_type(type_line)
@@ -647,6 +649,42 @@ def deck_overview(deck_id):
 
     total_cards = sum(g['card_count'] for g in card_groups)
 
+    # Ownership (collection) view: group every deck card by whether the viewing
+    # player owns the exact printing, a different printing, or none. Only built
+    # for a logged-in viewer whose account is linked to a player; otherwise the
+    # view is omitted (the template hides the toggle).
+    ownership_card_groups = None
+    viewer_player_id = getattr(current_user, 'player_id', None) if current_user.is_authenticated else None
+    if viewer_player_id is not None:
+        from app.services.collection_service import (
+            classify_deck_ownership,
+            OWNERSHIP_EXACT, OWNERSHIP_OTHER, OWNERSHIP_NONE,
+        )
+        ownership = classify_deck_ownership(
+            viewer_player_id, [e['id'] for e in all_entries if e['id']]
+        )
+        ownership_groups = defaultdict(list)
+        for entry in all_entries:
+            # Cards with no resolved printing (id is None) can't be matched to a
+            # collection entry, so they count as not owned.
+            label = ownership.get(entry['id'], OWNERSHIP_NONE)
+            ownership_groups[label].append(entry)
+        _OWNERSHIP_LABELS = {
+            OWNERSHIP_EXACT: 'Owned (this printing)',
+            OWNERSHIP_OTHER: 'Owned (other printing)',
+            OWNERSHIP_NONE: 'Not owned',
+        }
+        # Relabel keys to human-readable headings, preserving the fixed order.
+        human = defaultdict(list)
+        for key in (OWNERSHIP_EXACT, OWNERSHIP_OTHER, OWNERSHIP_NONE):
+            if ownership_groups.get(key):
+                human[_OWNERSHIP_LABELS[key]] = ownership_groups[key]
+        ownership_card_groups = _emit(human, [
+            _OWNERSHIP_LABELS[OWNERSHIP_EXACT],
+            _OWNERSHIP_LABELS[OWNERSHIP_OTHER],
+            _OWNERSHIP_LABELS[OWNERSHIP_NONE],
+        ])
+
     return render_template(
         'decks/overview.html',
         deck_id=deck.id,
@@ -654,6 +692,7 @@ def deck_overview(deck_id):
         commander=deck.commander,
         card_groups=card_groups,
         category_card_groups=category_card_groups,
+        ownership_card_groups=ownership_card_groups,
         total_cards=total_cards,
     )
 
@@ -719,7 +758,9 @@ def _front_image(card):
 
 
 # --- Printings for a card, in a deck context (powers the popup's printing
-# picker). All printings share the same name; each Card row is one printing. ---
+# picker). All printings share the same oracle_id; each Card row is one
+# printing. (Names can differ for reversible_card layouts, so we key on
+# oracle_id rather than name.) ---
 @bp.route('/<int:deck_id>/card/<card_id>/printings', methods=['GET'], strict_slashes=False)
 def card_printings(deck_id, card_id):
     from flask import jsonify
@@ -728,9 +769,14 @@ def card_printings(deck_id, card_id):
     if card is None:
         return jsonify({'ok': False, 'message': 'Card not found.'}), 404
 
+    # List every printing of this card by oracle_id (shared across all
+    # printings), NOT by name: reversible_card printings are stored with a
+    # "Front // Back" name (e.g. "Steam Vents // Steam Vents") that differs from
+    # the normal printing's name ("Steam Vents"), so a name match would hide
+    # them from the picker even though they're the same card.
     printings = db.session.scalars(
         sa.select(models.Card)
-        .where(models.Card.name == card.name)
+        .where(models.Card.oracle_id == card.oracle_id)
         .order_by(models.Card.released_at.asc().nulls_last(), models.Card.set_code.asc())
     ).all()
 
@@ -790,9 +836,12 @@ def set_card_printing(deck_id, card_id):
     if new_card is None:
         return jsonify({'ok': False, 'message': 'Chosen printing not found.'}), 404
 
-    # Guard: the new printing must be the same card (same name), so we only ever
-    # swap art/set, never change which card is in the deck.
-    if old_card is not None and new_card.name != old_card.name:
+    # Guard: the new printing must be the SAME card, so we only ever swap
+    # art/set, never change which card is in the deck. Compare by oracle_id
+    # (shared across all printings) rather than name: reversible_card printings
+    # carry a "Front // Back" name that differs from the normal printing's name,
+    # so a name check would wrongly reject a valid same-card printing.
+    if old_card is not None and new_card.oracle_id != old_card.oracle_id:
         return jsonify({'ok': False, 'message': 'Printing does not match the card.'}), 400
 
     component.card_id = new_card_id
