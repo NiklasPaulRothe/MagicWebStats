@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.users (
 -- For an already-built database, add the bio column idempotently (no Alembic — ADR-001):
 ALTER TABLE magic_stats_owner.users ADD COLUMN IF NOT EXISTS bio VARCHAR(1000);
 
+-- Index the player link used on every profile/user page (User.player_id lookup).
+CREATE INDEX IF NOT EXISTS idx_users_player_id ON magic_stats_owner.users (player_id);
+
 -- ---------------------------------------------------------------------------
 -- 3. colors / color identities (WUBRG reference data)
 -- ---------------------------------------------------------------------------
@@ -114,6 +117,11 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.decks (
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Indexes for the owner/active filters used on every deck listing (my_decks,
+-- user decks, highlights, elo) and the color-usage views.
+CREATE INDEX IF NOT EXISTS idx_decks_player_id ON magic_stats_owner.decks (player_id);
+CREATE INDEX IF NOT EXISTS idx_decks_active    ON magic_stats_owner.decks (active);
+
 -- ---------------------------------------------------------------------------
 -- 5. games
 -- ---------------------------------------------------------------------------
@@ -132,6 +140,15 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.games (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Indexes for the columns filtered/joined/sorted on the hot stats and profile
+-- reads: wins (winner_id), first-player counts (first_player_id), date range
+-- and chronological ordering (date), and a partial index matching the
+-- pervasive non-cEDH, date-ordered query shape.
+CREATE INDEX IF NOT EXISTS idx_games_winner_id       ON magic_stats_owner.games (winner_id);
+CREATE INDEX IF NOT EXISTS idx_games_first_player_id ON magic_stats_owner.games (first_player_id);
+CREATE INDEX IF NOT EXISTS idx_games_date            ON magic_stats_owner.games (date);
+CREATE INDEX IF NOT EXISTS idx_games_noncedh_date    ON magic_stats_owner.games (date) WHERE cedh = false;
 
 -- ---------------------------------------------------------------------------
 -- 6. participants
@@ -236,6 +253,10 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.card_faces (
     UNIQUE (card_id, face_index)
 );
 
+-- Front-face image lookups (collection gallery + deck overview) filter by
+-- card_id; card_faces grows with the (large) cards table.
+CREATE INDEX IF NOT EXISTS idx_card_faces_card_id ON magic_stats_owner.card_faces (card_id);
+
 CREATE TABLE IF NOT EXISTS magic_stats_owner.card_colors (
     card_id TEXT NOT NULL REFERENCES magic_stats_owner.cards(id) ON DELETE CASCADE,
     color   VARCHAR(1) NOT NULL CHECK (color IN ('W', 'U', 'B', 'R', 'G')),
@@ -299,6 +320,10 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_component (
     in_deck BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- deck_overview, the printing swap, and card-usage all filter by deck_id;
+-- this is a large per-deck table (~full decklist per deck).
+CREATE INDEX IF NOT EXISTS idx_deck_component_deck_id ON magic_stats_owner.deck_component (deck_id);
+
 -- Categories a deck component belongs to (Archidekt categories). Normalized:
 -- one row per (component, category). `position` is the ordinal from the source
 -- (0 = primary/main category); secondary categories are position >= 1 and are
@@ -327,6 +352,9 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.achievements (
     achieved    INTEGER
 );
 
+-- Achievements are loaded per deck on the deck show page.
+CREATE INDEX IF NOT EXISTS idx_achievements_deck_id ON magic_stats_owner.achievements (deck_id);
+
 -- ---------------------------------------------------------------------------
 -- 10. deck_version_history
 -- ---------------------------------------------------------------------------
@@ -343,6 +371,10 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_version_history (
     comment          TEXT,
     timestamp        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Version history is read per deck (ordered by timestamp).
+CREATE INDEX IF NOT EXISTS idx_deck_version_history_deck_id
+    ON magic_stats_owner.deck_version_history (deck_id);
 
 -- ---------------------------------------------------------------------------
 -- 11. deck_tags
