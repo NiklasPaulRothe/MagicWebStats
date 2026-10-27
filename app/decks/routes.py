@@ -872,14 +872,39 @@ def my_decks():
             .order_by(models.Deck.name.asc())
         ).all()
 
-    deck_cards = [
-        {
+    from app.services.color_service import resolve_color_images
+
+    def _art_crop(image_uri):
+        """Derive the Scryfall art-crop URL from a stored 'large' card image.
+
+        Scryfall serves every size variant of a printing from the same CDN path
+        with only the size segment changing, e.g.
+          .../large/front/<a>/<b>/<id>.jpg   ->   .../art_crop/front/<a>/<b>/<id>.jpg
+        So we swap the size segment to get just the illustration (no frame/text),
+        without storing an extra column or re-fetching. Falls back to the
+        original URL when it isn't a recognizable Scryfall image path.
+        """
+        if not image_uri:
+            return None
+        for size in ('/large/', '/normal/', '/small/', '/png/', '/border_crop/'):
+            if size in image_uri:
+                return image_uri.replace(size, '/art_crop/', 1)
+        return image_uri
+
+    deck_cards = []
+    for deck in decks:
+        tags = db.session.scalars(
+            sa.select(models.DeckTag.tag)
+            .where(models.DeckTag.deck_id == deck.id)
+            .order_by(models.DeckTag.tag)
+        ).all()
+        deck_cards.append({
             'id': deck.id,
             'name': deck.name,
             'commander': deck.commander,
-            'image': deck.image_uri,
-        }
-        for deck in decks
-    ]
+            'image': _art_crop(deck.image_uri),
+            'color_imgs': resolve_color_images(deck.color_identity),
+            'tags': list(tags),
+        })
 
     return render_template('decks/my_decks.html', deck_cards=deck_cards)

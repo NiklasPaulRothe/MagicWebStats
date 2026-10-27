@@ -63,60 +63,52 @@
     margin: 0;
 }
 
+/* Each card is a vertical stack: text header, commander art, meta footer.
+   The whole card shares one rounded, elevated surface. */
 .deck-card-link {
-    display: block;
+    display: flex;
+    flex-direction: column;
     text-decoration: none;
     color: inherit;
     border-radius: 10px;
-    outline: none;
-}
-
-/* The art area keeps MTG card-art proportions (landscape crop of the card). */
-.deck-card-art {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 626 / 457;
-    border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
     background: #1b1b1f;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    outline: none;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.deck-card-link:hover .deck-card-art,
-.deck-card-link:focus-visible .deck-card-art {
+.deck-card-link:hover,
+.deck-card-link:focus-visible {
     transform: translateY(-3px);
+    border-color: rgba(244, 196, 48, 0.5);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
 }
 
-.deck-card-link:focus-visible .deck-card-art {
+.deck-card-link:focus-visible {
     outline: 2px solid #f4c430;
     outline-offset: 2px;
 }
 
-.deck-card-img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* Commander art sits toward the top of a card; bias the crop upward. */
-    object-position: center 22%;
+/* Text header on a solid background — readable, not laid over the art.
+   Titles on the left, color identity on the top-right. */
+.deck-card-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #23232a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Gradient + text overlay anchored to the bottom of the art. */
-.deck-card-overlay {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+.deck-card-titles {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 28px 12px 10px;
-    background: linear-gradient(to top,
-                rgba(0, 0, 0, 0.85) 0%,
-                rgba(0, 0, 0, 0.55) 45%,
-                rgba(0, 0, 0, 0) 100%);
+    min-width: 0; /* allow the text to shrink/ellipsis so colors keep their spot */
 }
 
 .deck-card-name {
@@ -124,13 +116,79 @@
     font-size: 1rem;
     line-height: 1.2;
     color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .deck-card-commander {
     font-size: 0.82rem;
     color: #f4c430;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The art area keeps MTG card-art proportions (landscape crop of the card). */
+.deck-card-art {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 626 / 457;
+    background: #1b1b1f;
+}
+
+.deck-card-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* art_crop is already a tight landscape illustration crop, so just fill. */
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Meta footer: tags. */
+.deck-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px 10px;
+    background: #23232a;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Color identity in the header's top-right: a single, never-wrapping row of
+   symbols that keeps its intrinsic width (doesn't shrink with the titles). */
+.deck-card-colors {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    padding-top: 1px;
+}
+
+.deck-card-color-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.deck-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.deck-card-tag {
+    font-size: 0.72rem;
+    line-height: 1.3;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(244, 196, 48, 0.14);
+    color: #f4c430;
+    border: 1px solid rgba(244, 196, 48, 0.3);
 }
 
 /* Placeholder shown when a deck has no chosen commander image. */
@@ -145,7 +203,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .deck-card-art {
+    .deck-card-link {
         transition: none;
     }
 }

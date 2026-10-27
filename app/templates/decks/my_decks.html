@@ -18,6 +18,19 @@
         {% for deck in deck_cards %}
         <li class="deck-card">
             <a class="deck-card-link" href="{{ url_for('decks.deck_overview', deck_id=deck.id) }}">
+                <div class="deck-card-header">
+                    <div class="deck-card-titles">
+                        <span class="deck-card-name">{{ deck.name }}</span>
+                        <span class="deck-card-commander">{{ deck.commander }}</span>
+                    </div>
+                    {% if deck.color_imgs %}
+                    <div class="deck-card-colors" aria-label="Color identity">
+                        {% for img in deck.color_imgs %}
+                        <img class="deck-card-color-icon" src="{{ img }}" alt="" aria-hidden="true">
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
                 <div class="deck-card-art">
                     {% if deck.image %}
                     <img class="deck-card-img"
@@ -29,11 +42,16 @@
                         <span>{{ deck.commander }}</span>
                     </div>
                     {% endif %}
-                    <div class="deck-card-overlay">
-                        <span class="deck-card-name">{{ deck.name }}</span>
-                        <span class="deck-card-commander">{{ deck.commander }}</span>
+                </div>
+                {% if deck.tags %}
+                <div class="deck-card-footer">
+                    <div class="deck-card-tags">
+                        {% for tag in deck.tags %}
+                        <span class="deck-card-tag">{{ tag }}</span>
+                        {% endfor %}
                     </div>
                 </div>
+                {% endif %}
             </a>
         </li>
         {% endfor %}
