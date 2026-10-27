@@ -72,7 +72,8 @@
             data-price="{{ '%.2f'|format(card.price) if card.price is not none else '' }}"
             data-edition="{{ (card.set_name or card.set_code or '')|lower }}"
             data-type="{{ (card.type_line or '')|lower }}">
-            <div class="collection-card-art">
+            {% set is_foil = card.finish and card.finish|lower in ['foil', 'etched'] %}
+            <div class="collection-card-art{% if is_foil %} is-foil{% endif %}">
                 {% if card.image %}
                 <img class="collection-card-img"
                      src="{{ card.image }}"
@@ -86,7 +87,7 @@
                 {% if card.count > 1 %}
                 <span class="collection-card-qty" aria-hidden="true">{{ card.count }}</span>
                 {% endif %}
-                {% if card.finish and card.finish|lower in ['foil', 'etched'] %}
+                {% if is_foil %}
                 <span class="collection-card-foil" title="{{ card.finish }}">{{ card.finish }}</span>
                 {% endif %}
             </div>

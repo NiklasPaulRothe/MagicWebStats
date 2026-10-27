@@ -2,9 +2,19 @@
    commander art with the deck name + commander overlaid, Archidekt-style. */
 
 .my-decks {
-    padding: 20px clamp(12px, 3vw, 32px) 64px;
-    max-width: 1600px;
-    margin: 0 auto;
+    /* Full viewport width (same rule as the collection view): the global
+       `main` rule is a centered flex column (align-items: center) that would
+       otherwise shrink this page to its content width. Stretch to main's full
+       width with just a side gutter and let the grid add as many columns as
+       fit — no max-width cap. */
+    align-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0;
+    padding: 20px clamp(0.5rem, 3vw, 3rem) 64px;
 }
 
 .my-decks-header {
@@ -32,9 +42,21 @@
     list-style: none;
     margin: 0;
     padding: 0;
+    width: 100%;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
     gap: clamp(14px, 2vw, 26px);
+    /* Cap at 6 decks per row: the grid can't grow past the width of six 260px
+       columns plus five gaps, so auto-fill never places a 7th column. Below
+       that width it still fits fewer (down to the 230px min). Centered within
+       the full-width container via auto side margins. */
+    --deck-max-col: 260px;
+    --deck-cols: 6;
+    max-width: calc(
+        var(--deck-max-col) * var(--deck-cols)
+        + 26px * (var(--deck-cols) - 1)
+    );
+    margin-inline: auto;
 }
 
 .deck-card {

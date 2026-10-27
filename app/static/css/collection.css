@@ -204,6 +204,111 @@
     transform: translateY(-2px);
 }
 
+/* --- Foil effect (foil / etched finishes) ------------------------------------
+   Archidekt/CardNexus-style holographic sheen: a rainbow gradient sheet laid
+   over the card art with a blend mode, plus a diagonal glare streak that sweeps
+   across on hover. Built with ::before/::after on the art wrapper, clipped to
+   the card's rounded corners. Pointer-events are disabled so clicks pass
+   through to the image/card. */
+.collection-card-art.is-foil {
+    border-radius: 4.75% / 3.5%;
+    isolation: isolate; /* keep blend modes contained to this card */
+}
+
+.collection-card-art.is-foil::before,
+.collection-card-art.is-foil::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    /* Sit above the image; the image translateY on hover is matched below so
+       the overlay stays aligned with the lifted card. */
+    z-index: 1;
+    transition: transform 0.15s ease, opacity 0.3s ease;
+}
+
+/* Rainbow holographic sheet. color-dodge gives the bright, metallic shimmer
+   seen on real foils without washing out the art at rest. */
+.collection-card-art.is-foil::before {
+    background: linear-gradient(
+        115deg,
+        rgba(255, 0, 170, 0.35) 0%,
+        rgba(255, 220, 0, 0.30) 20%,
+        rgba(0, 255, 170, 0.32) 40%,
+        rgba(0, 200, 255, 0.32) 60%,
+        rgba(170, 0, 255, 0.35) 80%,
+        rgba(255, 0, 170, 0.35) 100%
+    );
+    background-size: 300% 300%;
+    background-position: 0% 50%;
+    mix-blend-mode: color-dodge;
+    opacity: 0.35;
+    animation: foil-shift 6s linear infinite;
+}
+
+/* Diagonal glare streak. A narrow bright band that lives mostly off-card; it
+   sweeps across once on hover and fades out, leaving nothing behind (no
+   lingering rectangle). Only the moving band is ever visible because the rest
+   of the gradient is transparent and the layer's opacity is driven entirely by
+   the keyframes. */
+.collection-card-art.is-foil::after {
+    background: linear-gradient(
+        115deg,
+        transparent 42%,
+        rgba(255, 255, 255, 0.5) 49%,
+        rgba(255, 255, 255, 0.75) 50%,
+        rgba(255, 255, 255, 0.5) 51%,
+        transparent 58%
+    );
+    background-size: 220% 220%;
+    background-position: 150% 150%;
+    mix-blend-mode: screen;
+    opacity: 0;
+}
+
+/* Intensify the rainbow sheen on hover/focus. */
+.collection-card:hover .collection-card-art.is-foil::before,
+.collection-card:focus-within .collection-card-art.is-foil::before {
+    opacity: 0.55;
+    transform: translateY(-2px);
+}
+
+/* Run the glare sweep on hover/focus. opacity is animated by the keyframes
+   (fade in, pass, fade out), so no static opacity and no `forwards` — the
+   streak vanishes at the end instead of parking as a box. */
+.collection-card:hover .collection-card-art.is-foil::after,
+.collection-card:focus-within .collection-card-art.is-foil::after {
+    transform: translateY(-2px);
+    animation: foil-glare 0.85s ease-out;
+}
+
+@keyframes foil-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes foil-glare {
+    0%   { background-position: 150% 150%; opacity: 0; }
+    15%  { opacity: 0.9; }
+    85%  { opacity: 0.9; }
+    100% { background-position: -50% -50%; opacity: 0; }
+}
+
+/* Respect reduced-motion: keep a static rainbow sheen, drop the drifting
+   animation and the glare sweep entirely (no moving streak). */
+@media (prefers-reduced-motion: reduce) {
+    .collection-card-art.is-foil::before {
+        animation: none;
+    }
+    .collection-card:hover .collection-card-art.is-foil::after,
+    .collection-card:focus-within .collection-card-art.is-foil::after {
+        animation: none;
+        opacity: 0;
+    }
+}
+
 .collection-card-placeholder {
     display: flex;
     align-items: center;
