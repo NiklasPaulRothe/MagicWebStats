@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/colorstats.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/color_identity_detail.css') }}">
+{% endblock %}
+
+{% block content %}
+<main>
+    <div class="ci-detail-header">
+        <a class="ci-back-link" href="{{ url_for('stats.colorstats') }}">&larr; Back to Color Stats</a>
+        <h2 class="page-title">
+            {% for img in imgs %}
+            <img src="{{ img }}" class="ci-title-icon" alt="">
+            {% endfor %}
+            <span>{{ name }}</span>
+        </h2>
+    </div>
+
+    <div class="stats-container">
+        <!-- General stats -->
+        <div class="ci-stat-cards">
+            <div class="ci-stat-card">
+                <span class="ci-stat-value">{{ active_decks }}</span>
+                <span class="ci-stat-label">Active Decks</span>
+            </div>
+            <div class="ci-stat-card">
+                <span class="ci-stat-value">{{ archived_decks }}</span>
+                <span class="ci-stat-label">Archived Decks</span>
+            </div>
+            <div class="ci-stat-card">
+                <span class="ci-stat-value">{{ winrate }}%</span>
+                <span class="ci-stat-label">Winrate ({{ wins }}/{{ games }})</span>
+            </div>
+            <div class="ci-stat-card">
+                <span class="ci-stat-value">{{ games_share_pct }}%</span>
+                <span class="ci-stat-label">Share of Games</span>
+            </div>
+        </div>
+
+        <!-- Active decks table -->
+        <div class="stats-section">
+            <h3 class="section-title">Active Decks</h3>
+
+            <div class="table-wrapper">
+                <table id="ci-decks-table" class="modern-table">
+                    <thead>
+                        <tr>
+                            <th data-type="string" data-key="name">Deck</th>
+                            <th data-type="string" data-key="commander">Commander</th>
+                            <th data-type="string" data-key="player">Player</th>
+                            <th data-type="number" data-key="games">Games</th>
+                            <th data-type="number" data-key="wins">Wins</th>
+                            <th data-type="number" data-key="winrate">Winrate %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for deck in decks %}
+                        <tr>
+                            <td><a class="deck-name-link" href="{{ url_for('decks.deck_show', deckname=deck.name) }}">{{ deck.name }}</a></td>
+                            <td>{{ deck.commander }}</td>
+                            <td>{{ deck.player }}</td>
+                            <td>{{ deck.games }}</td>
+                            <td>{{ deck.wins }}</td>
+                            <td>{{ deck.winrate }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6">No active decks in this color identity.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Client-side sorting for the active decks table, mirroring the color
+    // stats page behaviour so columns are clickable to sort.
+    document.addEventListener('DOMContentLoaded', function () {
+        const table = document.getElementById('ci-decks-table');
+        if (!table) return;
+        const tbody = table.querySelector('tbody');
+        const headers = table.querySelectorAll('thead th');
+        let currentSort = { idx: null, asc: true };
+
+        headers.forEach((th, idx) => {
+            th.addEventListener('click', function () {
+                const type = th.getAttribute('data-type');
+                currentSort.asc = currentSort.idx === idx ? !currentSort.asc : true;
+                currentSort.idx = idx;
+
+                const rows = Array.from(tbody.querySelectorAll('tr'))
+                    .filter(r => r.children.length === headers.length && !r.querySelector('td[colspan]'));
+
+                rows.sort((a, b) => {
+                    let valA = a.children[idx].textContent.trim();
+                    let valB = b.children[idx].textContent.trim();
+                    if (type === 'number') {
+                        return currentSort.asc
+                            ? parseFloat(valA) - parseFloat(valB)
+                            : parseFloat(valB) - parseFloat(valA);
+                    }
+                    return currentSort.asc
+                        ? valA.localeCompare(valB)
+                        : valB.localeCompare(valA);
+                });
+
+                headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+                th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
+
+                rows.forEach(r => tbody.appendChild(r));
+            });
+        });
+    });
+</script>
+{% endblock %}

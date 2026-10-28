@@ -1230,3 +1230,160 @@ def build_player_profile(player_id: int) -> dict:
         # overview failed it falls back to the neutral color map in its default.
         'color_usage': overview.get('color_usage', overview_default['color_usage']),
     }
+
+
+def get_color_identity_detail(name: str) -> dict | None:
+    """Build the detail context for a single color identity page.
+
+    Computes, excluding cEDH games throughout (matching ``get_color_data``):
+      - deck counts: total decks of this color identity, split into active and
+        archived (``Deck.active``);
+      - overall performance: non-cEDH games played with a deck of this color,
+        wins (``Game.winner_id == Participant.player_id``), and winrate;
+      - games share: the percentage of all distinct non-cEDH games in which at
+        least one participant piloted a deck of this color identity;
+      - active decks: per active deck of this color, its commander (with
+        partner), owning player, non-cEDH games, wins and winrate, ordered by
+        games descending then winrate descending.
+
+    Args:
+        name: The color identity name (``ColorIdentity.name`` primary key).
+
+    Returns:
+        A context dict (see keys below) or ``None`` when the color identity
+        does not exist.
+
+        {
+          'name': str,
+          'imgs': list[str],              # color symbol image URLs
+          'total_decks': int,
+          'active_decks': int,
+          'archived_decks': int,
+          'games': int,                   # non-cEDH participations of this color
+          'wins': int,
+          'winrate': float,               # 1 decimal, 0.0 when no games
+          'games_share_pct': float,       # 1 decimal; share of all non-cEDH games
+          'decks': [                      # active decks only
+            {
+              'name': str, 'commander': str, 'player': str,
+              'games': int, 'wins': int, 'winrate': float,
+            }, ...
+          ],
+        }
+    """
+    from app.services.color_service import resolve_color_images
+
+    identity = db.session.get(ColorIdentity, name)
+    if identity is None:
+        return None
+
+    # --- Deck counts (all decks of this color, independent of games) ---
+    total_decks = db.session.scalar(
+        sa.select(func.count())
+        .select_from(Deck)
+        .where(Deck.color_identity == name)
+    ) or 0
+    active_decks_count = db.session.scalar(
+        sa.select(func.count())
+        .select_from(Deck)
+        .where(Deck.color_identity == name)
+        .where(Deck.active == True)  # noqa: E712
+    ) or 0
+    archived_decks_count = total_decks - active_decks_count
+
+    # --- Overall performance across all decks of this color (non-cEDH) ---
+    games = db.session.scalar(
+        sa.select(func.count())
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .join(Deck, Deck.id == Participant.deck_id)
+        .where(Deck.color_identity == name)
+        .where(Deck.cedh == False)  # noqa: E712
+    ) or 0
+    wins = db.session.scalar(
+        sa.select(func.count())
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .join(Deck, Deck.id == Participant.deck_id)
+        .where(Deck.color_identity == name)
+        .where(Deck.cedh == False)  # noqa: E712
+        .where(Game.winner_id == Participant.player_id)
+    ) or 0
+    winrate = round((wins / games) * 100, 1) if games else 0.0
+
+    # --- Share of all non-cEDH games this color was part of ---
+    total_games = db.session.scalar(
+        sa.select(func.count())
+        .select_from(Game)
+        .where(Game.cedh == False)  # noqa: E712
+    ) or 0
+    games_with_color = db.session.scalar(
+        sa.select(func.count(func.distinct(Participant.game_id)))
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .join(Deck, Deck.id == Participant.deck_id)
+        .where(Deck.color_identity == name)
+        .where(Deck.cedh == False)  # noqa: E712
+    ) or 0
+    games_share_pct = round((games_with_color / total_games) * 100, 1) if total_games else 0.0
+
+    # --- Active decks of this color with per-deck games/wins/winrate ---
+    deck_game_count = (
+        sa.select(func.count())
+        .select_from(Participant)
+        .where(Participant.deck_id == Deck.id)
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    deck_win_count = (
+        sa.select(func.count())
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .where(Participant.deck_id == Deck.id)
+        .where(Game.winner_id == Participant.player_id)
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    commander_label = Deck.commander + func.coalesce(" + " + Deck.partner, "")
+
+    deck_rows = db.session.execute(
+        sa.select(
+            Deck.name.label("name"),
+            commander_label.label("commander"),
+            Player.name.label("player"),
+            deck_game_count.label("games"),
+            deck_win_count.label("wins"),
+        )
+        .join(Player, Player.id == Deck.player_id)
+        .where(Deck.color_identity == name)
+        .where(Deck.active == True)  # noqa: E712
+        .order_by(deck_game_count.desc())
+    ).all()
+
+    decks = []
+    for row in deck_rows:
+        d_games = row.games or 0
+        d_wins = row.wins or 0
+        decks.append({
+            'name': row.name,
+            'commander': row.commander,
+            'player': row.player,
+            'games': d_games,
+            'wins': d_wins,
+            'winrate': round((d_wins / d_games) * 100, 1) if d_games else 0.0,
+        })
+    # Secondary sort by winrate desc (stable) for decks with equal game counts.
+    decks.sort(key=lambda d: (d['games'], d['winrate']), reverse=True)
+
+    return {
+        'name': name,
+        'imgs': resolve_color_images(name),
+        'total_decks': total_decks,
+        'active_decks': active_decks_count,
+        'archived_decks': archived_decks_count,
+        'games': games,
+        'wins': wins,
+        'winrate': winrate,
+        'games_share_pct': games_share_pct,
+        'decks': decks,
+    }

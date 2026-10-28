@@ -1,0 +1,102 @@
+/* ── Color Identity Detail Page Styles ───────────────────────────────────── */
+
+.ci-detail-header {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.ci-back-link {
+    display: inline-block;
+    margin: 20px 0 0 0;
+    color: #f4c430;
+    text-decoration: none;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    transition: color 0.2s ease;
+}
+
+.ci-back-link:hover {
+    color: #ffe08a;
+    text-decoration: underline;
+}
+
+.page-title .ci-title-icon {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* General stat cards row */
+.ci-stat-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.ci-stat-card {
+    background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+    border: 1px solid rgba(244, 196, 48, 0.2);
+    border-radius: 12px;
+    padding: 20px 15px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.ci-stat-card:hover {
+    border-color: rgba(244, 196, 48, 0.4);
+    box-shadow: 0 6px 25px rgba(244, 196, 48, 0.15);
+    transform: translateY(-2px);
+}
+
+.ci-stat-value {
+    color: #f4c430;
+    font-size: 30px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Segoe UI', 'Roboto', monospace;
+}
+
+.ci-stat-label {
+    color: #aaa;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive: collapse stat cards to 2 columns, then 1 */
+@media (max-width: 768px) {
+    .ci-stat-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .ci-stat-value {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 420px) {
+    .ci-stat-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Clickable deck name linking to its deck page */
+.deck-name-link {
+    color: antiquewhite;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.deck-name-link:hover {
+    color: #f4c430;
+    text-decoration: underline;
+}
