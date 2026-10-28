@@ -70,7 +70,8 @@
                             const imgs = Array.isArray(item.color_imgs) ? item.color_imgs : [];
                             const icons = imgs.map(src => `<img src="${src}" class="color-icon">`).join('');
                             const name = item.name || '';
-                            return `<td>${icons}<span class="color-name">${name}</span></td>`;
+                            const href = '/ColorStats/' + encodeURIComponent(name);
+                            return `<td>${icons}<a class="color-name color-name-link" href="${href}">${name}</a></td>`;
                         }
                         
                         const value = item[key];

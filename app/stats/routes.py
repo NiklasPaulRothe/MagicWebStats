@@ -15,7 +15,7 @@ from app.models import Player, Deck, Game, Participant, Card, User, AuditLog
 from app.viewmodels import ColorUsage, ColorUsagePlayer
 from app.services.audit import write_audit_log
 from app.services.game_service import resolve_player_id, resolve_deck_id
-from app.services.stats_service import get_players, get_active_decks, get_color_identities
+from app.services.stats_service import get_players, get_active_decks, get_color_identities, get_color_identity_detail
 
 logger = logging.getLogger(__name__)
 
@@ -588,6 +588,14 @@ def playerstats():
 @login_required
 def colorstats():
     return render_template('stats/colorstats.html')
+
+@bp.route('/ColorStats/<path:name>')
+@login_required
+def color_identity_detail(name):
+    detail = get_color_identity_detail(name)
+    if detail is None:
+        abort(404)
+    return render_template('stats/color_identity_detail.html', **detail)
 
 @bp.route('/DeckStats')
 @login_required

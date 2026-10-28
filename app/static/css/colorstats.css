@@ -219,3 +219,15 @@
     color: #f4c430;
     font-style: italic;
 }
+
+/* Clickable color identity name linking to its detail page */
+.color-name-link {
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.color-name-link:hover {
+    color: #f4c430;
+    text-decoration: underline;
+}
