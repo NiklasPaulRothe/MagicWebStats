@@ -322,7 +322,21 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_component (
     -- card's PRIMARY category on import (Archidekt) or its board (Moxfield).
     -- Cards that are imported but excluded (Maybeboard / "Considered" /
     -- sideboard, etc.) are stored with in_deck = FALSE for later features.
-    in_deck BOOLEAN NOT NULL DEFAULT TRUE
+    in_deck BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Owner-managed collection tracking. physical_status marks whether a real
+    -- copy of this card is in the deck ('in_deck'), it's a proxy ('proxy'), or
+    -- unmarked ('unset', default). An 'in_deck' card claims one collection copy
+    -- matching this card's printing (card_id) + physical_finish +
+    -- physical_language (condition ignored). Marking never edits the card's
+    -- printing/finish/language — those are set independently.
+    physical_status   TEXT NOT NULL DEFAULT 'unset'
+        CHECK (physical_status IN ('unset', 'in_deck', 'proxy')),
+    -- Finish/language of the physical copy matched against the collection.
+    -- Default to the most common identity ('Normal' / 'EN', matching the
+    -- collection's tokens); set from the deck source (Archidekt modifier /
+    -- Moxfield finish flags) on import.
+    physical_finish   TEXT NOT NULL DEFAULT 'Normal',
+    physical_language TEXT NOT NULL DEFAULT 'EN'
 );
 
 -- deck_overview, the printing swap, and card-usage all filter by deck_id;
@@ -545,6 +559,101 @@ LEFT JOIN magic_stats_owner.color_components cc ON cc.color_identity = d.color_i
 LEFT JOIN magic_stats_owner.colors c ON cc.color = c.name
 GROUP BY p.name
 ORDER BY COUNT(DISTINCT d.id) DESC;
+
+-- Collection availability: per (player, printing, finish, language) pool, how
+-- many copies the player owns vs. how many are claimed by deck cards marked
+-- 'in_deck', with an over_claimed flag. Finish/language are lower-cased so
+-- case variants collapse. See scripts/add_deck_component_collection_tracking.sql.
+CREATE OR REPLACE VIEW magic_stats_owner.v_player_printing_availability AS
+WITH owned AS (
+    SELECT
+        pc.player_id,
+        pc.card_id,
+        LOWER(COALESCE(pc.finish, ''))   AS finish_key,
+        LOWER(COALESCE(pc.language, '')) AS language_key,
+        SUM(pc.count)                    AS owned_count
+    FROM magic_stats_owner.player_collection pc
+    WHERE pc.card_id IS NOT NULL
+    GROUP BY pc.player_id, pc.card_id,
+             LOWER(COALESCE(pc.finish, '')), LOWER(COALESCE(pc.language, ''))
+),
+claimed AS (
+    SELECT
+        d.player_id,
+        dc.card_id,
+        LOWER(COALESCE(dc.physical_finish, ''))   AS finish_key,
+        LOWER(COALESCE(dc.physical_language, '')) AS language_key,
+        SUM(COALESCE(dc.count, 1))                AS claimed_count
+    FROM magic_stats_owner.deck_component dc
+    JOIN magic_stats_owner.decks d ON d.id = dc.deck_id
+    WHERE dc.physical_status = 'in_deck'
+      AND dc.card_id IS NOT NULL
+    GROUP BY d.player_id, dc.card_id,
+             LOWER(COALESCE(dc.physical_finish, '')), LOWER(COALESCE(dc.physical_language, ''))
+)
+SELECT
+    COALESCE(o.player_id, c.player_id)       AS player_id,
+    COALESCE(o.card_id, c.card_id)           AS card_id,
+    COALESCE(o.finish_key, c.finish_key)     AS finish_key,
+    COALESCE(o.language_key, c.language_key) AS language_key,
+    COALESCE(o.owned_count, 0)               AS owned_count,
+    COALESCE(c.claimed_count, 0)             AS claimed_count,
+    (COALESCE(c.claimed_count, 0) > COALESCE(o.owned_count, 0)) AS over_claimed
+FROM owned o
+FULL OUTER JOIN claimed c
+    ON o.player_id = c.player_id
+   AND o.card_id = c.card_id
+   AND o.finish_key = c.finish_key
+   AND o.language_key = c.language_key;
+
+-- Resolved collection status per deck_component (consumed by the deck overview
+-- and collection pages). 'available'/'owned_no_copy' for the exact printing use
+-- the exact printing+finish+language pool; when the exact printing isn't owned
+-- the 'owned_other'/'owned_no_copy' fallback uses ORACLE-level totals (summed
+-- across all printings) because availability of a physical copy doesn't depend
+-- on printing. See the migration script for the full status list.
+CREATE OR REPLACE VIEW magic_stats_owner.v_deck_card_collection_status AS
+WITH oracle_availability AS (
+    SELECT
+        av.player_id,
+        c.oracle_id,
+        SUM(av.owned_count)   AS owned_count,
+        SUM(av.claimed_count) AS claimed_count
+    FROM magic_stats_owner.v_player_printing_availability av
+    JOIN magic_stats_owner.cards c ON c.id = av.card_id
+    GROUP BY av.player_id, c.oracle_id
+)
+SELECT
+    dc.id            AS deck_component_id,
+    dc.deck_id       AS deck_id,
+    d.player_id      AS player_id,
+    dc.card_id       AS card_id,
+    dc.physical_status,
+    dc.physical_finish,
+    dc.physical_language,
+    COALESCE(av.owned_count, 0)   AS owned_count,
+    COALESCE(av.claimed_count, 0) AS claimed_count,
+    CASE
+        WHEN dc.physical_status = 'in_deck' AND COALESCE(av.over_claimed, TRUE) THEN 'in_deck_faulty'
+        WHEN dc.physical_status = 'in_deck' THEN 'in_deck_ok'
+        WHEN dc.physical_status = 'proxy' THEN 'proxy'
+        WHEN COALESCE(av.owned_count, 0) > COALESCE(av.claimed_count, 0) THEN 'available'
+        WHEN COALESCE(av.owned_count, 0) > 0 THEN 'owned_no_copy'
+        WHEN COALESCE(oa.owned_count, 0) > COALESCE(oa.claimed_count, 0) THEN 'owned_other'
+        WHEN COALESCE(oa.owned_count, 0) > 0 THEN 'owned_no_copy'
+        ELSE 'not_owned'
+    END AS status
+FROM magic_stats_owner.deck_component dc
+JOIN magic_stats_owner.decks d ON d.id = dc.deck_id
+LEFT JOIN magic_stats_owner.cards dcard ON dcard.id = dc.card_id
+LEFT JOIN magic_stats_owner.v_player_printing_availability av
+       ON av.player_id = d.player_id
+      AND av.card_id = dc.card_id
+      AND av.finish_key = LOWER(dc.physical_finish)
+      AND av.language_key = LOWER(dc.physical_language)
+LEFT JOIN oracle_availability oa
+       ON oa.player_id = d.player_id
+      AND oa.oracle_id = dcard.oracle_id;
 
 -- =============================================================================
 -- End of full build script.

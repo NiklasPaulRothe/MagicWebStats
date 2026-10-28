@@ -435,3 +435,312 @@ def classify_deck_ownership(player_id: int, card_ids: Iterable[str]) -> dict[str
         else:
             result[cid] = OWNERSHIP_NONE
     return result
+
+
+# =============================================================================
+# Collection tracking: physical/proxy marking and availability status.
+# =============================================================================
+#
+# These mirror the SQL views v_player_printing_availability and
+# v_deck_card_collection_status (see scripts/add_deck_component_collection_
+# tracking.sql) but are computed in Python so the deck overview and collection
+# pages can render the status with a couple of bulk queries, and so the logic
+# is testable without Postgres. The matching rule is EXACT: a deck card claims
+# one collection copy of the same printing (card_id) + finish + language
+# (case-insensitive); condition is ignored.
+
+# Per-deck-card status values (deck overview).
+DECK_STATUS_IN_DECK_OK = "in_deck_ok"
+DECK_STATUS_IN_DECK_FAULTY = "in_deck_faulty"
+DECK_STATUS_PROXY = "proxy"
+DECK_STATUS_AVAILABLE = "available"
+DECK_STATUS_OWNED_NO_COPY = "owned_no_copy"
+DECK_STATUS_OWNED_OTHER = "owned_other"
+DECK_STATUS_NOT_OWNED = "not_owned"
+
+# Per-collection-entry status values (collection page).
+COLL_STATUS_IN_DECK = "owned_in_deck"
+COLL_STATUS_SPARE = "owned_spare_available"
+COLL_STATUS_OTHER_PRINTING = "owned_different_printing_available"
+COLL_STATUS_NO_COPY = "owned_no_copy_available"
+COLL_STATUS_NOT_OWNED = "not_owned"
+
+VALID_PHYSICAL_STATUSES = ("unset", "in_deck", "proxy")
+
+
+def _norm(value: str | None) -> str:
+    """Normalize a finish/language token for pool matching (lower, stripped)."""
+    return (value or "").strip().lower()
+
+
+def _pool_key(card_id: str | None, finish: str | None, language: str | None) -> tuple:
+    return (card_id, _norm(finish), _norm(language))
+
+
+def _player_owned_pools(player_id: int) -> dict[tuple, int]:
+    """Owned copies per (card_id, finish_key, language_key) for a player.
+
+    Only resolved rows (card_id not NULL) participate — an unresolved printing
+    can't be matched to a deck card's printing.
+    """
+    rows = db.session.execute(
+        sa.select(
+            PlayerCollectionCard.card_id,
+            PlayerCollectionCard.finish,
+            PlayerCollectionCard.language,
+            PlayerCollectionCard.count,
+        ).where(
+            PlayerCollectionCard.player_id == player_id,
+            PlayerCollectionCard.card_id.is_not(None),
+        )
+    ).all()
+    owned: dict[tuple, int] = {}
+    for card_id, finish, language, count in rows:
+        key = _pool_key(card_id, finish, language)
+        owned[key] = owned.get(key, 0) + (count or 0)
+    return owned
+
+
+def _player_claimed_pools(player_id: int) -> dict[tuple, int]:
+    """Copies claimed 'in_deck' per pool across all of a player's decks."""
+    from app.models import Deck, DeckComponent
+
+    rows = db.session.execute(
+        sa.select(
+            DeckComponent.card_id,
+            DeckComponent.physical_finish,
+            DeckComponent.physical_language,
+            DeckComponent.count,
+        )
+        .join(Deck, Deck.id == DeckComponent.deck_id)
+        .where(
+            Deck.player_id == player_id,
+            DeckComponent.physical_status == "in_deck",
+            DeckComponent.card_id.is_not(None),
+        )
+    ).all()
+    claimed: dict[tuple, int] = {}
+    for card_id, finish, language, count in rows:
+        key = _pool_key(card_id, finish, language)
+        claimed[key] = claimed.get(key, 0) + (count or 1)
+    return claimed
+
+
+def get_collection_finish_language_options(player_id: int) -> dict[str, list[str]]:
+    """Distinct finish and language tokens in a player's collection.
+
+    Used to populate the deck-overview collection editor's dropdowns with the
+    exact tokens the collection stores (so an edit always targets a real pool).
+    The common defaults ('Normal' / 'EN') are always included and placed first,
+    even if the collection is empty, so a fresh account still has sane choices.
+    """
+    finish_rows = db.session.scalars(
+        sa.select(PlayerCollectionCard.finish)
+        .where(PlayerCollectionCard.player_id == player_id)
+        .distinct()
+    ).all()
+    language_rows = db.session.scalars(
+        sa.select(PlayerCollectionCard.language)
+        .where(PlayerCollectionCard.player_id == player_id)
+        .distinct()
+    ).all()
+
+    def _ordered(values: Iterable[str], default: str) -> list[str]:
+        seen: list[str] = [default]
+        for v in sorted(x for x in values if x and x != default):
+            if v not in seen:
+                seen.append(v)
+        return seen
+
+    return {
+        "finishes": _ordered(finish_rows, "Normal"),
+        "languages": _ordered(language_rows, "EN"),
+    }
+
+
+def compute_deck_collection_status(player_id: int, deck_id: int) -> dict[int, dict]:
+    """Resolve each in-deck component's collection status for a deck.
+
+    Returns a mapping deck_component_id -> {
+        'status': one of DECK_STATUS_*,
+        'physical_status': 'unset'|'in_deck'|'proxy',
+        'finish': str|None, 'language': str|None,
+        'owned': int, 'claimed': int,
+    }. Mirrors v_deck_card_collection_status.
+    """
+    from app.models import Deck, DeckComponent
+
+    components = db.session.scalars(
+        sa.select(DeckComponent).where(
+            DeckComponent.deck_id == deck_id,
+            DeckComponent.in_deck.is_(True),
+        )
+    ).all()
+    if not components:
+        return {}
+
+    owned = _player_owned_pools(player_id)
+    claimed = _player_claimed_pools(player_id)
+
+    # Oracle-level totals (summed across ALL printings/finishes/languages of a
+    # card). Used for the fallback when the exact printing isn't owned: whether
+    # a *free physical copy of the card* exists at all — printing doesn't matter
+    # for that question. We map every owned/claimed/deck printing to its oracle.
+    all_card_ids = (
+        {k[0] for k in owned} | {k[0] for k in claimed}
+        | {c.card_id for c in components if c.card_id}
+    )
+    oracle_by_card: dict[str, str] = {}
+    if all_card_ids:
+        rows = db.session.execute(
+            sa.select(Card.id, Card.oracle_id).where(Card.id.in_(all_card_ids))
+        ).all()
+        oracle_by_card = {cid: oid for cid, oid in rows}
+
+    owned_by_oracle: dict[str, int] = {}
+    for (card_id, _f, _l), n in owned.items():
+        oid = oracle_by_card.get(card_id)
+        if oid:
+            owned_by_oracle[oid] = owned_by_oracle.get(oid, 0) + n
+    claimed_by_oracle: dict[str, int] = {}
+    for (card_id, _f, _l), n in claimed.items():
+        oid = oracle_by_card.get(card_id)
+        if oid:
+            claimed_by_oracle[oid] = claimed_by_oracle.get(oid, 0) + n
+
+    result: dict[int, dict] = {}
+    for comp in components:
+        # Match on the exact pool (printing + finish + language). Finish and
+        # language always have a concrete value (default 'Normal' / 'EN', set
+        # from the deck source on import), so there's no NULL-vs-real mismatch.
+        key = _pool_key(comp.card_id, comp.physical_finish, comp.physical_language)
+        owned_n = owned.get(key, 0)
+        claimed_n = claimed.get(key, 0)
+
+        oid = oracle_by_card.get(comp.card_id)
+        oracle_owned = owned_by_oracle.get(oid, 0) if oid else 0
+        oracle_claimed = claimed_by_oracle.get(oid, 0) if oid else 0
+
+        if comp.physical_status == "in_deck":
+            status = (
+                DECK_STATUS_IN_DECK_OK if claimed_n <= owned_n and owned_n > 0
+                else DECK_STATUS_IN_DECK_FAULTY
+            )
+        elif comp.physical_status == "proxy":
+            status = DECK_STATUS_PROXY
+        else:  # unset
+            if owned_n > claimed_n:
+                # A free copy of this exact printing+finish+language exists.
+                status = DECK_STATUS_AVAILABLE
+            elif owned_n > 0:
+                # Own this exact printing, but all its copies are allocated.
+                status = DECK_STATUS_OWNED_NO_COPY
+            elif oracle_owned > oracle_claimed:
+                # Don't own this exact printing, but own the card in another
+                # printing with a free copy -> owned (other printing).
+                status = DECK_STATUS_OWNED_OTHER
+            elif oracle_owned > 0:
+                # Own the card (in some printing) but every copy across all
+                # printings is allocated to a deck -> no free copy. Printing
+                # doesn't matter here.
+                status = DECK_STATUS_OWNED_NO_COPY
+            else:
+                status = DECK_STATUS_NOT_OWNED
+
+        result[comp.id] = {
+            "status": status,
+            "physical_status": comp.physical_status,
+            "finish": comp.physical_finish,
+            "language": comp.physical_language,
+            "owned": owned_n,
+            "claimed": claimed_n,
+        }
+    return result
+
+
+def update_deck_component_collection(
+    player_id: int,
+    deck_id: int,
+    component_id: int,
+    *,
+    physical_status: str | None = None,
+    card_id: str | None = None,
+    finish: str | None = None,
+    language: str | None = None,
+    set_card_id: bool = False,
+) -> "DeckComponent":
+    """Owner-gated mutation of a deck component's collection fields.
+
+    Only updates fields that are provided. ``physical_status`` must be one of
+    VALID_PHYSICAL_STATUSES. ``card_id`` (the printing) is only changed when
+    ``set_card_id`` is True (so callers can distinguish "leave printing alone"
+    from "set printing to None"). Marking never auto-edits finish/language —
+    the caller passes them explicitly. Does not commit.
+
+    Raises ValueError on an invalid status or if the component doesn't belong
+    to the deck; raises PermissionError if the deck isn't owned by player_id;
+    raises LookupError if the deck or component is missing.
+    """
+    from app.models import Deck, DeckComponent
+
+    deck = db.session.get(Deck, deck_id)
+    if deck is None:
+        raise LookupError("deck")
+    if deck.player_id != player_id:
+        raise PermissionError("not owner")
+
+    comp = db.session.get(DeckComponent, component_id)
+    if comp is None or comp.deck_id != deck_id:
+        raise LookupError("component")
+
+    if physical_status is not None:
+        if physical_status not in VALID_PHYSICAL_STATUSES:
+            raise ValueError("invalid physical_status")
+        comp.physical_status = physical_status
+    if set_card_id:
+        comp.card_id = card_id
+    if finish is not None:
+        comp.physical_finish = finish or None
+    if language is not None:
+        comp.physical_language = language or None
+
+    return comp
+
+
+def get_collection_statuses(player_id: int) -> dict[tuple, str]:
+    """Five-state status per collection pool for the collection page.
+
+    Returns a mapping (card_id, finish_key, language_key) -> COLL_STATUS_*:
+      * owned_in_deck            — some copy of this pool is claimed in a deck
+      * owned_spare_available    — owned copies exceed those claimed in decks
+      * owned_no_copy_available  — owned but every copy is claimed in decks
+      * owned_different_printing_available — (pool has 0 owned here but the
+        player owns another printing of the same card with a spare) — included
+        for completeness; a collection *entry* always has owned>0 for its own
+        pool, so this is computed at lookup time by the caller when needed.
+      * not_owned                — no owned copies (not used for existing
+        entries; included for symmetry).
+
+    Because every real collection entry owns >=1 copy of its own pool, each
+    entry resolves to one of: owned_in_deck, owned_spare_available,
+    owned_no_copy_available. The "different printing" case is relevant only
+    when asking about a card the player doesn't own in that exact pool, so the
+    caller (deck view) uses compute_deck_collection_status for that; here we
+    classify the player's own entries.
+    """
+    owned = _player_owned_pools(player_id)
+    claimed = _player_claimed_pools(player_id)
+
+    result: dict[tuple, str] = {}
+    for key, owned_n in owned.items():
+        claimed_n = claimed.get(key, 0)
+        if claimed_n <= 0:
+            result[key] = COLL_STATUS_SPARE
+        elif owned_n > claimed_n:
+            # Some claimed, some spare — still has a free copy.
+            result[key] = COLL_STATUS_SPARE
+        elif owned_n == claimed_n:
+            result[key] = COLL_STATUS_IN_DECK
+        else:  # claimed > owned: over-claimed, no free copy
+            result[key] = COLL_STATUS_NO_COPY
+    return result

@@ -5,46 +5,14 @@
 {% endblock %}
 
 {% block content %}
-{% macro stack_board(groups) %}
-    <div class="stack-board">
-        {% for group in groups %}
-        <section class="stack-column{% if group.label == 'Commander' %} stack-column-commander{% endif %}"
-                 aria-label="{{ group.label }}">
-            <h2 class="stack-heading">
-                {{ group.label }}
-                <span class="stack-count">{{ group.card_count }}</span>
-            </h2>
-            <ul class="card-stack" role="list">
-                {% for card in group.cards %}
-                {# Each distinct card is shown once; multiples get a quantity
-                   badge on the visible part of the card. #}
-                <li class="stack-card">
-                    <button type="button" class="stack-card-btn"
-                            data-card-id="{{ card.id }}"
-                            aria-label="View {{ card.name }}{% if card.count > 1 %} (x{{ card.count }}){% endif %}">
-                    {% if card.image %}
-                    <img class="stack-card-img"
-                         src="{{ card.image }}"
-                         alt="{{ card.name }}"
-                         loading="lazy">
-                    {% else %}
-                    <div class="stack-card-img stack-card-placeholder">
-                        <span>{{ card.name }}</span>
-                    </div>
-                    {% endif %}
-                    {% if card.count > 1 %}
-                    <span class="stack-card-qty" aria-hidden="true">{{ card.count }}</span>
-                    {% endif %}
-                    </button>
-                </li>
-                {% endfor %}
-            </ul>
-        </section>
-        {% endfor %}
-    </div>
-{% endmacro %}
+{# Board + marker macros live in a shared partial so the collection-board
+   fragment endpoint renders them identically. #}
+{% import "decks/_stack_board.html" as sb %}
+{% set cc_titles = sb.cc_titles %}
 
-<main class="deck-overview" id="main-content">
+<main class="deck-overview" id="main-content"
+      data-deck-id="{{ deck_id }}"
+      data-is-owner="{{ '1' if is_owner else '' }}">
     <header class="deck-overview-header">
         <h1>{{ deckname }}</h1>
         <p class="deck-overview-sub">
@@ -68,14 +36,19 @@
 
     {% if card_groups %}
     <div class="deck-view" data-view="type">
-        {{ stack_board(card_groups) }}
+        {{ sb.stack_board(card_groups, is_owner, cc_titles) }}
     </div>
     <div class="deck-view" data-view="category" hidden>
-        {{ stack_board(category_card_groups) }}
+        {{ sb.stack_board(category_card_groups, is_owner, cc_titles) }}
     </div>
     {% if ownership_card_groups %}
+    {# The collection board is swapped in place after a status/printing edit
+       (see collection_marker.js), so wrap it in a stable container the JS can
+       replace wholesale. #}
     <div class="deck-view" data-view="collection" hidden>
-        {{ stack_board(ownership_card_groups) }}
+        <div id="collection-board-wrap">
+            {{ sb.stack_board(ownership_card_groups, is_owner, cc_titles) }}
+        </div>
     </div>
     {% endif %}
     {% else %}
@@ -132,7 +105,19 @@
     if (!buttons.length || !views.length) {
         return;
     }
-    function show(view) {
+    // Persist the active view per deck so a reload (e.g. after a collection
+    // edit) returns to the same board instead of resetting to "by type".
+    var main = document.getElementById('main-content');
+    var deckId = main ? main.getAttribute('data-deck-id') : '';
+    var storeKey = 'deckView:' + deckId;
+
+    function viewExists(view) {
+        return Array.prototype.some.call(buttons, function (b) {
+            return b.getAttribute('data-view') === view;
+        });
+    }
+
+    function show(view, persist) {
         views.forEach(function (v) {
             v.hidden = (v.getAttribute('data-view') !== view);
         });
@@ -141,14 +126,66 @@
             b.classList.toggle('is-active', active);
             b.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
+        if (persist !== false) {
+            try { sessionStorage.setItem(storeKey, view); } catch (e) { /* noop */ }
+        }
     }
     buttons.forEach(function (b) {
         b.addEventListener('click', function () {
             show(b.getAttribute('data-view'));
         });
     });
+
+    // Restore the saved view on load (if that board still exists).
+    var saved = null;
+    try { saved = sessionStorage.getItem(storeKey); } catch (e) { /* noop */ }
+    if (saved && viewExists(saved)) {
+        show(saved, false);
+    }
 })();
 </script>
 
+{% if is_owner %}
+{# Owner-only editor popover for a card's collection marker. Positioned next to
+   the clicked marker by JS. Finish and language are dropdowns populated from
+   the exact tokens present in the owner's collection, so an edit always
+   targets a real collection pool. The printing picker reuses the card modal's
+   existing flow. #}
+<div class="cc-editor" id="cc-editor" hidden role="dialog" aria-label="Edit collection status">
+    <div class="cc-editor-row">
+        <label class="cc-editor-label">Status</label>
+        <div class="cc-editor-status" role="group">
+            <button type="button" class="cc-status-btn" data-value="unset">Unset</button>
+            <button type="button" class="cc-status-btn" data-value="in_deck">In deck</button>
+            <button type="button" class="cc-status-btn" data-value="proxy">Proxy</button>
+        </div>
+    </div>
+    <div class="cc-editor-row">
+        <label class="cc-editor-label" for="cc-finish">Finish</label>
+        <select class="cc-editor-input" id="cc-finish">
+            {% for f in finish_options %}
+            <option value="{{ f }}">{{ f }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="cc-editor-row">
+        <label class="cc-editor-label" for="cc-language">Language</label>
+        <select class="cc-editor-input" id="cc-language">
+            {% for l in language_options %}
+            <option value="{{ l }}">{{ l }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <p class="cc-editor-note" id="cc-editor-note" hidden></p>
+    <div class="cc-editor-actions">
+        <button type="button" class="btn btn-secondary" id="cc-editor-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cc-editor-save">Save</button>
+    </div>
+</div>
+{% endif %}
+
 <script src="{{ url_for('static', filename='js/card_modal.js') }}" defer></script>
+{% if is_owner %}
+<script src="{{ url_for('static', filename='js/collection_marker.js') }}" defer></script>
+{% endif %}
 {% endblock %}

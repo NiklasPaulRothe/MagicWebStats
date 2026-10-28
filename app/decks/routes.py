@@ -31,6 +31,7 @@ from app.services.stats_service import compute_participant_averages, compute_dec
 # - dearchive: HTML form POST (CSRFProtect validates hidden token)
 # - create_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - move_deck_to_folder: JSON API (CSRF via X-CSRFToken header from JS)
+# - set_component_collection: JSON API (CSRF via X-CSRFToken header from JS)
 # No exemptions are needed.
 # ---
 
@@ -531,6 +532,104 @@ def _classify_type(type_line):
     return _OTHER_GROUP
 
 
+# "By collection" group headings and their fixed display order. Shared by the
+# full overview and the collection-board fragment endpoint so both render the
+# same grouping.
+_COLLECTION_LABELS = {
+    'in_deck_ok': 'In deck',
+    'in_deck_faulty': 'In deck (not enough copies)',
+    'proxy': 'Proxy',
+    'available': 'Available',
+    'owned_no_copy': 'Owned (no free copy)',
+    'owned_other': 'Owned (other printing)',
+    'not_owned': 'Not owned',
+}
+_COLLECTION_ORDER = [
+    'in_deck_ok', 'in_deck_faulty', 'available', 'owned_no_copy',
+    'owned_other', 'proxy', 'not_owned',
+]
+
+
+def _collection_entry(comp, card, deck):
+    """Build the minimal card entry dict the collection board renders."""
+    image_uri = None
+    if card:
+        front_face = next((f for f in card.faces if f.face_index == 0), None)
+        if front_face and front_face.image_uri:
+            image_uri = front_face.image_uri
+    card_name = comp.name or (card.name if card else 'Unknown')
+    # Keep commander art in sync with the deck stats page choice.
+    if deck.image_uri:
+        keys = _name_keys(card_name) | (_name_keys(card.name) if card else set())
+        cmdr_keys = _name_keys(deck.commander) | _name_keys(deck.partner)
+        if keys & cmdr_keys:
+            image_uri = deck.image_uri
+    return {
+        'id': comp.card_id,
+        'component_id': comp.id,
+        'name': card_name,
+        'image': image_uri,
+        'count': comp.count or 1,
+        'physical_status': comp.physical_status,
+        'physical_finish': comp.physical_finish,
+        'physical_language': comp.physical_language,
+        'collection_status': None,
+    }
+
+
+def build_collection_card_groups(deck, viewer_player_id):
+    """Build the "By collection" board groups for a deck and viewer.
+
+    Returns a list of group dicts ({label, status, cards, card_count}) in the
+    fixed status order, or None when no viewer player is linked. This is the
+    single source of truth for the collection grouping — used by both the full
+    overview and the fragment endpoint so a swapped-in board is identical to a
+    freshly loaded one.
+    """
+    if viewer_player_id is None:
+        return None
+
+    from app.services.collection_service import compute_deck_collection_status
+
+    components = db.session.scalars(
+        sa.select(models.DeckComponent).where(
+            models.DeckComponent.deck_id == deck.id,
+            models.DeckComponent.in_deck.is_(True),
+        )
+    ).all()
+    card_ids = [c.card_id for c in components if c.card_id]
+    cards_by_id = {}
+    if card_ids:
+        cards_by_id = {
+            c.id: c for c in db.session.scalars(
+                sa.select(models.Card).where(models.Card.id.in_(card_ids))
+            ).all()
+        }
+
+    statuses = compute_deck_collection_status(viewer_player_id, deck.id)
+
+    coll_groups = defaultdict(list)
+    for comp in components:
+        entry = _collection_entry(comp, cards_by_id.get(comp.card_id), deck)
+        info = statuses.get(comp.id)
+        entry['collection_status'] = info['status'] if info else 'not_owned'
+        coll_groups[entry['collection_status']].append(entry)
+
+    groups = []
+    for key in _COLLECTION_ORDER:
+        cards = coll_groups.get(key)
+        if not cards:
+            continue
+        cards = sorted(cards, key=lambda c: c['name'].lower())
+        groups.append({
+            'label': _COLLECTION_LABELS[key],
+            'status': key,
+            'cards': cards,
+            'card_count': sum(c['count'] for c in cards),
+        })
+    return groups
+
+
 @bp.route('/overview/<int:deck_id>', methods=['GET'], strict_slashes=False)
 def deck_overview(deck_id):
     """Public, link-only overview of a deck's cards as type-grouped stacks."""
@@ -595,10 +694,16 @@ def deck_overview(deck_id):
 
         entry = {
             'id': comp.card_id,
+            'component_id': comp.id,
             'name': card_name,
             'image': image_uri,
             'count': comp.count or 1,
             'type_line': type_line or '',
+            'physical_status': comp.physical_status,
+            'physical_finish': comp.physical_finish,
+            'physical_language': comp.physical_language,
+            # Filled in below for an owner viewer; None otherwise.
+            'collection_status': None,
         }
         all_entries.append(entry)
 
@@ -651,41 +756,40 @@ def deck_overview(deck_id):
 
     total_cards = sum(g['card_count'] for g in card_groups)
 
-    # Ownership (collection) view: group every deck card by whether the viewing
-    # player owns the exact printing, a different printing, or none. Only built
-    # for a logged-in viewer whose account is linked to a player; otherwise the
-    # view is omitted (the template hides the toggle).
+    # Collection tracking: for a logged-in viewer linked to a player, resolve
+    # each in-deck card's collection status (in_deck_ok / in_deck_faulty /
+    # proxy / available / owned_no_copy / owned_other / not_owned) and attach it
+    # to the entries (which are shared across all groupings). Only the deck's
+    # OWNER sees the editable marker; any linked viewer sees their own status.
     ownership_card_groups = None
     viewer_player_id = getattr(current_user, 'player_id', None) if current_user.is_authenticated else None
+    is_owner = viewer_player_id is not None and viewer_player_id == deck.player_id
+    finish_options = []
+    language_options = []
     if viewer_player_id is not None:
-        from app.services.collection_service import (
-            classify_deck_ownership,
-            OWNERSHIP_EXACT, OWNERSHIP_OTHER, OWNERSHIP_NONE,
-        )
-        ownership = classify_deck_ownership(
-            viewer_player_id, [e['id'] for e in all_entries if e['id']]
-        )
-        ownership_groups = defaultdict(list)
+        from app.services.collection_service import compute_deck_collection_status
+
+        # Attach status to the shared entries so the type/category boards' own
+        # markers show it too.
+        statuses = compute_deck_collection_status(viewer_player_id, deck.id)
         for entry in all_entries:
-            # Cards with no resolved printing (id is None) can't be matched to a
-            # collection entry, so they count as not owned.
-            label = ownership.get(entry['id'], OWNERSHIP_NONE)
-            ownership_groups[label].append(entry)
-        _OWNERSHIP_LABELS = {
-            OWNERSHIP_EXACT: 'Owned (this printing)',
-            OWNERSHIP_OTHER: 'Owned (other printing)',
-            OWNERSHIP_NONE: 'Not owned',
-        }
-        # Relabel keys to human-readable headings, preserving the fixed order.
-        human = defaultdict(list)
-        for key in (OWNERSHIP_EXACT, OWNERSHIP_OTHER, OWNERSHIP_NONE):
-            if ownership_groups.get(key):
-                human[_OWNERSHIP_LABELS[key]] = ownership_groups[key]
-        ownership_card_groups = _emit(human, [
-            _OWNERSHIP_LABELS[OWNERSHIP_EXACT],
-            _OWNERSHIP_LABELS[OWNERSHIP_OTHER],
-            _OWNERSHIP_LABELS[OWNERSHIP_NONE],
-        ])
+            info = statuses.get(entry['component_id'])
+            entry['collection_status'] = info['status'] if info else 'not_owned'
+
+        # The "By collection" board comes from the shared builder (same code the
+        # fragment endpoint uses) so a freshly loaded board and a swapped-in one
+        # are identical.
+        ownership_card_groups = build_collection_card_groups(deck, viewer_player_id)
+
+        # Dropdown options for the owner's collection editor: the exact finish
+        # and language tokens present in their collection (plus Normal/EN).
+        if is_owner:
+            from app.services.collection_service import (
+                get_collection_finish_language_options,
+            )
+            opts = get_collection_finish_language_options(viewer_player_id)
+            finish_options = opts['finishes']
+            language_options = opts['languages']
 
     return render_template(
         'decks/overview.html',
@@ -696,6 +800,9 @@ def deck_overview(deck_id):
         category_card_groups=category_card_groups,
         ownership_card_groups=ownership_card_groups,
         total_cards=total_cards,
+        is_owner=is_owner,
+        finish_options=finish_options,
+        language_options=language_options,
     )
 
 
@@ -849,6 +956,14 @@ def set_card_printing(deck_id, card_id):
     component.card_id = new_card_id
     db.session.commit()
 
+    # Changing the printing changes the card's collection pool, so recompute
+    # its status and return it (plus the deck-wide faulty count) so the deck
+    # overview's collection marker/grouping can refresh in place.
+    from app.services.collection_service import compute_deck_collection_status
+    statuses = compute_deck_collection_status(user.player_id, deck.id)
+    this = statuses.get(component.id, {})
+    faulty_count = sum(1 for s in statuses.values() if s['status'] == 'in_deck_faulty')
+
     return jsonify({
         'ok': True,
         'deck_id': deck.id,
@@ -856,7 +971,108 @@ def set_card_printing(deck_id, card_id):
         'image': _front_image(new_card),
         'set_code': new_card.set_code,
         'set_name': new_card.set_name,
+        'component_id': component.id,
+        'collection_status': this.get('status'),
+        'physical_status': this.get('physical_status'),
+        'finish': this.get('finish'),
+        'language': this.get('language'),
+        'deck_faulty_count': faulty_count,
     })
+
+
+# --- Collection tracking: set a deck card's physical marker (in_deck / proxy /
+# unset) and optionally its printing / finish / language, identified by the
+# component id (so two copies of the same card in a deck are distinct). Owner-
+# only. CSRF via X-CSRFToken header. Returns the recomputed status for the
+# component plus the deck's faulty count so the UI can refresh in place. ---
+@bp.route('/<int:deck_id>/component/<int:component_id>/collection',
+          methods=['POST'], strict_slashes=False)
+@login_required
+def set_component_collection(deck_id, component_id):
+    from flask import request, jsonify
+    from app.services.collection_service import (
+        update_deck_component_collection,
+        compute_deck_collection_status,
+        VALID_PHYSICAL_STATUSES,
+    )
+
+    player_id = getattr(current_user, 'player_id', None)
+    payload = request.get_json(silent=True) or {}
+
+    physical_status = payload.get('physical_status')
+    if physical_status is not None and physical_status not in VALID_PHYSICAL_STATUSES:
+        return jsonify({'ok': False, 'message': 'Invalid status.'}), 400
+
+    # 'printing_id' present (even null) means "set the printing"; absent means
+    # "leave it". Validate a provided printing is the same card (same oracle).
+    set_card_id = 'printing_id' in payload
+    new_card_id = (payload.get('printing_id') or None)
+
+    finish = payload.get('finish')      # None -> leave unchanged
+    language = payload.get('language')  # None -> leave unchanged
+
+    try:
+        if set_card_id and new_card_id is not None:
+            comp = db.session.get(models.DeckComponent, component_id)
+            new_card = db.session.get(models.Card, new_card_id)
+            if new_card is None:
+                return jsonify({'ok': False, 'message': 'Chosen printing not found.'}), 404
+            old_card = db.session.get(models.Card, comp.card_id) if comp and comp.card_id else None
+            if old_card is not None and new_card.oracle_id != old_card.oracle_id:
+                return jsonify({'ok': False, 'message': 'Printing does not match the card.'}), 400
+
+        update_deck_component_collection(
+            player_id, deck_id, component_id,
+            physical_status=physical_status,
+            card_id=new_card_id,
+            finish=finish,
+            language=language,
+            set_card_id=set_card_id,
+        )
+    except PermissionError:
+        return jsonify({'ok': False, 'message': 'Nicht berechtigt.'}), 403
+    except LookupError:
+        return jsonify({'ok': False, 'message': 'Not found.'}), 404
+    except ValueError as e:
+        return jsonify({'ok': False, 'message': str(e)}), 400
+
+    db.session.commit()
+
+    # Recompute statuses for the whole deck (cheap: a couple of bulk queries)
+    # so the client gets this card's new state plus the deck-wide faulty count.
+    statuses = compute_deck_collection_status(player_id, deck_id)
+    this = statuses.get(component_id, {})
+    faulty_count = sum(1 for s in statuses.values() if s['status'] == 'in_deck_faulty')
+
+    return jsonify({
+        'ok': True,
+        'component_id': component_id,
+        'status': this.get('status'),
+        'physical_status': this.get('physical_status'),
+        'finish': this.get('finish'),
+        'language': this.get('language'),
+        'owned': this.get('owned'),
+        'claimed': this.get('claimed'),
+        'deck_faulty_count': faulty_count,
+    })
+
+
+# --- Collection board fragment: the server-rendered "By collection" board for
+# a deck, used by the deck overview to swap the board in place after a status
+# or printing change (no full page reload). Rendered from the SAME shared macro
+# as the full page, so the swapped-in board is identical to a fresh load. ---
+@bp.route('/<int:deck_id>/collection-board', methods=['GET'], strict_slashes=False)
+@login_required
+def collection_board_fragment(deck_id):
+    deck = db.get_or_404(models.Deck, deck_id)
+    viewer_player_id = getattr(current_user, 'player_id', None)
+    is_owner = viewer_player_id is not None and viewer_player_id == deck.player_id
+    groups = build_collection_card_groups(deck, viewer_player_id)
+    return render_template(
+        'decks/_collection_board_fragment.html',
+        ownership_card_groups=groups or [],
+        is_owner=is_owner,
+    )
 
 
 # --- "My Decks" gallery: a responsive grid of deck cards (name + commander

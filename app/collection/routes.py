@@ -9,6 +9,8 @@ from app.collection import bp
 from app.services.collection_service import (
     import_player_collection,
     get_player_collection,
+    get_collection_statuses,
+    COLL_STATUS_SPARE,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,20 @@ def collection():
         total_cards = sum(c['count'] for c in cards)
         priced = [c['price'] * c['count'] for c in cards if c['price'] is not None]
         total_value = sum(priced) if priced else None
+
+        # Attach a per-entry collection status (owned_in_deck /
+        # owned_spare_available / owned_no_copy_available). Each entry owns >=1
+        # copy of its own pool, so those are the three possible outcomes; an
+        # unresolved entry (card_id is None) can't be matched to decks and is
+        # treated as spare (it isn't claimed anywhere).
+        statuses = get_collection_statuses(player_id)
+        for c in cards:
+            key = (
+                c['card_id'],
+                (c['finish'] or '').strip().lower(),
+                (c['language'] or '').strip().lower(),
+            )
+            c['status'] = statuses.get(key, COLL_STATUS_SPARE) if c['card_id'] else COLL_STATUS_SPARE
 
     return render_template(
         'collection/collection.html',

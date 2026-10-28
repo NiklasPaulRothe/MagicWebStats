@@ -409,6 +409,33 @@ class DeckComponent(db.Model):
     # excluded cards like Maybeboard / "Considered" / sideboard).
     in_deck: so.Mapped[bool] = so.mapped_column(sa.Boolean, nullable=False, default=True)
 
+    # --- Collection tracking (owner-managed) --------------------------------
+    # physical_status records how the owner has marked this card for collection
+    # tracking, independent of the card's deck membership:
+    #   'unset'   — not marked (default). Availability is still derived (the
+    #               card may show as "available" if an owned copy exists).
+    #   'in_deck' — a physical copy is asserted to be in this deck. It claims
+    #               one collection copy matching this card's printing
+    #               (card_id) + physical_finish + physical_language.
+    #   'proxy'   — this card is a proxy; it claims no collection copy.
+    # Marking a card never changes its printing/finish/language — those are
+    # edited separately. The physical_finish / physical_language the claim is
+    # matched against are stored here (NULL until the owner sets them).
+    physical_status: so.Mapped[str] = so.mapped_column(
+        sa.String, nullable=False, default='unset', server_default='unset'
+    )
+    # Finish and language the physical copy is matched against. Default to the
+    # most common case ('Normal' / 'EN', matching the collection's tokens) so a
+    # card always has a concrete printing identity to match, even before the
+    # owner edits it. Set from the deck source (Archidekt modifier / Moxfield
+    # finish flags) on import.
+    physical_finish: so.Mapped[str] = so.mapped_column(
+        sa.String, nullable=False, default='Normal', server_default='Normal'
+    )
+    physical_language: so.Mapped[str] = so.mapped_column(
+        sa.String, nullable=False, default='EN', server_default='EN'
+    )
+
     # Relationships
     deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='components')
     categories: so.Mapped[list['DeckComponentCategory']] = so.relationship(

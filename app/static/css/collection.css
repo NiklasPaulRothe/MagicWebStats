@@ -407,3 +407,37 @@
         gap: 0.9rem;
     }
 }
+
+/* ── Collection availability status badge ────────────────────────────────── */
+
+/* A small label in the card art corner showing whether this entry has a free
+   copy, is fully committed to decks, or is over-committed. */
+.collection-card-status {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+/* Free copy available: green. */
+.cc-coll-owned_spare_available {
+    background: rgba(63, 185, 80, 0.9);
+}
+
+/* All owned copies are in decks: amber. */
+.cc-coll-owned_in_deck {
+    background: rgba(210, 153, 34, 0.92);
+}
+
+/* More copies committed to decks than owned: red warning. */
+.cc-coll-owned_no_copy_available {
+    background: rgba(248, 81, 73, 0.92);
+}

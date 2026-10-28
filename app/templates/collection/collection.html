@@ -5,6 +5,22 @@
 {% endblock %}
 
 {% block content %}
+{# Status labels + a sort rank (free copies first, then fully-committed, then
+   over-committed) for the availability sort. #}
+{% set status_labels = {
+    'owned_spare_available': 'Free copy',
+    'owned_in_deck': 'In decks',
+    'owned_no_copy_available': 'Over-committed',
+    'owned_different_printing_available': 'Other printing',
+    'not_owned': 'Not owned',
+} %}
+{% set status_rank = {
+    'owned_spare_available': '0',
+    'owned_in_deck': '1',
+    'owned_no_copy_available': '2',
+    'owned_different_printing_available': '3',
+    'not_owned': '4',
+} %}
 <main class="collection" id="main-content">
     <header class="collection-header">
         <h1>My Collection</h1>
@@ -56,10 +72,19 @@
                 <option value="price">Price</option>
                 <option value="edition">Edition</option>
                 <option value="type">Type</option>
+                <option value="status">Availability</option>
             </select>
             <button type="button" id="sort-dir" class="collection-sort-dir"
                     data-dir="asc" aria-label="Toggle sort direction"
                     title="Ascending">&#9650;</button>
+
+            <label for="filter-status" class="collection-sort-label">Show</label>
+            <select id="filter-status" class="collection-sort-select">
+                <option value="">All</option>
+                <option value="owned_spare_available">Has free copy</option>
+                <option value="owned_in_deck">All copies in decks</option>
+                <option value="owned_no_copy_available">Over-committed</option>
+            </select>
         </div>
         {% endif %}
     </div>
@@ -71,7 +96,9 @@
             data-name="{{ card.name|lower }}"
             data-price="{{ '%.2f'|format(card.price) if card.price is not none else '' }}"
             data-edition="{{ (card.set_name or card.set_code or '')|lower }}"
-            data-type="{{ (card.type_line or '')|lower }}">
+            data-type="{{ (card.type_line or '')|lower }}"
+            data-status="{{ card.status }}"
+            data-status-rank="{{ status_rank.get(card.status, '9') }}">
             {% set is_foil = card.finish and card.finish|lower in ['foil', 'etched'] %}
             <div class="collection-card-art{% if is_foil %} is-foil{% endif %}">
                 {% if card.image %}
@@ -90,6 +117,8 @@
                 {% if is_foil %}
                 <span class="collection-card-foil" title="{{ card.finish }}">{{ card.finish }}</span>
                 {% endif %}
+                <span class="collection-card-status cc-coll-{{ card.status }}"
+                      title="{{ status_labels.get(card.status, '') }}">{{ status_labels.get(card.status, '') }}</span>
             </div>
             <div class="collection-card-info">
                 <span class="collection-card-name">{{ card.name }}</span>
@@ -122,12 +151,13 @@
     var grid = document.getElementById('collection-grid');
     var field = document.getElementById('sort-field');
     var dirBtn = document.getElementById('sort-dir');
+    var statusFilter = document.getElementById('filter-status');
     if (!grid || !field || !dirBtn) {
         return;
     }
 
-    // Numeric for price (blank prices sort last regardless of direction),
-    // string compare for the rest.
+    // Numeric for price (blank prices sort last regardless of direction) and
+    // for the availability rank; string compare for the rest.
     function sortCards() {
         var key = field.value;
         var asc = dirBtn.getAttribute('data-dir') === 'asc';
@@ -145,12 +175,25 @@
                 if (bEmpty) return -1;
                 return (asc ? 1 : -1) * (parseFloat(av) - parseFloat(bv));
             }
+            if (key === 'status') {
+                var ar = parseInt(a.getAttribute('data-status-rank'), 10);
+                var br = parseInt(b.getAttribute('data-status-rank'), 10);
+                return (asc ? 1 : -1) * (ar - br);
+            }
             var as = a.getAttribute('data-' + key) || '';
             var bs = b.getAttribute('data-' + key) || '';
             return (asc ? 1 : -1) * as.localeCompare(bs);
         });
 
         cards.forEach(function (c) { grid.appendChild(c); });
+    }
+
+    function applyFilter() {
+        if (!statusFilter) { return; }
+        var want = statusFilter.value;
+        grid.querySelectorAll('.collection-card').forEach(function (c) {
+            c.hidden = want !== '' && c.getAttribute('data-status') !== want;
+        });
     }
 
     field.addEventListener('change', sortCards);
@@ -161,6 +204,9 @@
         dirBtn.title = asc ? 'Descending' : 'Ascending';
         sortCards();
     });
+    if (statusFilter) {
+        statusFilter.addEventListener('change', applyFilter);
+    }
 })();
 </script>
 {% endblock %}

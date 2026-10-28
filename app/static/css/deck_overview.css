@@ -552,3 +552,173 @@ body.modal-open {
     padding: 8px;
     grid-column: 1 / -1;
 }
+
+/* ── Collection tracking markers ─────────────────────────────────────────── */
+
+/* The stack card needs to be a positioning context for the corner marker. */
+.stack-card {
+    position: relative;
+}
+
+/* Small corner dot showing the card's collection status. Sits top-right over
+   the card art. Colour encodes the status. */
+.cc-marker {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    z-index: 2;
+}
+
+.cc-marker .cc-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #9aa0a6;
+}
+
+.cc-marker.cc-editable {
+    cursor: pointer;
+}
+
+.cc-marker.cc-editable:hover,
+.cc-marker.cc-editable:focus-visible {
+    outline: 2px solid #f4c430;
+    outline-offset: 1px;
+}
+
+/* Status colours. */
+.cc-in_deck_ok   .cc-dot { background: #3fb950; }  /* green: real copy in deck */
+.cc-available    .cc-dot { background: #58a6ff; }  /* blue: free copy owned */
+.cc-owned_other  .cc-dot { background: #a371f7; }  /* purple: other printing */
+.cc-owned_no_copy .cc-dot { background: #d29922; } /* amber: owned, none free */
+.cc-proxy        .cc-dot { background: #8b949e; }  /* grey: proxy */
+.cc-not_owned    .cc-dot { background: #6e7681; }  /* dim grey: not owned */
+
+/* Faulty: red ring + exclamation feel. The warning the user asked for when
+   more copies are marked in decks than are digitally available. */
+.cc-in_deck_faulty {
+    background: rgba(248, 81, 73, 0.9);
+}
+.cc-in_deck_faulty .cc-dot {
+    background: #fff;
+}
+.cc-in_deck_faulty::after {
+    content: "!";
+    position: absolute;
+    font-size: 11px;
+    font-weight: 700;
+    color: #f85149;
+    line-height: 1;
+}
+
+/* ── Collection marker editor popover (owner only) ───────────────────────── */
+
+.cc-editor {
+    position: absolute;
+    z-index: 1200;
+    width: 240px;
+    background: #1b1b1f;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    padding: 14px;
+}
+
+.cc-editor[hidden] {
+    display: none;
+}
+
+.cc-editor-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.cc-editor-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9aa0a6;
+}
+
+.cc-editor-status {
+    display: flex;
+    gap: 6px;
+}
+
+.cc-status-btn {
+    flex: 1 1 auto;
+    padding: 6px 4px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: #23232a;
+    color: #cfcfd4;
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.cc-status-btn.is-active {
+    border-color: #f4c430;
+    background: rgba(244, 196, 48, 0.18);
+    color: #fff;
+}
+
+.cc-editor-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: #23232a;
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.cc-editor-input:focus {
+    outline: none;
+    border-color: #f4c430;
+}
+
+.cc-editor-note {
+    color: #e5686c;
+    font-size: 0.78rem;
+    margin: 0 0 10px;
+}
+
+.cc-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.cc-editor-actions .btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.cc-editor-actions .btn-secondary {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #cfcfd4;
+}
+
+.cc-editor-actions .btn-primary {
+    background: #f4c430;
+    color: #1b1b1f;
+    font-weight: 600;
+}

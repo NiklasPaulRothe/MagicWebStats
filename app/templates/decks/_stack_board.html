@@ -1,0 +1,77 @@
+{# Shared macros for rendering deck "stack" boards (by type / category /
+   collection) and the per-card collection marker. Imported by the full deck
+   overview and by the collection-board fragment endpoint so the grouping,
+   marker markup, and status labels live in ONE place. #}
+
+{# Human-readable titles for each collection status (marker tooltip). #}
+{% set cc_titles = {
+    'in_deck_ok': 'In deck — a real copy is allocated',
+    'in_deck_faulty': 'In deck — not enough matching copies in your collection',
+    'proxy': 'Proxy',
+    'available': 'Available — you own a free matching copy',
+    'owned_no_copy': 'Owned, but every matching copy is used in a deck',
+    'owned_other': 'Owned in a different printing',
+    'not_owned': 'Not owned',
+} %}
+
+{% macro collection_marker(card, is_owner, cc_titles) %}
+    {# Small corner marker showing this card's collection status. For the deck
+       owner it's a button that opens the editor; for others it's a static
+       badge. The data-* carry everything the editor JS needs. #}
+    {% set st = card.collection_status %}
+    {% if st %}
+    <span class="cc-marker cc-{{ st }}{% if is_owner %} cc-editable{% endif %}"
+          {% if is_owner %}role="button" tabindex="0"{% endif %}
+          data-component-id="{{ card.component_id }}"
+          data-card-id="{{ card.id }}"
+          data-status="{{ st }}"
+          data-physical-status="{{ card.physical_status }}"
+          data-finish="{{ card.physical_finish or '' }}"
+          data-language="{{ card.physical_language or '' }}"
+          title="{{ cc_titles[st] }}"
+          aria-label="Collection: {{ cc_titles[st] }}">
+        <span class="cc-dot" aria-hidden="true"></span>
+    </span>
+    {% endif %}
+{% endmacro %}
+
+{% macro stack_board(groups, is_owner, cc_titles) %}
+    <div class="stack-board">
+        {% for group in groups %}
+        <section class="stack-column{% if group.label == 'Commander' %} stack-column-commander{% endif %}"
+                 aria-label="{{ group.label }}"
+                 {% if group.status %}data-collection-status="{{ group.status }}"{% endif %}>
+            <h2 class="stack-heading">
+                {{ group.label }}
+                <span class="stack-count">{{ group.card_count }}</span>
+            </h2>
+            <ul class="card-stack" role="list">
+                {% for card in group.cards %}
+                {# Each distinct card is shown once; multiples get a quantity
+                   badge on the visible part of the card. #}
+                <li class="stack-card">
+                    <button type="button" class="stack-card-btn"
+                            data-card-id="{{ card.id }}"
+                            aria-label="View {{ card.name }}{% if card.count > 1 %} (x{{ card.count }}){% endif %}">
+                    {% if card.image %}
+                    <img class="stack-card-img"
+                         src="{{ card.image }}"
+                         alt="{{ card.name }}"
+                         loading="lazy">
+                    {% else %}
+                    <div class="stack-card-img stack-card-placeholder">
+                        <span>{{ card.name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if card.count > 1 %}
+                    <span class="stack-card-qty" aria-hidden="true">{{ card.count }}</span>
+                    {% endif %}
+                    </button>
+                    {{ collection_marker(card, is_owner, cc_titles) }}
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endfor %}
+    </div>
+{% endmacro %}

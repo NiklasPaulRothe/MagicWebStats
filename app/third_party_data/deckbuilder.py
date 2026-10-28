@@ -37,6 +37,46 @@ def resolve_card_id(uid, name):
             return fallback
     return None
 
+# Canonical finish tokens, matching how the player collection stores them
+# ('Normal' / 'Foil' / 'Etched'). Deck components store the same tokens so a
+# card's finish can be matched against the collection.
+_FINISH_NORMAL = 'Normal'
+_FINISH_FOIL = 'Foil'
+_FINISH_ETCHED = 'Etched'
+
+
+def normalize_finish(value) -> str:
+    """Map a source finish value to a canonical 'Normal'/'Foil'/'Etched' token.
+
+    Accepts the varied shapes the source sites use — Archidekt's `modifier`
+    ('Normal'/'Foil'/'Etched') and Moxfield's finish strings ('nonFoil'/'foil'/
+    'etched'). Anything unrecognized (or empty) falls back to 'Normal'.
+    """
+    token = (value or '').strip().lower()
+    if token in ('foil', 'f'):
+        return _FINISH_FOIL
+    if token in ('etched', 'foil-etched', 'foiletched'):
+        return _FINISH_ETCHED
+    return _FINISH_NORMAL
+
+
+def moxfield_entry_finish(entry: dict) -> str:
+    """Derive a canonical finish token from a Moxfield board entry.
+
+    Moxfield has used a couple of shapes over time: a `finish` string
+    ('nonFoil'/'foil'/'etched'), and/or boolean `isFoil` / `isEtched` flags.
+    Check the string first, then the booleans; default to 'Normal'.
+    """
+    finish = entry.get('finish')
+    if finish:
+        return normalize_finish(finish)
+    if entry.get('isEtched'):
+        return _FINISH_ETCHED
+    if entry.get('isFoil'):
+        return _FINISH_FOIL
+    return _FINISH_NORMAL
+
+
 MOXFIELD_API_BASE = 'https://api2.moxfield.com/v2'
 # Moxfield sits behind Cloudflare and rejects requests without a browser-like
 # User-Agent, so we send one explicitly.
@@ -104,13 +144,16 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
             card_id = resolve_card_id(card.card.uid, name)
 
             # Import ALL cards (in-deck and excluded alike); the in_deck flag
-            # records which ones are part of the actual deck.
+            # records which ones are part of the actual deck. The finish comes
+            # from Archidekt's per-card `modifier` (Normal/Foil/Etched); set it
+            # so the collection match targets the right printing+finish.
             component = DeckComponent(
                 deck_id=deck_id,
                 card_id=card_id,
                 name=name,
                 count=card.quantity,
                 in_deck=in_deck,
+                physical_finish=normalize_finish(getattr(card, 'modifier', None)),
             )
             db.session.add(component)
             # Persist every category (ordered) in the normalized child table.
@@ -206,6 +249,7 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
                     name=name,
                     count=entry.get('quantity', 1),
                     in_deck=is_in_deck,
+                    physical_finish=moxfield_entry_finish(entry),
                 )
                 db.session.add(component)
             except Exception:

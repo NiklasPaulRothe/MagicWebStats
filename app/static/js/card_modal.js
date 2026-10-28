@@ -331,8 +331,7 @@
             .then(function (data) {
                 if (!data || !data.ok) { throw new Error('Could not change printing'); }
                 // Update the originating stack card image + id to the new
-                // printing, re-point state, then return to the card view
-                // showing the freshly chosen printing.
+                // printing, re-point state, then return to the card view.
                 if (data.image && currentTriggerBtn) {
                     var stackImg = currentTriggerBtn.querySelector('.stack-card-img');
                     if (stackImg && stackImg.tagName === 'IMG') {
@@ -343,9 +342,24 @@
                     currentTriggerBtn.setAttribute('data-card-id', data.card_id);
                 }
                 currentCardId = data.card_id;
-                // Reload the full card detail for the new printing, then flip
-                // back from the picker to the card view.
                 loadCard(data.card_id, currentTriggerBtn);
+
+                // Changing the printing changes the card's collection pool, so
+                // its status/grouping must re-evaluate. The endpoint returns
+                // the recomputed status; update this card's markers in place
+                // and refresh the collection board (owner only — the global is
+                // defined by collection_marker.js). No page reload.
+                if (data.component_id !== undefined && window.updateComponentMarkers) {
+                    window.updateComponentMarkers(data.component_id, {
+                        status: data.collection_status,
+                        physical_status: data.physical_status,
+                        finish: data.finish,
+                        language: data.language
+                    });
+                }
+                if (window.ccRefreshCollectionBoard) {
+                    window.ccRefreshCollectionBoard();
+                }
             })
             .catch(function (err) {
                 clearText(printingList);
