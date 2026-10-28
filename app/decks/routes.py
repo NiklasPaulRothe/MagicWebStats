@@ -1,7 +1,7 @@
 ﻿import logging
 from collections import defaultdict
 
-from flask import render_template, flash, redirect, url_for, request, abort
+from flask import render_template, flash, redirect, url_for, request, abort, jsonify
 from flask_login import login_required, current_user
 import sqlalchemy as sa
 
@@ -11,7 +11,7 @@ from app import db, models
 from app.auth import role_required
 from app.decks import bp
 from app.decks.forms import DeckEditForm
-from app.models import Deck, Player, User, Game, Participant
+from app.models import Deck, Player, User, Game, Participant, DeckFolder
 from app.services.audit import write_audit_log
 from app.services.deck_service import (
     version_change, version_patch, version_rework,
@@ -29,6 +29,8 @@ from app.services.stats_service import compute_participant_averages, compute_dec
 # - delete_achievement: JSON API (CSRF via X-CSRFToken header from JS)
 # - add_achievement: JSON/form (CSRF via X-CSRFToken header or form hidden token)
 # - dearchive: HTML form POST (CSRFProtect validates hidden token)
+# - create_folder: JSON API (CSRF via X-CSRFToken header from JS)
+# - move_deck_to_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # No exemptions are needed.
 # ---
 
@@ -860,36 +862,88 @@ def set_card_printing(deck_id, card_id):
 # --- "My Decks" gallery: a responsive grid of deck cards (name + commander
 # image), Archidekt-style. Each card links to the deck overview page. Scoped to
 # the logged-in user's player, matching the existing My Decks semantics. ---
-@bp.route('/mine', methods=['GET'], strict_slashes=False)
-@login_required
-def my_decks():
-    player_id = getattr(current_user, 'player_id', None)
-    decks = []
-    if player_id is not None:
-        decks = db.session.scalars(
-            sa.select(models.Deck)
-            .where(models.Deck.player_id == player_id, models.Deck.active.is_(True))
-            .order_by(models.Deck.name.asc())
-        ).all()
+def _art_crop(image_uri):
+    """Derive the Scryfall art-crop URL from a stored 'large' card image.
 
+    Scryfall serves every size variant of a printing from the same CDN path
+    with only the size segment changing, e.g.
+      .../large/front/<a>/<b>/<id>.jpg   ->   .../art_crop/front/<a>/<b>/<id>.jpg
+    So we swap the size segment to get just the illustration (no frame/text),
+    without storing an extra column or re-fetching. Falls back to the original
+    URL when it isn't a recognizable Scryfall image path.
+    """
+    if not image_uri:
+        return None
+    for size in ('/large/', '/normal/', '/small/', '/png/', '/border_crop/'):
+        if size in image_uri:
+            return image_uri.replace(size, '/art_crop/', 1)
+    return image_uri
+
+
+@bp.route('/mine', methods=['GET'], strict_slashes=False)
+@bp.route('/mine/folder/<int:folder_id>', methods=['GET'], strict_slashes=False)
+@login_required
+def my_decks(folder_id=None):
+    """The "My Decks" gallery, scoped to the current folder.
+
+    Folders are shown as small cards above the deck grid; the decks shown are
+    those in the current folder (``folder_id``), or the root when no folder is
+    given. Everything is scoped to the logged-in user's player.
+    """
     from app.services.color_service import resolve_color_images
 
-    def _art_crop(image_uri):
-        """Derive the Scryfall art-crop URL from a stored 'large' card image.
+    player_id = getattr(current_user, 'player_id', None)
 
-        Scryfall serves every size variant of a printing from the same CDN path
-        with only the size segment changing, e.g.
-          .../large/front/<a>/<b>/<id>.jpg   ->   .../art_crop/front/<a>/<b>/<id>.jpg
-        So we swap the size segment to get just the illustration (no frame/text),
-        without storing an extra column or re-fetching. Falls back to the
-        original URL when it isn't a recognizable Scryfall image path.
-        """
-        if not image_uri:
-            return None
-        for size in ('/large/', '/normal/', '/small/', '/png/', '/border_crop/'):
-            if size in image_uri:
-                return image_uri.replace(size, '/art_crop/', 1)
-        return image_uri
+    # Resolve the current folder (owner-scoped). A folder id that doesn't belong
+    # to this player 404s so users can't peek into others' folders by id.
+    current_folder = None
+    if folder_id is not None:
+        current_folder = db.session.get(DeckFolder, folder_id)
+        if current_folder is None or current_folder.player_id != player_id:
+            abort(404)
+
+    folders = []
+    decks = []
+    breadcrumbs = []
+    if player_id is not None:
+        # Child folders of the current level (root when current_folder is None).
+        folders = db.session.scalars(
+            sa.select(DeckFolder)
+            .where(
+                DeckFolder.player_id == player_id,
+                DeckFolder.parent_id == (current_folder.id if current_folder else None),
+            )
+            .order_by(DeckFolder.name.asc())
+        ).all()
+
+        # Active decks in the current folder.
+        decks = db.session.scalars(
+            sa.select(Deck)
+            .where(
+                Deck.player_id == player_id,
+                Deck.active.is_(True),
+                Deck.folder_id == (current_folder.id if current_folder else None),
+            )
+            .order_by(Deck.name.asc())
+        ).all()
+
+        # Breadcrumb trail from root to the current folder.
+        node = current_folder
+        while node is not None:
+            breadcrumbs.append({'id': node.id, 'name': node.name})
+            node = db.session.get(DeckFolder, node.parent_id) if node.parent_id else None
+        breadcrumbs.reverse()
+
+    # Per-folder deck counts (active decks directly inside each folder) for the
+    # folder card subtitle.
+    folder_cards = []
+    for folder in folders:
+        count = db.session.scalar(
+            sa.select(sa.func.count())
+            .select_from(Deck)
+            .where(Deck.folder_id == folder.id, Deck.active.is_(True))
+        ) or 0
+        folder_cards.append({'id': folder.id, 'name': folder.name, 'deck_count': count})
 
     deck_cards = []
     for deck in decks:
@@ -907,4 +961,81 @@ def my_decks():
             'tags': list(tags),
         })
 
-    return render_template('decks/my_decks.html', deck_cards=deck_cards)
+    return render_template(
+        'decks/my_decks.html',
+        deck_cards=deck_cards,
+        folder_cards=folder_cards,
+        current_folder={'id': current_folder.id, 'name': current_folder.name} if current_folder else None,
+        parent_folder_id=(current_folder.parent_id if current_folder else None),
+        breadcrumbs=breadcrumbs,
+    )
+
+
+@bp.route('/folders', methods=['POST'], strict_slashes=False)
+@login_required
+def create_folder():
+    """Create a new folder for the current user, optionally nested.
+
+    JSON body: {name: str, parent_id: int|null}. Owner-scoped: a provided
+    parent_id must belong to the current player. Returns the created folder.
+    CSRF is enforced via the X-CSRFToken header (CSRFProtect).
+    """
+    player_id = getattr(current_user, 'player_id', None)
+    if player_id is None:
+        return jsonify({'ok': False, 'message': 'No player linked to this account.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    parent_id = data.get('parent_id')
+
+    if not name:
+        return jsonify({'ok': False, 'message': 'Folder name is required.'}), 400
+    if len(name) > 255:
+        return jsonify({'ok': False, 'message': 'Folder name is too long.'}), 400
+
+    if parent_id is not None:
+        parent = db.session.get(DeckFolder, parent_id)
+        if parent is None or parent.player_id != player_id:
+            return jsonify({'ok': False, 'message': 'Parent folder not found.'}), 404
+
+    folder = DeckFolder(player_id=player_id, name=name, parent_id=parent_id)
+    db.session.add(folder)
+    db.session.flush()
+    write_audit_log('folder_create', 'DeckFolder', folder.id, f'Created folder: {name}')
+    db.session.commit()
+
+    return jsonify({
+        'ok': True,
+        'folder': {'id': folder.id, 'name': folder.name, 'parent_id': folder.parent_id, 'deck_count': 0},
+    }), 201
+
+
+@bp.route('/<int:deck_id>/folder', methods=['POST'], strict_slashes=False)
+@login_required
+def move_deck_to_folder(deck_id):
+    """Move a deck into a folder (or to the root).
+
+    JSON body: {folder_id: int|null}. null moves the deck to the root. Both the
+    deck and the target folder must belong to the current player. CSRF via the
+    X-CSRFToken header (CSRFProtect). Returns {ok: true}.
+    """
+    player_id = getattr(current_user, 'player_id', None)
+    deck = db.session.get(Deck, deck_id)
+    if deck is None:
+        return jsonify({'ok': False, 'message': 'Deck not found.'}), 404
+    if deck.player_id != player_id:
+        return jsonify({'ok': False, 'message': 'Nicht berechtigt.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    target_folder_id = data.get('folder_id')
+
+    if target_folder_id is not None:
+        folder = db.session.get(DeckFolder, target_folder_id)
+        if folder is None or folder.player_id != player_id:
+            return jsonify({'ok': False, 'message': 'Target folder not found.'}), 404
+
+    deck.folder_id = target_folder_id
+    write_audit_log('deck_move_folder', 'Deck', deck.id, f'Moved deck {deck.name} to folder {target_folder_id}')
+    db.session.commit()
+
+    return jsonify({'ok': True})

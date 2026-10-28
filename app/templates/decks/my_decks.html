@@ -5,18 +5,71 @@
 {% endblock %}
 
 {% block content %}
-<main class="my-decks" id="main-content">
+<main class="my-decks" id="main-content"
+      data-create-folder-url="{{ url_for('decks.create_folder') }}"
+      data-current-folder-id="{{ current_folder.id if current_folder else '' }}">
     <header class="my-decks-header">
         <h1>My Decks</h1>
+
+        <nav class="my-decks-breadcrumbs" aria-label="Folder path">
+            <a href="{{ url_for('decks.my_decks') }}"
+               class="crumb{{ ' crumb-current' if not current_folder }}"
+               data-folder-id="">All Decks</a>
+            {% for crumb in breadcrumbs %}
+            <span class="crumb-sep" aria-hidden="true">/</span>
+            <a href="{{ url_for('decks.my_decks', folder_id=crumb.id) }}"
+               class="crumb{{ ' crumb-current' if loop.last }}"
+               data-folder-id="{{ crumb.id }}">{{ crumb.name }}</a>
+            {% endfor %}
+        </nav>
+
         <p class="my-decks-sub">
             {{ deck_cards|length }} deck{{ '' if deck_cards|length == 1 else 's' }}
+            {% if folder_cards %}· {{ folder_cards|length }} folder{{ '' if folder_cards|length == 1 else 's' }}{% endif %}
         </p>
     </header>
+
+    <!-- Folders: small cards above the deck grid. Drop a deck onto one to move
+         it in. An "up" card appears when inside a folder; a "new folder" card
+         is always present. -->
+    <section class="folder-section" aria-label="Folders">
+        <ul class="folder-grid" role="list">
+            {% if current_folder %}
+            <li class="folder-card folder-up"
+                data-folder-id="{{ parent_folder_id if parent_folder_id is not none else '' }}">
+                <a class="folder-card-link"
+                   href="{{ url_for('decks.my_decks', folder_id=parent_folder_id) if parent_folder_id is not none else url_for('decks.my_decks') }}">
+                    <span class="folder-icon" aria-hidden="true">↩</span>
+                    <span class="folder-card-name">Up one level</span>
+                </a>
+            </li>
+            {% endif %}
+
+            {% for folder in folder_cards %}
+            <li class="folder-card" data-folder-id="{{ folder.id }}">
+                <a class="folder-card-link" href="{{ url_for('decks.my_decks', folder_id=folder.id) }}">
+                    <span class="folder-icon" aria-hidden="true">📁</span>
+                    <span class="folder-card-titles">
+                        <span class="folder-card-name">{{ folder.name }}</span>
+                        <span class="folder-card-count">{{ folder.deck_count }} deck{{ '' if folder.deck_count == 1 else 's' }}</span>
+                    </span>
+                </a>
+            </li>
+            {% endfor %}
+
+            <li class="folder-card folder-new">
+                <button type="button" class="folder-card-link folder-new-btn" id="new-folder-btn">
+                    <span class="folder-icon" aria-hidden="true">+</span>
+                    <span class="folder-card-name">New folder</span>
+                </button>
+            </li>
+        </ul>
+    </section>
 
     {% if deck_cards %}
     <ul class="deck-grid" role="list">
         {% for deck in deck_cards %}
-        <li class="deck-card">
+        <li class="deck-card" data-deck-id="{{ deck.id }}" draggable="true">
             <a class="deck-card-link" href="{{ url_for('decks.deck_overview', deck_id=deck.id) }}">
                 <div class="deck-card-header">
                     <div class="deck-card-titles">
@@ -57,7 +110,25 @@
         {% endfor %}
     </ul>
     {% else %}
-    <p class="my-decks-empty">You don't have any decks yet.</p>
+    <p class="my-decks-empty">
+        {% if current_folder %}This folder has no decks yet. Drag a deck here from another folder.{% else %}You don't have any decks yet.{% endif %}
+    </p>
     {% endif %}
 </main>
+
+<!-- New-folder dialog -->
+<div class="folder-dialog-backdrop" id="folder-dialog-backdrop" hidden>
+    <div class="folder-dialog" role="dialog" aria-modal="true" aria-labelledby="folder-dialog-title">
+        <h2 class="folder-dialog-title" id="folder-dialog-title">New folder</h2>
+        <label class="folder-dialog-label" for="folder-name-input">Folder name</label>
+        <input type="text" class="folder-dialog-input" id="folder-name-input" maxlength="255" autocomplete="off">
+        <p class="folder-dialog-error" id="folder-dialog-error" hidden></p>
+        <div class="folder-dialog-actions">
+            <button type="button" class="btn btn-secondary" id="folder-cancel-btn">Cancel</button>
+            <button type="button" class="btn btn-primary" id="folder-create-btn">Create</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/deck_folders.js') }}" defer></script>
 {% endblock %}

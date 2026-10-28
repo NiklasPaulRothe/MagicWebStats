@@ -101,6 +101,10 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.decks (
     partner        TEXT,
     player_id      INTEGER NOT NULL REFERENCES magic_stats_owner.players(id) ON DELETE RESTRICT,
     color_identity TEXT NOT NULL REFERENCES magic_stats_owner.color_identities(name) ON DELETE RESTRICT,
+    -- Organizational folder (see deck_folders, section 11b). NULL = root. The
+    -- FK is added after deck_folders is created (ALTER below) to avoid a
+    -- forward reference in this top-down build script.
+    folder_id      INTEGER,
     elo_rating     FLOAT NOT NULL DEFAULT 1500 CHECK (elo_rating >= 0),
     decklist       TEXT,
     decksite       TEXT,
@@ -121,6 +125,7 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.decks (
 -- user decks, highlights, elo) and the color-usage views.
 CREATE INDEX IF NOT EXISTS idx_decks_player_id ON magic_stats_owner.decks (player_id);
 CREATE INDEX IF NOT EXISTS idx_decks_active    ON magic_stats_owner.decks (active);
+CREATE INDEX IF NOT EXISTS idx_decks_folder_id ON magic_stats_owner.decks (folder_id);
 
 -- ---------------------------------------------------------------------------
 -- 5. games
@@ -386,6 +391,41 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_tags (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (deck_id, tag)
 );
+
+-- ---------------------------------------------------------------------------
+-- 11b. deck_folders (owner-defined folders for organizing decks; nestable)
+-- ---------------------------------------------------------------------------
+-- Belongs to a player. parent_id nests folders (NULL = top-level); deleting a
+-- folder cascades to its subfolders. decks.folder_id references this table and
+-- is SET NULL on folder deletion, so decks are never removed with a folder.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_folders (
+    id         SERIAL PRIMARY KEY,
+    player_id  INTEGER NOT NULL REFERENCES magic_stats_owner.players(id) ON DELETE CASCADE,
+    name       VARCHAR(255) NOT NULL,
+    parent_id  INTEGER REFERENCES magic_stats_owner.deck_folders(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_deck_folders_player_id ON magic_stats_owner.deck_folders (player_id);
+CREATE INDEX IF NOT EXISTS idx_deck_folders_parent_id ON magic_stats_owner.deck_folders (parent_id);
+
+-- Deferred FK for decks.folder_id (decks is created before deck_folders above).
+-- Guarded so re-running the script doesn't error on an existing constraint.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_schema = 'magic_stats_owner'
+          AND table_name = 'decks'
+          AND constraint_name = 'fk_decks_folder_id'
+    ) THEN
+        ALTER TABLE magic_stats_owner.decks
+            ADD CONSTRAINT fk_decks_folder_id
+            FOREIGN KEY (folder_id)
+            REFERENCES magic_stats_owner.deck_folders(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 12. audit_log

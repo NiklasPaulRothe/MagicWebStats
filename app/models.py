@@ -80,6 +80,13 @@ class Deck(db.Model):
         sa.ForeignKey(f'{DB_SCHEMA}.color_identities.name', ondelete='RESTRICT'),
         nullable=False
     )
+    # Optional organizational folder (owner-defined). NULL means the deck lives
+    # at the folder-tree root. Set NULL on folder deletion so decks are never
+    # removed when a folder is deleted.
+    folder_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.deck_folders.id', ondelete='SET NULL'),
+    )
     partner: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     elo_rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, default=1500)
     decklist: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
@@ -115,6 +122,7 @@ class Deck(db.Model):
     achievements: so.Mapped[list['Achievement']] = so.relationship(back_populates='deck_rel')
     tags: so.Mapped[list['DeckTag']] = so.relationship(back_populates='deck_rel')
     components: so.Mapped[list['DeckComponent']] = so.relationship(back_populates='deck_rel')
+    folder: so.Mapped[Optional['DeckFolder']] = so.relationship(back_populates='decks')
 
 class Game(db.Model):
     __tablename__ = 'games'
@@ -494,6 +502,47 @@ class DeckTag(db.Model):
 
     # Relationship
     deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='tags')
+
+
+class DeckFolder(db.Model):
+    """An owner-defined folder for organizing decks, supporting nesting.
+
+    Folders belong to a player (``player_id``) and may nest arbitrarily via the
+    self-referential ``parent_id`` (NULL = top-level folder). Deleting a folder
+    cascades to its subfolders; decks inside a deleted folder are not removed —
+    their ``folder_id`` is set NULL (see ``Deck.folder_id``), returning them to
+    the root.
+    """
+
+    __tablename__ = 'deck_folders'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    player_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
+    parent_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.deck_folders.id', ondelete='CASCADE'),
+    )
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )
+
+    # Relationships
+    parent: so.Mapped[Optional['DeckFolder']] = so.relationship(
+        back_populates='children', remote_side=[id]
+    )
+    children: so.Mapped[list['DeckFolder']] = so.relationship(
+        back_populates='parent', cascade='all, delete-orphan'
+    )
+    decks: so.Mapped[list['Deck']] = so.relationship(back_populates='folder')
 
 
 class AuditLog(db.Model):
