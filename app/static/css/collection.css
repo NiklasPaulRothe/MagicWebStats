@@ -1,0 +1,716 @@
+/* Collection page: import form + CardNexus-style card image gallery. */
+
+.collection {
+    /* The global `main` rule is a centered flex column (align-items: center),
+       which otherwise shrinks this page (and the grid) to content width.
+       `align-self: stretch` makes this flex item span main's full width; it
+       then lays out its own children as a block-stretch flex column so the
+       grid fills the full width instead of shrinking to its tracks. */
+    align-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0;
+    /* main already adds 20px padding; keep a bit more as the side gutter. */
+    padding: 1.5rem clamp(0.5rem, 3vw, 3rem) 3rem;
+}
+
+/* Make sure the gallery itself spans the full container width (a bare <ul>
+   grid can otherwise be shrink-wrapped inside a centering flex ancestor). */
+.collection-grid {
+    width: 100%;
+}
+
+.collection-header {
+    margin-bottom: 1.25rem;
+}
+
+.collection-header h1 {
+    margin: 0 0 0.25rem;
+}
+
+.collection-sub {
+    margin: 0;
+    color: #cfcfd4;
+}
+
+.collection-total-value {
+    font-weight: 700;
+    color: #f4c430;
+}
+
+/* --- Toolbar: import toggle + sort controls on one row --- */
+.collection-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0 0 1.25rem;
+}
+
+/* --- Collapsible import (native <details>) --- */
+.collection-import {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    /* Only as wide as its content when collapsed; widens when open. */
+    align-self: flex-start;
+}
+
+.collection-import-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #cfcfd4;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.collection-import-summary::-webkit-details-marker {
+    display: none;
+}
+
+.collection-import-summary::before {
+    content: "\2191\2193  ";   /* up/down arrows to hint "import" */
+    color: #f4c430;
+}
+
+.collection-import[open] {
+    /* Give the open panel a comfortable but bounded width. */
+    width: min(520px, 100%);
+}
+
+.collection-import[open] .collection-import-summary {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: antiquewhite;
+}
+
+.collection-import-body {
+    padding: 0.85rem 0.9rem;
+}
+
+.collection-import-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    /* Override the global form { max-width:1000px; margin:0 auto } cap. */
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    background: none;
+}
+
+.collection-import-btn {
+    padding: 0.35rem 1rem;
+    border: none;
+    border-radius: 6px;
+    background: #f4c430;
+    color: #1b1b1f;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.collection-import-btn:hover {
+    filter: brightness(1.05);
+}
+
+/* --- Sort controls --- */
+.collection-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.collection-sort-label {
+    font-size: 0.85rem;
+    color: #a8a8b0;
+}
+
+.collection-sort-select {
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #1a1a1a;
+    color: antiquewhite;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+/* Name search box: matches the sort select's look. */
+.collection-search-input {
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #1a1a1a;
+    color: antiquewhite;
+    font-size: 0.85rem;
+    min-width: 12rem;
+}
+.collection-search-input:focus {
+    outline: none;
+    border-color: #f4c430;
+}
+.collection-search-input::placeholder {
+    color: #6e6e78;
+}
+
+.collection-sort-dir {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #1a1a1a;
+    color: #f4c430;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.collection-sort-dir:hover {
+    border-color: #f4c430;
+}
+
+.collection-import-hint {
+    margin: 0.75rem 0 0;
+    font-size: 0.82rem;
+    color: #a8a8b0;
+    line-height: 1.5;
+}
+
+/* --- Card gallery --- */
+.collection-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 1.25rem;
+}
+
+.collection-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* The `hidden` attribute (used by the search filter) must beat the flex
+   display above — a class rule otherwise overrides the UA [hidden] rule, so
+   filtered cards would stay visible. */
+.collection-card[hidden] {
+    display: none;
+}
+
+.collection-card-art {
+    position: relative;
+    aspect-ratio: 488 / 680; /* standard MTG card ratio */
+}
+
+.collection-card-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4.75% / 3.5%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    background: #1b1b1f;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.collection-card:hover .collection-card-img {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    transform: translateY(-2px);
+}
+
+/* --- Foil effect (foil / etched finishes) ------------------------------------
+   Archidekt/CardNexus-style holographic sheen: a rainbow gradient sheet laid
+   over the card art with a blend mode, plus a diagonal glare streak that sweeps
+   across on hover. Built with ::before/::after on the art wrapper, clipped to
+   the card's rounded corners. Pointer-events are disabled so clicks pass
+   through to the image/card. */
+.collection-card-art.is-foil {
+    border-radius: 4.75% / 3.5%;
+    isolation: isolate; /* keep blend modes contained to this card */
+}
+
+.collection-card-art.is-foil::before,
+.collection-card-art.is-foil::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    /* Sit above the image; the image translateY on hover is matched below so
+       the overlay stays aligned with the lifted card. */
+    z-index: 1;
+    transition: transform 0.15s ease, opacity 0.3s ease;
+}
+
+/* Rainbow holographic sheet. color-dodge gives the bright, metallic shimmer
+   seen on real foils without washing out the art at rest. */
+.collection-card-art.is-foil::before {
+    background: linear-gradient(
+        115deg,
+        rgba(255, 0, 170, 0.35) 0%,
+        rgba(255, 220, 0, 0.30) 20%,
+        rgba(0, 255, 170, 0.32) 40%,
+        rgba(0, 200, 255, 0.32) 60%,
+        rgba(170, 0, 255, 0.35) 80%,
+        rgba(255, 0, 170, 0.35) 100%
+    );
+    background-size: 300% 300%;
+    background-position: 0% 50%;
+    mix-blend-mode: color-dodge;
+    opacity: 0.35;
+    animation: foil-shift 6s linear infinite;
+}
+
+/* Diagonal glare streak. A narrow bright band that lives mostly off-card; it
+   sweeps across once on hover and fades out, leaving nothing behind (no
+   lingering rectangle). Only the moving band is ever visible because the rest
+   of the gradient is transparent and the layer's opacity is driven entirely by
+   the keyframes. */
+.collection-card-art.is-foil::after {
+    background: linear-gradient(
+        115deg,
+        transparent 42%,
+        rgba(255, 255, 255, 0.5) 49%,
+        rgba(255, 255, 255, 0.75) 50%,
+        rgba(255, 255, 255, 0.5) 51%,
+        transparent 58%
+    );
+    background-size: 220% 220%;
+    background-position: 150% 150%;
+    mix-blend-mode: screen;
+    opacity: 0;
+}
+
+/* Intensify the rainbow sheen on hover/focus. */
+.collection-card:hover .collection-card-art.is-foil::before,
+.collection-card:focus-within .collection-card-art.is-foil::before {
+    opacity: 0.55;
+    transform: translateY(-2px);
+}
+
+/* Run the glare sweep on hover/focus. opacity is animated by the keyframes
+   (fade in, pass, fade out), so no static opacity and no `forwards` — the
+   streak vanishes at the end instead of parking as a box. */
+.collection-card:hover .collection-card-art.is-foil::after,
+.collection-card:focus-within .collection-card-art.is-foil::after {
+    transform: translateY(-2px);
+    animation: foil-glare 0.85s ease-out;
+}
+
+@keyframes foil-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes foil-glare {
+    0%   { background-position: 150% 150%; opacity: 0; }
+    15%  { opacity: 0.9; }
+    85%  { opacity: 0.9; }
+    100% { background-position: -50% -50%; opacity: 0; }
+}
+
+/* Respect reduced-motion: keep a static rainbow sheen, drop the drifting
+   animation and the glare sweep entirely (no moving streak). */
+@media (prefers-reduced-motion: reduce) {
+    .collection-card-art.is-foil::before {
+        animation: none;
+    }
+    .collection-card:hover .collection-card-art.is-foil::after,
+    .collection-card:focus-within .collection-card-art.is-foil::after {
+        animation: none;
+        opacity: 0;
+    }
+}
+
+.collection-card-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #cfcfd4;
+    border: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+/* Quantity badge (top-right). */
+.collection-card-qty {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 2;
+    min-width: 1.5em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.4;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+/* Foil marker (bottom-left). */
+.collection-card-foil {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    z-index: 2;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #1b1b1f;
+    background: linear-gradient(135deg, #ffd86b, #9be7ff, #f6a6ff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+.collection-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    font-size: 0.85rem;
+}
+
+.collection-card-name {
+    font-weight: 600;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collection-card-set {
+    color: #a8a8b0;
+    font-size: 0.76rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collection-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 0.15rem;
+}
+
+.collection-card-count {
+    color: #cfcfd4;
+}
+
+.collection-card-price {
+    font-weight: 700;
+    color: #f4c430;
+}
+
+.collection-empty {
+    color: #a8a8b0;
+    padding: 1.5rem 0;
+}
+
+@media (max-width: 640px) {
+    .collection-grid {
+        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+        gap: 0.9rem;
+    }
+}
+
+/* ── Collection availability status badge ────────────────────────────────── */
+
+/* A small label in the card art corner showing whether this entry has a free
+   copy, is fully committed to decks, or is over-committed. */
+.collection-card-status {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+/* Free copy available: green. */
+.cc-coll-owned_spare_available {
+    background: rgba(63, 185, 80, 0.9);
+}
+
+/* All owned copies are in decks: amber. */
+.cc-coll-owned_in_deck {
+    background: rgba(210, 153, 34, 0.92);
+}
+
+/* More copies committed to decks than owned: red warning. */
+.cc-coll-owned_no_copy_available {
+    background: rgba(248, 81, 73, 0.92);
+}
+
+
+/* ===========================================================================
+   Collection card popup (decks containing the card + printing slider)
+   =========================================================================== */
+
+/* Clickable affordance on cards that resolve to a known printing. */
+.collection-card[data-card-id] {
+    cursor: pointer;
+}
+
+.cc-modal[hidden] {
+    display: none;
+}
+
+.cc-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.cc-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(1, 4, 9, 0.72);
+}
+
+.cc-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(760px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 1.25rem 1.25rem 1.5rem;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.cc-modal-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.6rem;
+    background: transparent;
+    border: 0;
+    color: #c9d1d9;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.cc-modal-close:hover { color: #fff; }
+
+.cc-modal-body {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.cc-modal-art-wrap {
+    position: relative;
+    flex: 0 0 auto;
+    width: 240px;
+    max-width: 100%;
+}
+
+.cc-modal-art {
+    width: 100%;
+    border-radius: 4.75% / 3.5%;
+    display: block;
+    background: #161b22;
+}
+
+/* A shown printing that isn't the one the user clicked gets an obvious outline. */
+.cc-modal-art.is-other-printing {
+    outline: 3px solid #d29922;
+    outline-offset: 2px;
+}
+
+/* Corner banner reinforcing "you're looking at a different printing". */
+.cc-modal-printing-flag {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(210, 153, 34, 0.95);
+    color: #1b1300;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+.cc-modal-printing-flag[hidden] { display: none; }
+
+/* Printing slider controls under the art. */
+.cc-modal-slider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+.cc-modal-slider[hidden] { display: none; }
+
+.cc-slider-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+.cc-slider-btn:hover { background: #30363d; color: #fff; }
+
+.cc-slider-label {
+    font-size: 0.8rem;
+    color: #8b949e;
+    min-width: 0;
+    text-align: center;
+}
+
+.cc-modal-info {
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.cc-modal-title {
+    margin: 0 0 0.15rem;
+    font-size: 1.25rem;
+    color: #f0f6fc;
+}
+
+.cc-modal-type {
+    color: #8b949e;
+    font-size: 0.9rem;
+    margin-bottom: 0.9rem;
+}
+
+.cc-modal-decks-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: #c9d1d9;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 0.3rem;
+}
+
+.cc-modal-decks-empty {
+    color: #8b949e;
+    font-size: 0.88rem;
+    margin: 0.4rem 0;
+}
+
+.cc-deck-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.cc-deck-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.cc-deck-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cc-deck-name:hover { text-decoration: underline; }
+
+.cc-deck-meta {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    color: #8b949e;
+    letter-spacing: 0.03em;
+}
+.cc-deck-meta.is-other-printing {
+    color: #d29922;
+    font-weight: 700;
+}
+
+/* Status badges — mirror the deck-overview status palette, but as filled pills
+   so the decks list reads at a glance. */
+.cc-deck-status {
+    flex: 0 0 auto;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #0d1117;
+    white-space: nowrap;
+}
+.cc-deck-status.cc-coll-in_deck_ok     { background: #3fb950; }
+.cc-deck-status.cc-coll-available      { background: #58a6ff; }
+.cc-deck-status.cc-coll-owned_other    { background: #a371f7; color: #fff; }
+.cc-deck-status.cc-coll-owned_no_copy  { background: #d29922; }
+.cc-deck-status.cc-coll-proxy          { background: #8b949e; }
+.cc-deck-status.cc-coll-not_owned      { background: #6e7681; color: #fff; }
+.cc-deck-status.cc-coll-in_deck_faulty { background: #f85149; color: #fff; }
+
+
+/* Card oracle text in the popup (single- or double-faced). */
+.cc-modal-text {
+    font-size: 0.86rem;
+    color: #c9d1d9;
+    margin-bottom: 0.9rem;
+}
+.cc-modal-text p {
+    margin: 0 0 0.4rem;
+    line-height: 1.35;
+}
+/* Each face of a double-faced card, separated so both sides read clearly. */
+.cc-face-block {
+    padding: 0.5rem 0;
+    border-top: 1px solid #21262d;
+}
+.cc-face-block:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+.cc-face-name {
+    margin: 0 0 0.1rem;
+    font-size: 0.92rem;
+    color: #f0f6fc;
+}
+.cc-face-type {
+    font-size: 0.78rem;
+    color: #8b949e;
+    margin-bottom: 0.3rem;
+}

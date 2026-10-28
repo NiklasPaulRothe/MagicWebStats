@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/collection.css') }}">
+{% endblock %}
+
+{% block content %}
+{# Status labels + a sort rank (free copies first, then fully-committed, then
+   over-committed) for the availability sort. #}
+{% set status_rank = {
+    'owned_spare_available': '0',
+    'owned_in_deck': '1',
+    'owned_no_copy_available': '2',
+    'owned_different_printing_available': '3',
+    'not_owned': '4',
+} %}
+<main class="collection" id="main-content">
+    <header class="collection-header">
+        <h1>My Collection</h1>
+        <p class="collection-sub">
+            {{ total_cards }} card{{ '' if total_cards == 1 else 's' }}
+            {% if total_value is not none %}
+            &middot; <span class="collection-total-value">{{ '%.2f'|format(total_value) }} &euro;</span> total
+            {% endif %}
+        </p>
+    </header>
+
+    {% if not has_player %}
+    <p class="collection-empty">
+        Your account isn't linked to a player yet, so there's no collection to
+        show. Link a player to your account to import a collection.
+    </p>
+    {% else %}
+
+    <div class="collection-toolbar">
+        {# Collapsible import: just a small button until expanded. Uses native
+           <details> so it needs no JS. #}
+        <details class="collection-import">
+            <summary class="collection-import-summary">Import CSV</summary>
+            <div class="collection-import-body">
+                <form method="post"
+                      action="{{ url_for('collection.import_collection') }}"
+                      enctype="multipart/form-data"
+                      class="collection-import-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+                    <button type="submit" class="collection-import-btn">Import</button>
+                </form>
+                <p class="collection-import-hint">
+                    Expected columns: Quantity, Name, Finish, Condition, Date
+                    Added, Language, Purchase Price, Tags, Edition Name, Edition
+                    Code, Multiverse Id, Scryfall ID, Collector Number.
+                    Importing replaces your current collection. Cards whose
+                    exact printing isn't in the database yet are skipped and
+                    listed.
+                </p>
+            </div>
+        </details>
+
+        {% if cards %}
+        <div class="collection-sort">
+            <label for="sort-field" class="collection-sort-label">Sort</label>
+            <select id="sort-field" class="collection-sort-select">
+                <option value="name">Alphabetic</option>
+                <option value="price">Price</option>
+                <option value="edition">Edition</option>
+                <option value="type">Type</option>
+                <option value="status">Availability</option>
+            </select>
+            <button type="button" id="sort-dir" class="collection-sort-dir"
+                    data-dir="asc" aria-label="Toggle sort direction"
+                    title="Ascending">&#9650;</button>
+
+            <label for="search-name" class="collection-sort-label">Search</label>
+            <input type="search" id="search-name" class="collection-search-input"
+                   placeholder="Card name" autocomplete="off">
+        </div>
+        {% endif %}
+    </div>
+
+    {% if cards %}
+    <ul class="collection-grid" role="list" id="collection-grid">
+        {% for card in cards %}
+        <li class="collection-card"
+            {% if card.card_id %}data-card-id="{{ card.card_id }}"{% endif %}
+            data-name="{{ card.name|lower }}"
+            data-price="{{ '%.2f'|format(card.price) if card.price is not none else '' }}"
+            data-edition="{{ (card.set_name or card.set_code or '')|lower }}"
+            data-type="{{ (card.type_line or '')|lower }}"
+            data-status="{{ card.status }}"
+            data-status-rank="{{ status_rank.get(card.status, '9') }}">
+            {% set is_foil = card.finish and card.finish|lower in ['foil', 'etched'] %}
+            <div class="collection-card-art{% if is_foil %} is-foil{% endif %}">
+                {% if card.image %}
+                <img class="collection-card-img"
+                     src="{{ card.image }}"
+                     alt="{{ card.name }}"
+                     loading="lazy">
+                {% else %}
+                <div class="collection-card-img collection-card-placeholder">
+                    <span>{{ card.name }}</span>
+                </div>
+                {% endif %}
+                {% if card.count > 1 %}
+                <span class="collection-card-qty" aria-hidden="true">{{ card.count }}</span>
+                {% endif %}
+                {% if is_foil %}
+                <span class="collection-card-foil" title="{{ card.finish }}">{{ card.finish }}</span>
+                {% endif %}
+            </div>
+            <div class="collection-card-info">
+                <span class="collection-card-name">{{ card.name }}</span>
+                <span class="collection-card-set">
+                    {{ card.set_name or card.set_code or '' }}
+                    {%- if card.collector_number %} &middot; #{{ card.collector_number }}{% endif %}
+                </span>
+                <span class="collection-card-footer">
+                    <span class="collection-card-count">x{{ card.count }}</span>
+                    <span class="collection-card-price">
+                        {% if card.price is not none %}{{ '%.2f'|format(card.price) }} &euro;{% else %}&mdash;{% endif %}
+                    </span>
+                </span>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="collection-empty">
+        Your collection is empty. Use "Import CSV" above to get started.
+    </p>
+    {% endif %}
+
+    {% endif %}
+</main>
+
+<script>
+(function () {
+    'use strict';
+    var grid = document.getElementById('collection-grid');
+    var field = document.getElementById('sort-field');
+    var dirBtn = document.getElementById('sort-dir');
+    var searchInput = document.getElementById('search-name');
+    if (!grid || !field || !dirBtn) {
+        return;
+    }
+
+    // Numeric for price (blank prices sort last regardless of direction) and
+    // for the availability rank; string compare for the rest.
+    function sortCards() {
+        var key = field.value;
+        var asc = dirBtn.getAttribute('data-dir') === 'asc';
+        var cards = Array.prototype.slice.call(
+            grid.querySelectorAll('.collection-card'));
+
+        cards.sort(function (a, b) {
+            if (key === 'price') {
+                var av = a.getAttribute('data-price');
+                var bv = b.getAttribute('data-price');
+                var aEmpty = av === '';
+                var bEmpty = bv === '';
+                if (aEmpty && bEmpty) return 0;
+                if (aEmpty) return 1;   // missing price always last
+                if (bEmpty) return -1;
+                return (asc ? 1 : -1) * (parseFloat(av) - parseFloat(bv));
+            }
+            if (key === 'status') {
+                var ar = parseInt(a.getAttribute('data-status-rank'), 10);
+                var br = parseInt(b.getAttribute('data-status-rank'), 10);
+                return (asc ? 1 : -1) * (ar - br);
+            }
+            var as = a.getAttribute('data-' + key) || '';
+            var bs = b.getAttribute('data-' + key) || '';
+            return (asc ? 1 : -1) * as.localeCompare(bs);
+        });
+
+        cards.forEach(function (c) { grid.appendChild(c); });
+    }
+
+    // Live name search: match the query as a substring anywhere in the card
+    // name (case-insensitive; data-name is already lower-cased). Filtering only
+    // starts at 3+ characters; below that, every card is shown.
+    function applySearch() {
+        if (!searchInput) { return; }
+        var q = searchInput.value.trim().toLowerCase();
+        var active = q.length >= 3;
+        grid.querySelectorAll('.collection-card').forEach(function (c) {
+            var name = c.getAttribute('data-name') || '';
+            c.hidden = active && name.indexOf(q) === -1;
+        });
+    }
+
+    field.addEventListener('change', sortCards);
+    dirBtn.addEventListener('click', function () {
+        var asc = dirBtn.getAttribute('data-dir') === 'asc';
+        dirBtn.setAttribute('data-dir', asc ? 'desc' : 'asc');
+        dirBtn.innerHTML = asc ? '&#9660;' : '&#9650;';
+        dirBtn.title = asc ? 'Descending' : 'Ascending';
+        sortCards();
+    });
+    if (searchInput) {
+        searchInput.addEventListener('input', applySearch);
+    }
+})();
+</script>
+
+{# Collection card popup. Hidden until a card is clicked; populated client-side
+   from /collection/card/<id>. Lists the decks that contain the card with their
+   per-deck collection status, and a read-only printing slider that clearly
+   flags when a shown printing differs from the one clicked. #}
+<div class="cc-modal" id="cc-modal" hidden
+     role="dialog" aria-modal="true" aria-labelledby="cc-modal-title">
+    <div class="cc-modal-backdrop" data-cc-close="1"></div>
+    <div class="cc-modal-dialog" role="document">
+        <button type="button" class="cc-modal-close" data-cc-close="1"
+                aria-label="Close">&times;</button>
+        <div class="cc-modal-body">
+            <div class="cc-modal-art-wrap">
+                <img class="cc-modal-art" id="cc-modal-art" src="" alt="">
+                {# Shown only while viewing a printing other than the clicked one. #}
+                <div class="cc-modal-printing-flag" id="cc-modal-printing-flag" hidden>
+                    Different printing
+                </div>
+                <div class="cc-modal-slider" id="cc-modal-slider" hidden>
+                    <button type="button" class="cc-slider-btn" id="cc-slider-prev"
+                            aria-label="Previous printing">&larr;</button>
+                    <span class="cc-slider-label" id="cc-slider-label"></span>
+                    <button type="button" class="cc-slider-btn" id="cc-slider-next"
+                            aria-label="Next printing">&rarr;</button>
+                </div>
+            </div>
+            <div class="cc-modal-info">
+                <h2 class="cc-modal-title" id="cc-modal-title"></h2>
+                <div class="cc-modal-type" id="cc-modal-type"></div>
+                {# Oracle text; for double-faced cards both faces are rendered. #}
+                <div class="cc-modal-text" id="cc-modal-text"></div>
+                <section class="cc-modal-decks">
+                    <h3 class="cc-modal-decks-title">In your decks</h3>
+                    <div class="cc-modal-decks-body" id="cc-modal-decks-body"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/collection_modal.js') }}" defer></script>
+{% endblock %}

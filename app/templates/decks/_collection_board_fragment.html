@@ -1,0 +1,6 @@
+{# Server-rendered "By collection" board, returned by the fragment endpoint and
+   swapped into #collection-board-wrap on the deck overview after a status or
+   printing change. Uses the same shared macro as the full page so grouping,
+   ordering, counts and marker markup stay identical. #}
+{% import "decks/_stack_board.html" as sb %}
+{{ sb.stack_board(ownership_card_groups, is_owner, sb.cc_titles) }}

@@ -80,6 +80,13 @@ class Deck(db.Model):
         sa.ForeignKey(f'{DB_SCHEMA}.color_identities.name', ondelete='RESTRICT'),
         nullable=False
     )
+    # Optional organizational folder (owner-defined). NULL means the deck lives
+    # at the folder-tree root. Set NULL on folder deletion so decks are never
+    # removed when a folder is deleted.
+    folder_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.deck_folders.id', ondelete='SET NULL'),
+    )
     partner: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     elo_rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, default=1500)
     decklist: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
@@ -115,6 +122,7 @@ class Deck(db.Model):
     achievements: so.Mapped[list['Achievement']] = so.relationship(back_populates='deck_rel')
     tags: so.Mapped[list['DeckTag']] = so.relationship(back_populates='deck_rel')
     components: so.Mapped[list['DeckComponent']] = so.relationship(back_populates='deck_rel')
+    folder: so.Mapped[Optional['DeckFolder']] = so.relationship(back_populates='decks')
 
 class Game(db.Model):
     __tablename__ = 'games'
@@ -252,6 +260,12 @@ class Card(db.Model):
     set_name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     rarity: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     released_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.Date)
+    # Daily Cardmarket (EUR) prices from Scryfall's `prices` object. price_eur is
+    # the non-foil price, price_eur_foil the foil price. Either may be NULL when
+    # Scryfall has no price for that printing/finish. Refreshed by the nightly
+    # fetch; used to show a current price on the collection page.
+    price_eur: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
+    price_eur_foil: so.Mapped[Optional[float]] = so.mapped_column(sa.Numeric(10, 2))
 
     # Relationships
     faces: so.Mapped[list['CardFace']] = so.relationship(back_populates='card', order_by='CardFace.face_index', cascade='all, delete-orphan')
@@ -362,6 +376,20 @@ class OracleTag(db.Model):
     tag: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
 
 
+class Ruling(db.Model):
+    __tablename__ = 'card_rulings'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    # Gatherer/Scryfall rulings, keyed by oracle_id so they apply to every
+    # printing of a card (mirrors OracleTag). Populated by fetch_card_data.py
+    # from Scryfall's separate "rulings" bulk file.
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    oracle_id: so.Mapped[str] = so.mapped_column(sa.String, nullable=False, index=True)
+    source: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    published_at: so.Mapped[Optional[datetime]] = so.mapped_column(sa.Date)
+    comment: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+
+
 class DeckComponent(db.Model):
     __tablename__ = 'deck_component'
     __table_args__ = {'schema': DB_SCHEMA}
@@ -377,9 +405,67 @@ class DeckComponent(db.Model):
     )
     count: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer)
     name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    # Whether this card counts as part of the actual deck (vs. imported-but-
+    # excluded cards like Maybeboard / "Considered" / sideboard).
+    in_deck: so.Mapped[bool] = so.mapped_column(sa.Boolean, nullable=False, default=True)
+
+    # --- Collection tracking (owner-managed) --------------------------------
+    # physical_status records how the owner has marked this card for collection
+    # tracking, independent of the card's deck membership:
+    #   'unset'   — not marked (default). Availability is still derived (the
+    #               card may show as "available" if an owned copy exists).
+    #   'in_deck' — a physical copy is asserted to be in this deck. It claims
+    #               one collection copy matching this card's printing
+    #               (card_id) + physical_finish + physical_language.
+    #   'proxy'   — this card is a proxy; it claims no collection copy.
+    # Marking a card never changes its printing/finish/language — those are
+    # edited separately. The physical_finish / physical_language the claim is
+    # matched against are stored here (NULL until the owner sets them).
+    physical_status: so.Mapped[str] = so.mapped_column(
+        sa.String, nullable=False, default='unset', server_default='unset'
+    )
+    # Finish and language the physical copy is matched against. Default to the
+    # most common case ('Normal' / 'EN', matching the collection's tokens) so a
+    # card always has a concrete printing identity to match, even before the
+    # owner edits it. Set from the deck source (Archidekt modifier / Moxfield
+    # finish flags) on import.
+    physical_finish: so.Mapped[str] = so.mapped_column(
+        sa.String, nullable=False, default='Normal', server_default='Normal'
+    )
+    physical_language: so.Mapped[str] = so.mapped_column(
+        sa.String, nullable=False, default='EN', server_default='EN'
+    )
+
+    # Relationships
+    deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='components')
+    categories: so.Mapped[list['DeckComponentCategory']] = so.relationship(
+        back_populates='component',
+        order_by='DeckComponentCategory.position',
+        cascade='all, delete-orphan',
+    )
+
+    @property
+    def primary_category(self):
+        """The main category (position 0), or None if unset (e.g. Moxfield)."""
+        return next((c.category for c in self.categories if c.position == 0), None)
+
+
+class DeckComponentCategory(db.Model):
+    __tablename__ = 'deck_component_categories'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    # Normalized categories for a deck component. position 0 = primary/main
+    # category; position >= 1 = secondary categories (stored for later use).
+    deck_component_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.deck_component.id', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    category: so.Mapped[str] = so.mapped_column(sa.String, primary_key=True)
+    position: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
 
     # Relationship
-    deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='components')
+    component: so.Mapped['DeckComponent'] = so.relationship(back_populates='categories')
 
 class Achievement(db.Model):
     __tablename__ = 'achievements'
@@ -445,6 +531,47 @@ class DeckTag(db.Model):
     deck_rel: so.Mapped['Deck'] = so.relationship(back_populates='tags')
 
 
+class DeckFolder(db.Model):
+    """An owner-defined folder for organizing decks, supporting nesting.
+
+    Folders belong to a player (``player_id``) and may nest arbitrarily via the
+    self-referential ``parent_id`` (NULL = top-level folder). Deleting a folder
+    cascades to its subfolders; decks inside a deleted folder are not removed —
+    their ``folder_id`` is set NULL (see ``Deck.folder_id``), returning them to
+    the root.
+    """
+
+    __tablename__ = 'deck_folders'
+    __table_args__ = {'schema': DB_SCHEMA}
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    player_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    name: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
+    parent_id: so.Mapped[Optional[int]] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.deck_folders.id', ondelete='CASCADE'),
+    )
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )
+
+    # Relationships
+    parent: so.Mapped[Optional['DeckFolder']] = so.relationship(
+        back_populates='children', remote_side=[id]
+    )
+    children: so.Mapped[list['DeckFolder']] = so.relationship(
+        back_populates='parent', cascade='all, delete-orphan'
+    )
+    decks: so.Mapped[list['Deck']] = so.relationship(back_populates='folder')
+
+
 class AuditLog(db.Model):
     __tablename__ = 'audit_log'
     __table_args__ = {'schema': DB_SCHEMA}
@@ -463,3 +590,64 @@ class AuditLog(db.Model):
     entity_type: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
     entity_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     details: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+
+
+class PlayerCollectionCard(db.Model):
+    """A player's owned cards, collapsed to a count per distinct physical card.
+
+    Rows represent a *collapsed* collection: two source rows combine into one
+    (their quantities summed) only when the printing, finish, condition and
+    language are all identical. The dedup key is therefore
+    (player_id, scryfall_id, finish, condition, language) and is enforced by a
+    unique constraint.
+
+    `card_id` links to a Card (printing) in our DB when one can be resolved
+    (Scryfall id first, then by name — see resolve_card_id), and is NULL when no
+    matching card is stored. `scryfall_id`, `name`, `set_code`, `set_name` and
+    `collector_number` are kept from the import so the entry is still meaningful
+    even when `card_id` is NULL.
+    """
+
+    __tablename__ = 'player_collection'
+    __table_args__ = (
+        sa.UniqueConstraint(
+            'player_id', 'scryfall_id', 'finish', 'condition', 'language',
+            name='uq_player_collection_entry',
+        ),
+        sa.CheckConstraint('count > 0', name='ck_player_collection_count'),
+        {'schema': DB_SCHEMA},
+    )
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    player_id: so.Mapped[int] = so.mapped_column(
+        sa.Integer,
+        sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    # Resolved printing in our cards table; NULL when no match is stored.
+    card_id: so.Mapped[Optional[str]] = so.mapped_column(
+        sa.String,
+        sa.ForeignKey(f'{DB_SCHEMA}.cards.id', ondelete='SET NULL'),
+    )
+
+    # Identity columns (the dedup key, alongside player_id).
+    scryfall_id: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    finish: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    condition: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    language: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+
+    # Human-readable / descriptive fields carried from the source CSV.
+    name: so.Mapped[str] = so.mapped_column(sa.String, nullable=False)
+    set_code: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    set_name: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+    collector_number: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
+
+    # Summed quantity of this distinct physical card.
+    count: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False, default=1)
+
+    created_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    updated_at: so.Mapped[Optional[datetime]] = so.mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()
+    )

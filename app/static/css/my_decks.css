@@ -1,0 +1,458 @@
+/* "My Decks" gallery: a responsive grid of deck cards. Each card shows the
+   commander art with the deck name + commander overlaid, Archidekt-style. */
+
+.my-decks {
+    /* Full viewport width (same rule as the collection view): the global
+       `main` rule is a centered flex column (align-items: center) that would
+       otherwise shrink this page to its content width. Stretch to main's full
+       width with just a side gutter and let the grid add as many columns as
+       fit — no max-width cap. */
+    align-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0;
+    padding: 20px clamp(0.5rem, 3vw, 3rem) 64px;
+}
+
+.my-decks-header {
+    margin-bottom: 24px;
+}
+
+.my-decks-header h1 {
+    margin: 0 0 4px;
+}
+
+.my-decks-sub {
+    margin: 0;
+    color: #9aa0a6;
+    font-size: 0.95rem;
+}
+
+.my-decks-empty {
+    color: #9aa0a6;
+    margin-top: 40px;
+}
+
+/* Responsive auto-fitting grid: columns grow/shrink to fill the row, with a
+   minimum card width so cards never get too narrow. */
+.deck-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: clamp(14px, 2vw, 26px);
+    /* Cap at 6 decks per row: the grid can't grow past the width of six 260px
+       columns plus five gaps, so auto-fill never places a 7th column. Below
+       that width it still fits fewer (down to the 230px min). Centered within
+       the full-width container via auto side margins. */
+    --deck-max-col: 260px;
+    --deck-cols: 6;
+    max-width: calc(
+        var(--deck-max-col) * var(--deck-cols)
+        + 26px * (var(--deck-cols) - 1)
+    );
+    margin-inline: auto;
+}
+
+.deck-card {
+    margin: 0;
+}
+
+/* Each card is a vertical stack: text header, commander art, meta footer.
+   The whole card shares one rounded, elevated surface. */
+.deck-card-link {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #1b1b1f;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    outline: none;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.deck-card-link:hover,
+.deck-card-link:focus-visible {
+    transform: translateY(-3px);
+    border-color: rgba(244, 196, 48, 0.5);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.deck-card-link:focus-visible {
+    outline: 2px solid #f4c430;
+    outline-offset: 2px;
+}
+
+/* Text header on a solid background — readable, not laid over the art.
+   Titles on the left, color identity on the top-right. */
+.deck-card-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #23232a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.deck-card-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0; /* allow the text to shrink/ellipsis so colors keep their spot */
+}
+
+.deck-card-name {
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.2;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.deck-card-commander {
+    font-size: 0.82rem;
+    color: #f4c430;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The art area keeps MTG card-art proportions (landscape crop of the card). */
+.deck-card-art {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 626 / 457;
+    background: #1b1b1f;
+}
+
+.deck-card-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* art_crop is already a tight landscape illustration crop, so just fill. */
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Meta footer: tags. */
+.deck-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px 10px;
+    background: #23232a;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Color identity in the header's top-right: a single, never-wrapping row of
+   symbols that keeps its intrinsic width (doesn't shrink with the titles). */
+.deck-card-colors {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    padding-top: 1px;
+}
+
+.deck-card-color-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.deck-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.deck-card-tag {
+    font-size: 0.72rem;
+    line-height: 1.3;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(244, 196, 48, 0.14);
+    color: #f4c430;
+    border: 1px solid rgba(244, 196, 48, 0.3);
+}
+
+/* Placeholder shown when a deck has no chosen commander image. */
+.deck-card-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #cfcfd4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .deck-card-link {
+        transition: none;
+    }
+}
+
+/* ── Folders ─────────────────────────────────────────────────────────────── */
+
+/* Breadcrumb trail under the page title. */
+.my-decks-breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0 2px;
+    font-size: 0.9rem;
+}
+
+.my-decks-breadcrumbs .crumb {
+    color: #9aa0a6;
+    text-decoration: none;
+}
+
+.my-decks-breadcrumbs .crumb:hover {
+    color: #f4c430;
+    text-decoration: underline;
+}
+
+.my-decks-breadcrumbs .crumb-current {
+    color: #fff;
+    font-weight: 600;
+}
+
+.my-decks-breadcrumbs .crumb-sep {
+    color: #5a5a62;
+}
+
+.folder-section {
+    width: 100%;
+    margin: 0 auto 26px;
+    max-width: calc(260px * 6 + 26px * 5);
+}
+
+/* Folder cards are smaller than deck cards and sit in their own grid above the
+   deck grid. */
+.folder-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.folder-card {
+    margin: 0;
+}
+
+.folder-card-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    padding: 18px 12px;
+    min-height: 64px;
+    border-radius: 8px;
+    background: #23232a;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    font: inherit;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.folder-card-link:hover,
+.folder-card-link:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(244, 196, 48, 0.5);
+    background: #2a2a31;
+    outline: none;
+}
+
+.folder-card-link:focus-visible {
+    outline: 2px solid #f4c430;
+    outline-offset: 2px;
+}
+
+.folder-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+
+.folder-card-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.folder-card-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.folder-card-count {
+    font-size: 0.75rem;
+    color: #9aa0a6;
+}
+
+/* The "new folder" and "up" cards read as subtle, dashed affordances. */
+.folder-new .folder-card-link,
+.folder-up .folder-card-link {
+    background: transparent;
+    border-style: dashed;
+    color: #cfcfd4;
+}
+
+.folder-new .folder-card-link:hover,
+.folder-up .folder-card-link:hover {
+    background: rgba(244, 196, 48, 0.08);
+}
+
+/* Drag-and-drop states. */
+.deck-card[draggable="true"] {
+    cursor: grab;
+}
+
+.deck-card-dragging {
+    opacity: 0.5;
+}
+
+.folder-card-dragover .folder-card-link {
+    border-color: #f4c430;
+    border-style: solid;
+    background: rgba(244, 196, 48, 0.18);
+    transform: translateY(-2px);
+}
+
+.deck-card-error .deck-card-link {
+    border-color: #e5484d;
+    box-shadow: 0 0 0 2px rgba(229, 72, 77, 0.5);
+}
+
+/* ── New-folder dialog ───────────────────────────────────────────────────── */
+
+.folder-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.folder-dialog-backdrop[hidden] {
+    display: none;
+}
+
+.folder-dialog {
+    width: 100%;
+    max-width: 380px;
+    background: #1b1b1f;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    padding: 20px;
+}
+
+.folder-dialog-title {
+    margin: 0 0 14px;
+    font-size: 1.1rem;
+    color: #fff;
+}
+
+.folder-dialog-label {
+    display: block;
+    font-size: 0.82rem;
+    color: #9aa0a6;
+    margin-bottom: 6px;
+}
+
+.folder-dialog-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: #23232a;
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.folder-dialog-input:focus {
+    outline: none;
+    border-color: #f4c430;
+}
+
+.folder-dialog-error {
+    color: #e5686c;
+    font-size: 0.82rem;
+    margin: 8px 0 0;
+}
+
+.folder-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.folder-dialog-actions .btn {
+    padding: 8px 16px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    font: inherit;
+    cursor: pointer;
+}
+
+.folder-dialog-actions .btn-secondary {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #cfcfd4;
+}
+
+.folder-dialog-actions .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.folder-dialog-actions .btn-primary {
+    background: #f4c430;
+    color: #1b1b1f;
+    font-weight: 600;
+}
+
+.folder-dialog-actions .btn-primary:hover {
+    background: #ffd450;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .folder-card-link {
+        transition: none;
+    }
+}

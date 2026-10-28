@@ -176,12 +176,30 @@ def upsert_card(cur, card: dict) -> None:
     ))
 
 
+def _face_image(face: dict, card: dict) -> str | None:
+    """Pick the 'large' image for a face, falling back to the card's top-level.
+
+    Transform / modal_dfc / reversible_card put `image_uris` on each face. But
+    the single-image two-name layouts (split, flip, adventure, aftermath,
+    'prepare', etc.) carry ONE top-level `image_uris` and NO per-face image —
+    the whole physical card is a single image. For those, fall back to the
+    card-level image so both faces still get a picture instead of NULL.
+    """
+    face_imgs = face.get('image_uris')
+    if face_imgs and face_imgs.get('large'):
+        return face_imgs['large']
+    card_imgs = card.get('image_uris')
+    if card_imgs and card_imgs.get('large'):
+        return card_imgs['large']
+    return None
+
+
 def insert_card_faces(cur, card_id: str, card: dict) -> None:
     """Insert face rows — handles single-face and multi-face cards."""
     if 'card_faces' in card:
         # Multi-face card: insert one row per face
         for idx, face in enumerate(card['card_faces']):
-            image_uri = face.get('image_uris', {}).get('large') if 'image_uris' in face else None
+            image_uri = _face_image(face, card)
             cur.execute("""
                 INSERT INTO magic_stats_owner.card_faces (card_id, face_index, name, mana_cost, type_line, oracle_text, image_uri)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -589,7 +607,7 @@ if __name__ == '__main__':
             # Accumulate faces
             if 'card_faces' in card:
                 for idx, face in enumerate(card['card_faces']):
-                    image_uri = face.get('image_uris', {}).get('large') if 'image_uris' in face else None
+                    image_uri = _face_image(face, card)
                     faces_batch.append((card_id, idx, face['name'], face.get('mana_cost'), face.get('type_line'), face.get('oracle_text'), image_uri))
             else:
                 image_uri = card.get('image_uris', {}).get('large') if 'image_uris' in card else None

@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.users (
 -- For an already-built database, add the bio column idempotently (no Alembic — ADR-001):
 ALTER TABLE magic_stats_owner.users ADD COLUMN IF NOT EXISTS bio VARCHAR(1000);
 
+-- Index the player link used on every profile/user page (User.player_id lookup).
+CREATE INDEX IF NOT EXISTS idx_users_player_id ON magic_stats_owner.users (player_id);
+
 -- ---------------------------------------------------------------------------
 -- 3. colors / color identities (WUBRG reference data)
 -- ---------------------------------------------------------------------------
@@ -98,6 +101,10 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.decks (
     partner        TEXT,
     player_id      INTEGER NOT NULL REFERENCES magic_stats_owner.players(id) ON DELETE RESTRICT,
     color_identity TEXT NOT NULL REFERENCES magic_stats_owner.color_identities(name) ON DELETE RESTRICT,
+    -- Organizational folder (see deck_folders, section 11b). NULL = root. The
+    -- FK is added after deck_folders is created (ALTER below) to avoid a
+    -- forward reference in this top-down build script.
+    folder_id      INTEGER,
     elo_rating     FLOAT NOT NULL DEFAULT 1500 CHECK (elo_rating >= 0),
     decklist       TEXT,
     decksite       TEXT,
@@ -113,6 +120,12 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.decks (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Indexes for the owner/active filters used on every deck listing (my_decks,
+-- user decks, highlights, elo) and the color-usage views.
+CREATE INDEX IF NOT EXISTS idx_decks_player_id ON magic_stats_owner.decks (player_id);
+CREATE INDEX IF NOT EXISTS idx_decks_active    ON magic_stats_owner.decks (active);
+CREATE INDEX IF NOT EXISTS idx_decks_folder_id ON magic_stats_owner.decks (folder_id);
 
 -- ---------------------------------------------------------------------------
 -- 5. games
@@ -132,6 +145,15 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.games (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Indexes for the columns filtered/joined/sorted on the hot stats and profile
+-- reads: wins (winner_id), first-player counts (first_player_id), date range
+-- and chronological ordering (date), and a partial index matching the
+-- pervasive non-cEDH, date-ordered query shape.
+CREATE INDEX IF NOT EXISTS idx_games_winner_id       ON magic_stats_owner.games (winner_id);
+CREATE INDEX IF NOT EXISTS idx_games_first_player_id ON magic_stats_owner.games (first_player_id);
+CREATE INDEX IF NOT EXISTS idx_games_date            ON magic_stats_owner.games (date);
+CREATE INDEX IF NOT EXISTS idx_games_noncedh_date    ON magic_stats_owner.games (date) WHERE cedh = false;
 
 -- ---------------------------------------------------------------------------
 -- 6. participants
@@ -199,19 +221,27 @@ CREATE CONSTRAINT TRIGGER trg_check_participant_seat
 -- 7. cards and normalized card metadata (Scryfall-sourced)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS magic_stats_owner.cards (
-    id           TEXT PRIMARY KEY,
-    oracle_id    TEXT NOT NULL,
-    name         TEXT NOT NULL,
-    mana_cost    TEXT,
-    cmc          FLOAT NOT NULL DEFAULT 0,
-    type_line    TEXT NOT NULL,
-    oracle_text  TEXT,
-    layout       TEXT NOT NULL,
-    set_code     TEXT NOT NULL,
-    set_name     TEXT NOT NULL,
-    rarity       TEXT NOT NULL,
-    released_at  DATE
+    id             TEXT PRIMARY KEY,
+    oracle_id      TEXT NOT NULL,
+    name           TEXT NOT NULL,
+    mana_cost      TEXT,
+    cmc            FLOAT NOT NULL DEFAULT 0,
+    type_line      TEXT NOT NULL,
+    oracle_text    TEXT,
+    layout         TEXT NOT NULL,
+    set_code       TEXT NOT NULL,
+    set_name       TEXT NOT NULL,
+    rarity         TEXT NOT NULL,
+    released_at    DATE,
+    -- Daily Cardmarket (EUR) prices from Scryfall's `prices` object
+    -- (price_eur = non-foil, price_eur_foil = foil). Either may be NULL.
+    price_eur      NUMERIC(10, 2),
+    price_eur_foil NUMERIC(10, 2)
 );
+
+-- For an already-built database, add the price columns idempotently (no Alembic — ADR-001):
+ALTER TABLE magic_stats_owner.cards ADD COLUMN IF NOT EXISTS price_eur      NUMERIC(10, 2);
+ALTER TABLE magic_stats_owner.cards ADD COLUMN IF NOT EXISTS price_eur_foil NUMERIC(10, 2);
 
 CREATE INDEX IF NOT EXISTS idx_cards_oracle_id ON magic_stats_owner.cards (oracle_id);
 CREATE INDEX IF NOT EXISTS idx_cards_name ON magic_stats_owner.cards (name);
@@ -227,6 +257,10 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.card_faces (
     image_uri   TEXT,
     UNIQUE (card_id, face_index)
 );
+
+-- Front-face image lookups (collection gallery + deck overview) filter by
+-- card_id; card_faces grows with the (large) cards table.
+CREATE INDEX IF NOT EXISTS idx_card_faces_card_id ON magic_stats_owner.card_faces (card_id);
 
 CREATE TABLE IF NOT EXISTS magic_stats_owner.card_colors (
     card_id TEXT NOT NULL REFERENCES magic_stats_owner.cards(id) ON DELETE CASCADE,
@@ -262,6 +296,19 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.oracle_tags (
 
 CREATE INDEX IF NOT EXISTS idx_oracle_tags_oracle_id ON magic_stats_owner.oracle_tags (oracle_id);
 
+-- Gatherer/Scryfall rulings. Rulings are shared across all printings of a
+-- card, so they key on oracle_id (like oracle_tags) rather than a printing id.
+-- Populated from Scryfall's separate "rulings" bulk file by fetch_card_data.py.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.card_rulings (
+    id           SERIAL PRIMARY KEY,
+    oracle_id    TEXT NOT NULL,
+    source       TEXT,
+    published_at DATE,
+    comment      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_rulings_oracle_id ON magic_stats_owner.card_rulings (oracle_id);
+
 -- ---------------------------------------------------------------------------
 -- 8. deck_component (cards belonging to a deck's decklist)
 -- ---------------------------------------------------------------------------
@@ -270,8 +317,47 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_component (
     deck_id INTEGER REFERENCES magic_stats_owner.decks(id) ON DELETE CASCADE,
     card_id TEXT REFERENCES magic_stats_owner.cards(id) ON DELETE SET NULL,
     count   INTEGER,
-    name    TEXT
+    name    TEXT,
+    -- Whether this card counts as part of the actual deck. Driven by the
+    -- card's PRIMARY category on import (Archidekt) or its board (Moxfield).
+    -- Cards that are imported but excluded (Maybeboard / "Considered" /
+    -- sideboard, etc.) are stored with in_deck = FALSE for later features.
+    in_deck BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Owner-managed collection tracking. physical_status marks whether a real
+    -- copy of this card is in the deck ('in_deck'), it's a proxy ('proxy'), or
+    -- unmarked ('unset', default). An 'in_deck' card claims one collection copy
+    -- matching this card's printing (card_id) + physical_finish +
+    -- physical_language (condition ignored). Marking never edits the card's
+    -- printing/finish/language — those are set independently.
+    physical_status   TEXT NOT NULL DEFAULT 'unset'
+        CHECK (physical_status IN ('unset', 'in_deck', 'proxy')),
+    -- Finish/language of the physical copy matched against the collection.
+    -- Default to the most common identity ('Normal' / 'EN', matching the
+    -- collection's tokens); set from the deck source (Archidekt modifier /
+    -- Moxfield finish flags) on import.
+    physical_finish   TEXT NOT NULL DEFAULT 'Normal',
+    physical_language TEXT NOT NULL DEFAULT 'EN'
 );
+
+-- deck_overview, the printing swap, and card-usage all filter by deck_id;
+-- this is a large per-deck table (~full decklist per deck).
+CREATE INDEX IF NOT EXISTS idx_deck_component_deck_id ON magic_stats_owner.deck_component (deck_id);
+
+-- Categories a deck component belongs to (Archidekt categories). Normalized:
+-- one row per (component, category). `position` is the ordinal from the source
+-- (0 = primary/main category); secondary categories are position >= 1 and are
+-- stored now for later features. Moxfield has no categories, so Moxfield
+-- components simply have no rows here.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_component_categories (
+    deck_component_id INTEGER NOT NULL
+        REFERENCES magic_stats_owner.deck_component(id) ON DELETE CASCADE,
+    category          TEXT NOT NULL,
+    position          INTEGER NOT NULL,
+    PRIMARY KEY (deck_component_id, category)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deck_component_categories_component
+    ON magic_stats_owner.deck_component_categories (deck_component_id);
 
 -- ---------------------------------------------------------------------------
 -- 9. achievements
@@ -284,6 +370,9 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.achievements (
     deck_id     INTEGER REFERENCES magic_stats_owner.decks(id) ON DELETE CASCADE,
     achieved    INTEGER
 );
+
+-- Achievements are loaded per deck on the deck show page.
+CREATE INDEX IF NOT EXISTS idx_achievements_deck_id ON magic_stats_owner.achievements (deck_id);
 
 -- ---------------------------------------------------------------------------
 -- 10. deck_version_history
@@ -302,6 +391,10 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_version_history (
     timestamp        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Version history is read per deck (ordered by timestamp).
+CREATE INDEX IF NOT EXISTS idx_deck_version_history_deck_id
+    ON magic_stats_owner.deck_version_history (deck_id);
+
 -- ---------------------------------------------------------------------------
 -- 11. deck_tags
 -- ---------------------------------------------------------------------------
@@ -312,6 +405,41 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_tags (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (deck_id, tag)
 );
+
+-- ---------------------------------------------------------------------------
+-- 11b. deck_folders (owner-defined folders for organizing decks; nestable)
+-- ---------------------------------------------------------------------------
+-- Belongs to a player. parent_id nests folders (NULL = top-level); deleting a
+-- folder cascades to its subfolders. decks.folder_id references this table and
+-- is SET NULL on folder deletion, so decks are never removed with a folder.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.deck_folders (
+    id         SERIAL PRIMARY KEY,
+    player_id  INTEGER NOT NULL REFERENCES magic_stats_owner.players(id) ON DELETE CASCADE,
+    name       VARCHAR(255) NOT NULL,
+    parent_id  INTEGER REFERENCES magic_stats_owner.deck_folders(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_deck_folders_player_id ON magic_stats_owner.deck_folders (player_id);
+CREATE INDEX IF NOT EXISTS idx_deck_folders_parent_id ON magic_stats_owner.deck_folders (parent_id);
+
+-- Deferred FK for decks.folder_id (decks is created before deck_folders above).
+-- Guarded so re-running the script doesn't error on an existing constraint.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_schema = 'magic_stats_owner'
+          AND table_name = 'decks'
+          AND constraint_name = 'fk_decks_folder_id'
+    ) THEN
+        ALTER TABLE magic_stats_owner.decks
+            ADD CONSTRAINT fk_decks_folder_id
+            FOREIGN KEY (folder_id)
+            REFERENCES magic_stats_owner.deck_folders(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 12. audit_log
@@ -328,7 +456,47 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.audit_log (
 );
 
 -- ---------------------------------------------------------------------------
--- 13. Views
+-- 13. player_collection (a player's owned cards, collapsed to a count)
+-- ---------------------------------------------------------------------------
+-- One row per distinct physical card a player owns. Two source rows collapse
+-- into one (quantities summed) only when printing, finish, condition and
+-- language are all identical, so the dedup key is
+-- (player_id, scryfall_id, finish, condition, language).
+--
+-- card_id links to our cards (printing) table when the printing can be
+-- resolved (by Scryfall id, else by name — see resolve_card_id), and is NULL
+-- when no matching card is stored. The scryfall_id / name / set / collector
+-- columns are retained from the import so the entry stays meaningful even when
+-- card_id is NULL.
+CREATE TABLE IF NOT EXISTS magic_stats_owner.player_collection (
+    id               SERIAL PRIMARY KEY,
+    player_id        INTEGER NOT NULL
+        REFERENCES magic_stats_owner.players(id) ON DELETE CASCADE,
+    card_id          TEXT
+        REFERENCES magic_stats_owner.cards(id) ON DELETE SET NULL,
+    scryfall_id      TEXT NOT NULL,
+    finish           TEXT NOT NULL,
+    condition        TEXT NOT NULL,
+    language         TEXT NOT NULL,
+    name             TEXT NOT NULL,
+    set_code         TEXT,
+    set_name         TEXT,
+    collector_number TEXT,
+    count            INTEGER NOT NULL DEFAULT 1 CHECK (count > 0),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_player_collection_entry
+        UNIQUE (player_id, scryfall_id, finish, condition, language)
+);
+
+CREATE INDEX IF NOT EXISTS idx_player_collection_player
+    ON magic_stats_owner.player_collection (player_id);
+
+CREATE INDEX IF NOT EXISTS idx_player_collection_card
+    ON magic_stats_owner.player_collection (card_id);
+
+-- ---------------------------------------------------------------------------
+-- 14. Views
 -- ---------------------------------------------------------------------------
 
 CREATE OR REPLACE VIEW magic_stats_owner.v_color_usage AS
@@ -391,6 +559,104 @@ LEFT JOIN magic_stats_owner.color_components cc ON cc.color_identity = d.color_i
 LEFT JOIN magic_stats_owner.colors c ON cc.color = c.name
 GROUP BY p.name
 ORDER BY COUNT(DISTINCT d.id) DESC;
+
+-- Collection availability: per (player, printing, finish, language) pool, how
+-- many copies the player owns vs. how many are claimed by deck cards marked
+-- 'in_deck', with an over_claimed flag. Finish/language are lower-cased so
+-- case variants collapse. See scripts/add_deck_component_collection_tracking.sql.
+CREATE OR REPLACE VIEW magic_stats_owner.v_player_printing_availability AS
+WITH owned AS (
+    SELECT
+        pc.player_id,
+        pc.card_id,
+        LOWER(COALESCE(pc.finish, ''))   AS finish_key,
+        LOWER(COALESCE(pc.language, '')) AS language_key,
+        SUM(pc.count)                    AS owned_count
+    FROM magic_stats_owner.player_collection pc
+    WHERE pc.card_id IS NOT NULL
+    GROUP BY pc.player_id, pc.card_id,
+             LOWER(COALESCE(pc.finish, '')), LOWER(COALESCE(pc.language, ''))
+),
+claimed AS (
+    SELECT
+        d.player_id,
+        dc.card_id,
+        LOWER(COALESCE(dc.physical_finish, ''))   AS finish_key,
+        LOWER(COALESCE(dc.physical_language, '')) AS language_key,
+        SUM(COALESCE(dc.count, 1))                AS claimed_count
+    FROM magic_stats_owner.deck_component dc
+    JOIN magic_stats_owner.decks d ON d.id = dc.deck_id
+    WHERE dc.physical_status = 'in_deck'
+      AND dc.card_id IS NOT NULL
+      -- Only active decks allocate physical copies; a shelved/inactive deck no
+      -- longer holds a card against the collection.
+      AND d.active IS TRUE
+    GROUP BY d.player_id, dc.card_id,
+             LOWER(COALESCE(dc.physical_finish, '')), LOWER(COALESCE(dc.physical_language, ''))
+)
+SELECT
+    COALESCE(o.player_id, c.player_id)       AS player_id,
+    COALESCE(o.card_id, c.card_id)           AS card_id,
+    COALESCE(o.finish_key, c.finish_key)     AS finish_key,
+    COALESCE(o.language_key, c.language_key) AS language_key,
+    COALESCE(o.owned_count, 0)               AS owned_count,
+    COALESCE(c.claimed_count, 0)             AS claimed_count,
+    (COALESCE(c.claimed_count, 0) > COALESCE(o.owned_count, 0)) AS over_claimed
+FROM owned o
+FULL OUTER JOIN claimed c
+    ON o.player_id = c.player_id
+   AND o.card_id = c.card_id
+   AND o.finish_key = c.finish_key
+   AND o.language_key = c.language_key;
+
+-- Resolved collection status per deck_component (consumed by the deck overview
+-- and collection pages). 'available'/'owned_no_copy' for the exact printing use
+-- the exact printing+finish+language pool; when the exact printing isn't owned
+-- the 'owned_other'/'owned_no_copy' fallback uses ORACLE-level totals (summed
+-- across all printings) because availability of a physical copy doesn't depend
+-- on printing. See the migration script for the full status list.
+CREATE OR REPLACE VIEW magic_stats_owner.v_deck_card_collection_status AS
+WITH oracle_availability AS (
+    SELECT
+        av.player_id,
+        c.oracle_id,
+        SUM(av.owned_count)   AS owned_count,
+        SUM(av.claimed_count) AS claimed_count
+    FROM magic_stats_owner.v_player_printing_availability av
+    JOIN magic_stats_owner.cards c ON c.id = av.card_id
+    GROUP BY av.player_id, c.oracle_id
+)
+SELECT
+    dc.id            AS deck_component_id,
+    dc.deck_id       AS deck_id,
+    d.player_id      AS player_id,
+    dc.card_id       AS card_id,
+    dc.physical_status,
+    dc.physical_finish,
+    dc.physical_language,
+    COALESCE(av.owned_count, 0)   AS owned_count,
+    COALESCE(av.claimed_count, 0) AS claimed_count,
+    CASE
+        WHEN dc.physical_status = 'in_deck' AND COALESCE(av.over_claimed, TRUE) THEN 'in_deck_faulty'
+        WHEN dc.physical_status = 'in_deck' THEN 'in_deck_ok'
+        WHEN dc.physical_status = 'proxy' THEN 'proxy'
+        WHEN COALESCE(av.owned_count, 0) > COALESCE(av.claimed_count, 0) THEN 'available'
+        WHEN COALESCE(av.owned_count, 0) > 0 THEN 'owned_no_copy'
+        WHEN COALESCE(oa.owned_count, 0) > COALESCE(oa.claimed_count, 0) THEN 'owned_other'
+        WHEN COALESCE(oa.owned_count, 0) > 0 THEN 'owned_no_copy'
+        ELSE 'not_owned'
+    END AS status
+FROM magic_stats_owner.deck_component dc
+JOIN magic_stats_owner.decks d ON d.id = dc.deck_id
+LEFT JOIN magic_stats_owner.cards dcard ON dcard.id = dc.card_id
+LEFT JOIN magic_stats_owner.v_player_printing_availability av
+       ON av.player_id = d.player_id
+      AND av.card_id = dc.card_id
+      AND av.finish_key = LOWER(dc.physical_finish)
+      AND av.language_key = LOWER(dc.physical_language)
+LEFT JOIN oracle_availability oa
+       ON oa.player_id = d.player_id
+      AND oa.oracle_id = dcard.oracle_id;
 
 -- =============================================================================
 -- End of full build script.
