@@ -926,3 +926,76 @@ textarea.edit-deck-input {
     background: #e4606d;
     color: #fff;
 }
+
+
+/* ===========================================================================
+   "In your decks" list in the card popup (replaces the old rulings section).
+   Mirrors the collection-page popup's deck list so both look identical.
+   =========================================================================== */
+.card-modal-decks {
+    margin-top: 0.4rem;
+}
+.card-modal-decks-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: #c9d1d9;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 0.3rem;
+}
+.cc-modal-decks-empty {
+    color: #8b949e;
+    font-size: 0.88rem;
+    margin: 0.4rem 0;
+}
+.cc-deck-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.cc-deck-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.cc-deck-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cc-deck-name:hover { text-decoration: underline; }
+.cc-deck-meta {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    color: #8b949e;
+    letter-spacing: 0.03em;
+}
+.cc-deck-meta.is-other-printing {
+    color: #d29922;
+    font-weight: 700;
+}
+.cc-deck-status {
+    flex: 0 0 auto;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #0d1117;
+    white-space: nowrap;
+}
+.cc-deck-status.cc-coll-in_deck_ok     { background: #3fb950; }
+.cc-deck-status.cc-coll-available      { background: #58a6ff; }
+.cc-deck-status.cc-coll-owned_other    { background: #a371f7; color: #fff; }
+.cc-deck-status.cc-coll-owned_no_copy  { background: #d29922; }
+.cc-deck-status.cc-coll-proxy          { background: #8b949e; }
+.cc-deck-status.cc-coll-not_owned      { background: #6e7681; color: #fff; }
+.cc-deck-status.cc-coll-in_deck_faulty { background: #f85149; color: #fff; }

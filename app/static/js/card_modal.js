@@ -1,5 +1,6 @@
 // Card popup for the deck overview. Clicking a card fetches its detail from
-// /decks/card/<id> and renders image + readable text + rulings in a modal.
+// /decks/card/<id> and renders image + readable text + the decks that contain
+// the card (with per-deck collection status) in a modal.
 (function () {
     'use strict';
 
@@ -12,8 +13,7 @@
     var titleEl = document.getElementById('card-modal-title');
     var typeEl = document.getElementById('card-modal-type');
     var textEl = document.getElementById('card-modal-text');
-    var rulingsSection = document.getElementById('card-modal-rulings');
-    var rulingsBody = document.getElementById('card-modal-rulings-body');
+    var decksBody = document.getElementById('card-modal-decks-body');
     var printingBtn = document.getElementById('card-modal-printing-btn');
     var printingPicker = document.getElementById('card-printing-picker');
     var printingList = document.getElementById('card-printing-list');
@@ -109,31 +109,51 @@
         });
     }
 
-    function renderRulings(rulings) {
-        clearText(rulingsBody);
-        if (!rulings || rulings.length === 0) {
+    // Render the decks that contain this card, with per-deck collection status
+    // — the same list (and styling) as the collection-page card popup.
+    function renderDecks(decks) {
+        if (!decksBody) { return; }
+        clearText(decksBody);
+        if (!decks || decks.length === 0) {
             var none = document.createElement('p');
-            none.className = 'card-modal-rulings-empty';
-            none.textContent = 'No rulings available.';
-            rulingsBody.appendChild(none);
+            none.className = 'cc-modal-decks-empty';
+            none.textContent = 'This card is not in any of your decks.';
+            decksBody.appendChild(none);
             return;
         }
         var list = document.createElement('ul');
-        rulings.forEach(function (ruling) {
+        list.className = 'cc-deck-list';
+        decks.forEach(function (d) {
             var li = document.createElement('li');
-            if (ruling.published_at) {
-                var date = document.createElement('span');
-                date.className = 'card-ruling-date';
-                date.textContent = ruling.published_at;
-                li.appendChild(date);
+            li.className = 'cc-deck-row';
+
+            var name = document.createElement('a');
+            name.className = 'cc-deck-name';
+            name.href = '/decks/overview/' + encodeURIComponent(d.deck_id);
+            name.textContent = d.deck_name + (d.count > 1 ? ' (x' + d.count + ')' : '');
+            li.appendChild(name);
+
+            var meta = document.createElement('span');
+            meta.className = 'cc-deck-meta';
+            var setText = (d.set_code || '').toUpperCase();
+            if (!d.same_printing && setText) {
+                setText += ' \u2260';  // different printing than the clicked one
             }
-            var comment = document.createElement('span');
-            comment.className = 'card-ruling-comment';
-            comment.textContent = ruling.comment;
-            li.appendChild(comment);
+            meta.textContent = setText;
+            if (!d.same_printing) {
+                meta.classList.add('is-other-printing');
+                meta.title = 'This deck uses a different printing';
+            }
+            li.appendChild(meta);
+
+            var badge = document.createElement('span');
+            badge.className = 'cc-deck-status cc-coll-' + (d.status || 'not_owned');
+            badge.textContent = d.status_label || d.status;
+            li.appendChild(badge);
+
             list.appendChild(li);
         });
-        rulingsBody.appendChild(list);
+        decksBody.appendChild(list);
     }
 
     function openModal() {
@@ -166,13 +186,13 @@
         titleEl.textContent = 'Loading\u2026';
         typeEl.textContent = '';
         clearText(textEl);
-        clearText(rulingsBody);
+        if (decksBody) { clearText(decksBody); }
         imageEl.src = '';
         imageEl.alt = '';
     }
 
     // Picker mode replaces the whole dialog content with the printing grid;
-    // card mode shows the normal image + text + rulings view.
+    // card mode shows the normal image + text + decks view.
     function enterPickerMode() {
         modalBody.hidden = true;
         printingPicker.hidden = false;
@@ -203,7 +223,7 @@
         }
 
         renderFaces(data.faces, data.oracle_text);
-        renderRulings(data.rulings);
+        renderDecks(data.decks);
 
         // The printing button only makes sense when we know the deck and the
         // card is actually in it (opened from a stack card).
@@ -238,7 +258,7 @@
                 var p = document.createElement('p');
                 p.textContent = String(err.message || err);
                 textEl.appendChild(p);
-                clearText(rulingsBody);
+                if (decksBody) { clearText(decksBody); }
             });
     }
 

@@ -859,22 +859,17 @@ def card_detail(card_id):
         for face in sorted(card.faces, key=lambda f: f.face_index)
     ]
 
-    # Rulings are shared across printings, so query by oracle_id. Ordered
-    # oldest-first (NULL dates last). Empty until the nightly fetch runs.
-    rulings = db.session.scalars(
-        sa.select(models.Ruling)
-        .where(models.Ruling.oracle_id == card.oracle_id)
-        .order_by(models.Ruling.published_at.asc().nulls_last())
-    ).all()
-
-    rulings_payload = [
-        {
-            'source': r.source,
-            'published_at': r.published_at.isoformat() if r.published_at else None,
-            'comment': r.comment,
-        }
-        for r in rulings
-    ]
+    # Decks that contain this card (by oracle_id, across printings) with the
+    # per-deck collection status — the same list the collection-page popup
+    # shows. Scoped to the logged-in viewer's player; empty for anonymous
+    # visitors. Replaces the old rulings block.
+    decks = []
+    viewer_player_id = getattr(current_user, 'player_id', None) if current_user.is_authenticated else None
+    if viewer_player_id is not None:
+        from app.services.collection_service import get_decks_containing_card
+        decks = get_decks_containing_card(viewer_player_id, card.oracle_id)
+        for d in decks:
+            d['same_printing'] = (d['card_id'] == card_id)
 
     return jsonify({
         'ok': True,
@@ -884,7 +879,7 @@ def card_detail(card_id):
         'type_line': card.type_line,
         'oracle_text': card.oracle_text,
         'faces': faces,
-        'rulings': rulings_payload,
+        'decks': decks,
     })
 
 
