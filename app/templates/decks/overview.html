@@ -14,10 +14,16 @@
       data-deck-id="{{ deck_id }}"
       data-is-owner="{{ '1' if is_owner else '' }}">
     <header class="deck-overview-header">
-        <h1>{{ deckname }}</h1>
+        <div class="deck-overview-titlebar">
+            <h1>{{ deckname }}</h1>
+            {% if is_owner %}
+            <button type="button" class="edit-deck-btn" id="edit-deck-btn">Edit deck</button>
+            {% endif %}
+        </div>
         <p class="deck-overview-sub">
             {% if commander %}<span class="deck-overview-commander">{{ commander }}</span> &middot; {% endif %}
             {{ total_cards }} card{{ '' if total_cards == 1 else 's' }}
+            {% if is_owner %}&middot; <span class="deck-overview-version">v{{ deck_version }}</span>{% endif %}
         </p>
 
         {% if card_groups %}
@@ -55,6 +61,88 @@
     <p class="deck-overview-empty">This deck has no cards to display yet.</p>
     {% endif %}
 </main>
+
+{% if is_owner and edit_form %}
+{# Edit-deck modal (owner only). Mirrors the standalone edit page's options —
+   rename + decklist link, archive, and version rework/patch/change with a
+   comment — posting to the existing deck_edit endpoint. A hidden next=overview
+   field makes edit/version actions return to this overview. #}
+<div class="edit-deck-modal" id="edit-deck-modal" hidden
+     role="dialog" aria-modal="true" aria-labelledby="edit-deck-title">
+    <div class="edit-deck-backdrop" data-edit-close="1"></div>
+    <div class="edit-deck-dialog" role="document">
+        <button type="button" class="edit-deck-close" data-edit-close="1" aria-label="Close">&times;</button>
+        <h2 class="edit-deck-title" id="edit-deck-title">Edit deck</h2>
+        <p class="edit-deck-version">Version {{ deck_version }}</p>
+
+        {% set edit_action = url_for('decks.deck_edit', deckname=deckname) %}
+
+        <!-- Rename + decklist -->
+        <form action="{{ edit_action }}" method="post" class="edit-deck-form">
+            {{ edit_form.hidden_tag() }}
+            <input type="hidden" name="next" value="overview">
+            <label class="edit-deck-label">{{ edit_form.name.label.text }}
+                {{ edit_form.name(class="edit-deck-input") }}
+            </label>
+            {% for error in edit_form.name.errors %}
+            <span class="edit-deck-error">{{ error }}</span>
+            {% endfor %}
+            <label class="edit-deck-label">{{ edit_form.decklist.label.text }}
+                {{ edit_form.decklist(class="edit-deck-input", placeholder="Archidekt / Moxfield URL (optional)") }}
+            </label>
+            <div class="edit-deck-actions">
+                {{ edit_form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+
+        <!-- Reload from source link -->
+        <div class="edit-deck-section">
+            <h3 class="edit-deck-subtitle">Reload from link</h3>
+            {% if deck_has_source %}
+            <button type="button" class="btn" id="reload-deck-btn" data-deck-id="{{ deck_id }}">Reload deck from link</button>
+            <p class="edit-deck-hint" id="reload-deck-note">
+                Re-imports the card list from the deck's Archidekt/Moxfield link
+                (the same as the nightly refresh). Your in-deck / proxy marks are
+                kept where the card is still in the list.
+            </p>
+            {% else %}
+            <p class="edit-deck-hint">This deck has no source link to reload from.</p>
+            {% endif %}
+        </div>
+
+        <!-- Version update -->
+        <div class="edit-deck-section">
+            <h3 class="edit-deck-subtitle">Version update</h3>
+            <form action="{{ edit_action }}" method="post" class="edit-deck-form">
+                {{ edit_form.hidden_tag() }}
+                <input type="hidden" name="next" value="overview">
+                {{ edit_form.version_comment(class="edit-deck-input", rows="2",
+                    placeholder="What changed in this version? (optional)") }}
+                <div class="edit-deck-actions edit-deck-version-actions">
+                    {{ edit_form.version_reworked(class="btn") }}
+                    {{ edit_form.version_patched(class="btn") }}
+                    {{ edit_form.version_changed(class="btn") }}
+                </div>
+                <p class="edit-deck-hint">
+                    <strong>Reworked</strong> bumps the major version (concept / power-level
+                    change), <strong>Patched</strong> the patch version (notable fixes), and
+                    <strong>Changed</strong> the change version (single-card swaps).
+                </p>
+            </form>
+        </div>
+
+        <!-- Archive -->
+        <div class="edit-deck-section">
+            <h3 class="edit-deck-subtitle">Danger zone</h3>
+            <form action="{{ edit_action }}" method="post" class="edit-deck-form">
+                {{ edit_form.hidden_tag() }}
+                {{ edit_form.archive_button(class="btn btn-danger") }}
+                <p class="edit-deck-hint">Archiving removes the deck from your active list.</p>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {# Card popup. Hidden until a card is clicked; populated client-side from the
    /decks/card/<id> endpoint. #}
@@ -144,6 +232,79 @@
     }
 })();
 </script>
+
+{% if is_owner %}
+<script>
+// Edit-deck modal open/close + reload-from-link.
+(function () {
+    'use strict';
+    var modal = document.getElementById('edit-deck-modal');
+    var openBtn = document.getElementById('edit-deck-btn');
+    if (!modal || !openBtn) { return; }
+    function open() { modal.hidden = false; }
+    function close() { modal.hidden = true; }
+    openBtn.addEventListener('click', open);
+    modal.addEventListener('click', function (e) {
+        if (e.target.getAttribute('data-edit-close')) { close(); }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !modal.hidden) { close(); }
+    });
+
+    // Reload the deck's cards from its source link (owner only).
+    var reloadBtn = document.getElementById('reload-deck-btn');
+    if (reloadBtn) {
+        // Read the deck id straight off the button. getElementById('main-content')
+        // is ambiguous here: base.html renders its own <main id="main-content">
+        // wrapper, so the lookup returns that outer element (no data-deck-id)
+        // instead of the overview's <main>, yielding the string "null".
+        var deckId = reloadBtn.getAttribute('data-deck-id') || '';
+        var note = document.getElementById('reload-deck-note');
+        reloadBtn.addEventListener('click', function () {
+            reloadBtn.disabled = true;
+            var prev = reloadBtn.textContent;
+            reloadBtn.textContent = 'Reloading…';
+            if (note) { note.textContent = 'Fetching the latest card list from the deck link…'; }
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            fetch('/decks/' + encodeURIComponent(deckId) + '/reload', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRFToken': meta ? meta.getAttribute('content') : ''
+                }
+            }).then(function (resp) {
+                // The endpoint replies with JSON, but an expired session
+                // (login redirect), a CSRF rejection, or an unhandled server
+                // error can send back an HTML page instead. Guard the parse so
+                // those surface as a readable message rather than a cryptic
+                // "JSON.parse: unexpected character" failure.
+                var ctype = resp.headers.get('content-type') || '';
+                if (ctype.indexOf('application/json') === -1) {
+                    if (resp.status === 401 || resp.status === 403) {
+                        throw new Error('Your session expired or you are not allowed to reload this deck. Reload the page and sign in again.');
+                    }
+                    throw new Error('The server returned an unexpected response (HTTP ' + resp.status + '). The deck was not reloaded.');
+                }
+                return resp.json().then(function (data) {
+                    if (!resp.ok || !data.ok) {
+                        throw new Error((data && data.message) || ('HTTP ' + resp.status));
+                    }
+                    return data;
+                });
+            }).then(function () {
+                // The whole card list changed — reload the page to render the
+                // fresh decklist and all boards.
+                window.location.reload();
+            }).catch(function (err) {
+                if (note) { note.textContent = String(err.message || err); }
+                reloadBtn.disabled = false;
+                reloadBtn.textContent = prev;
+            });
+        });
+    }
+})();
+</script>
+{% endif %}
 
 {% if is_owner %}
 {# Owner-only editor popover for a card's collection marker. Positioned next to

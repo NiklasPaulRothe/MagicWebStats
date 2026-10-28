@@ -722,3 +722,207 @@ body.modal-open {
     color: #1b1b1f;
     font-weight: 600;
 }
+
+/* ── Edit deck button + modal ────────────────────────────────────────────── */
+
+.deck-overview-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.edit-deck-btn {
+    padding: 6px 14px;
+    border-radius: 7px;
+    border: 1px solid rgba(244, 196, 48, 0.5);
+    background: rgba(244, 196, 48, 0.12);
+    color: #f4c430;
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.edit-deck-btn:hover {
+    background: rgba(244, 196, 48, 0.22);
+    border-color: #f4c430;
+}
+
+.deck-overview-version {
+    color: #9aa0a6;
+}
+
+.edit-deck-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 6vh 16px 16px;
+    overflow-y: auto;
+}
+
+.edit-deck-modal[hidden] {
+    display: none;
+}
+
+.edit-deck-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.edit-deck-dialog {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+    background: #1b1b1f;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    padding: 22px;
+}
+
+.edit-deck-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #9aa0a6;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.edit-deck-close:hover {
+    color: #fff;
+}
+
+.edit-deck-title {
+    margin: 0 0 2px;
+    color: #fff;
+    font-size: 1.2rem;
+}
+
+.edit-deck-version {
+    margin: 0 0 18px;
+    color: #f4c430;
+    font-size: 0.85rem;
+}
+
+.edit-deck-form {
+    margin: 0;
+}
+
+.edit-deck-label {
+    display: block;
+    margin-bottom: 12px;
+    color: #cfcfd4;
+    font-size: 0.85rem;
+}
+
+.edit-deck-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 5px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: #23232a;
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+.edit-deck-input:focus {
+    outline: none;
+    border-color: #f4c430;
+}
+
+textarea.edit-deck-input {
+    resize: vertical;
+}
+
+.edit-deck-error {
+    display: block;
+    color: #e5686c;
+    font-size: 0.8rem;
+    margin: -8px 0 10px;
+}
+
+.edit-deck-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.edit-deck-version-actions {
+    margin-top: 10px;
+}
+
+.edit-deck-section {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.edit-deck-subtitle {
+    margin: 0 0 10px;
+    color: #f4c430;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.edit-deck-hint {
+    margin: 10px 0 0;
+    color: #9aa0a6;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+/* Buttons inside the modal (WTForms renders <input type=submit>). */
+.edit-deck-dialog .btn {
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: #23232a;
+    color: #cfcfd4;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+
+.edit-deck-dialog .btn:hover {
+    border-color: rgba(244, 196, 48, 0.6);
+    color: #fff;
+}
+
+.edit-deck-dialog .btn-primary {
+    background: #f4c430;
+    border-color: #f4c430;
+    color: #1b1b1f;
+    font-weight: 600;
+}
+
+.edit-deck-dialog .btn-primary:hover {
+    background: #ffd450;
+    color: #1b1b1f;
+}
+
+.edit-deck-dialog .btn-danger {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+.edit-deck-dialog .btn-danger:hover {
+    background: #e4606d;
+    color: #fff;
+}

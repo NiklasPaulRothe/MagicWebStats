@@ -32,6 +32,7 @@ from app.services.stats_service import compute_participant_averages, compute_dec
 # - create_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - move_deck_to_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - set_component_collection: JSON API (CSRF via X-CSRFToken header from JS)
+# - reload_deck: JSON API (CSRF via X-CSRFToken header from JS)
 # No exemptions are needed.
 # ---
 
@@ -50,6 +51,15 @@ def deck_edit(deckname):
 
     deckname = deckname + " (" + deck.commander + ")"
 
+    # Where to go after a successful edit/version action. When the edit modal
+    # on the deck overview submits, it sends next=overview so the user returns
+    # to the overview instead of the My Decks list. Defaults to My Decks (the
+    # standalone edit page's original behavior).
+    def _after_edit_redirect():
+        if (request.form.get('next') or '').strip() == 'overview':
+            return redirect(url_for('decks.deck_overview', deck_id=deck.id))
+        return redirect(url_for('main.user', identifier=current_user.player_id))
+
     # Handle version updates without full form validation
     if request.method == 'POST':
         if form.archive_button.data:
@@ -57,6 +67,8 @@ def deck_edit(deckname):
             write_audit_log('deck_archive', 'Deck', deck.id, f'Archived deck: {deck.name}')
             db.session.commit()
             flash(f'Deck "{deck.name}" wurde archiviert')
+            # Archive always returns to My Decks — the deck has left the active
+            # list, so the overview would 404/no longer be the right place.
             return redirect(url_for('main.user', identifier=current_user.player_id))
 
         elif form.version_changed.data:
@@ -65,7 +77,7 @@ def deck_edit(deckname):
             write_audit_log('deck_version', 'Deck', deck.id, f'Version change: {deck.name} → {new_version}')
             db.session.commit()
             flash(f'Deck version updated to {new_version}')
-            return redirect(url_for('main.user', identifier=current_user.player_id))
+            return _after_edit_redirect()
 
         elif form.version_patched.data:
             comment = form.version_comment.data.strip() if form.version_comment.data else None
@@ -73,7 +85,7 @@ def deck_edit(deckname):
             write_audit_log('deck_version', 'Deck', deck.id, f'Version patch: {deck.name} → {new_version}')
             db.session.commit()
             flash(f'Deck version updated to {new_version}')
-            return redirect(url_for('main.user', identifier=current_user.player_id))
+            return _after_edit_redirect()
 
         elif form.version_reworked.data:
             comment = form.version_comment.data.strip() if form.version_comment.data else None
@@ -81,7 +93,7 @@ def deck_edit(deckname):
             write_audit_log('deck_version', 'Deck', deck.id, f'Version rework: {deck.name} → {new_version}')
             db.session.commit()
             flash(f'Deck version updated to {new_version}')
-            return redirect(url_for('main.user', identifier=current_user.player_id))
+            return _after_edit_redirect()
 
     if not form.validate_on_submit():
         logger.debug("Form validation errors: %s", form.errors)
@@ -95,7 +107,7 @@ def deck_edit(deckname):
                     flash('Karten für dieses Deck konnten nicht korrekt geladen werden.')
             write_audit_log('deck_edit', 'Deck', deck.id, f'Edited deck: {deck.name}')
             db.session.commit()
-            return redirect(url_for('main.user', identifier=current_user.player_id))
+            return _after_edit_redirect()
 
     form.name.default = deck.name
     form.decklist.default = deck.decklist
@@ -791,6 +803,19 @@ def deck_overview(deck_id):
             finish_options = opts['finishes']
             language_options = opts['languages']
 
+    # Edit-deck modal (owner only): a prefilled DeckEditForm + the current
+    # version string, so the modal shows the same options as the standalone
+    # edit page without a separate GET.
+    edit_form = None
+    deck_version = f"{deck.version}.{deck.patch}.{deck.change}"
+    deck_has_source = bool(deck.decksite and deck.archidekt_id)
+    if is_owner:
+        edit_form = DeckEditForm()
+        edit_form.name.default = deck.name
+        edit_form.decklist.default = deck.decklist
+        edit_form.current_name.default = deck.name
+        edit_form.process()
+
     return render_template(
         'decks/overview.html',
         deck_id=deck.id,
@@ -803,6 +828,9 @@ def deck_overview(deck_id):
         is_owner=is_owner,
         finish_options=finish_options,
         language_options=language_options,
+        edit_form=edit_form,
+        deck_version=deck_version,
+        deck_has_source=deck_has_source,
     )
 
 
@@ -1073,6 +1101,88 @@ def collection_board_fragment(deck_id):
         ownership_card_groups=groups or [],
         is_owner=is_owner,
     )
+
+
+# --- Reload a single deck's cards from its source link. Does exactly what the
+# nightly reload_all_decks does, but for one deck, on demand. Owner-only, CSRF
+# via X-CSRFToken header. The owner's manual collection marks (physical_status/
+# finish/language) are snapshotted and re-applied by card_id, since the import
+# recreates the components. ---
+@bp.route('/<int:deck_id>/reload', methods=['POST'], strict_slashes=False)
+@login_required
+def reload_deck(deck_id):
+    from app.third_party_data.deckbuilder import (
+        load_cards_from_archidekt, load_cards_from_moxfield,
+    )
+
+    deck = db.get_or_404(models.Deck, deck_id)
+    if deck.player_id != getattr(current_user, 'player_id', None):
+        return jsonify({'ok': False, 'message': 'Nicht berechtigt.'}), 403
+
+    if not deck.decksite or not deck.archidekt_id:
+        return jsonify({
+            'ok': False,
+            'message': 'This deck has no source link to reload from.',
+        }), 400
+
+    # Snapshot the owner's manual collection marks before the re-import (which
+    # deletes + recreates components). Re-apply them by card_id afterwards so a
+    # reload doesn't silently discard in-deck/proxy markings. Keyed by card_id;
+    # when the same card appears multiple times, marks are applied in order.
+    from collections import deque
+    marks_by_card: dict[str, deque] = {}
+    existing = db.session.scalars(
+        sa.select(models.DeckComponent).where(models.DeckComponent.deck_id == deck.id)
+    ).all()
+    for comp in existing:
+        if comp.card_id and comp.physical_status != 'unset':
+            marks_by_card.setdefault(comp.card_id, deque()).append({
+                'physical_status': comp.physical_status,
+                'physical_finish': comp.physical_finish,
+                'physical_language': comp.physical_language,
+            })
+
+    try:
+        if 'archidekt' in deck.decksite:
+            load_cards_from_archidekt(deck.archidekt_id.strip(), deck.id)
+        elif 'moxfield' in deck.decksite:
+            load_cards_from_moxfield(deck.archidekt_id.strip(), deck.id)
+        else:
+            return jsonify({
+                'ok': False,
+                'message': f'Unsupported deck source: {deck.decksite}.',
+            }), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception('Manual reload failed for deck %s', deck.id)
+        return jsonify({
+            'ok': False,
+            'message': 'Could not load the deck from its link. Nothing was changed.',
+        }), 502
+
+    # Re-apply the snapshotted marks to the freshly imported components. Only
+    # the physical_finish/language the owner set are restored; the import sets a
+    # default finish from the source, which we override only where a mark
+    # existed.
+    if marks_by_card:
+        new_components = db.session.scalars(
+            sa.select(models.DeckComponent).where(models.DeckComponent.deck_id == deck.id)
+        ).all()
+        for comp in new_components:
+            bucket = marks_by_card.get(comp.card_id)
+            if bucket:
+                mark = bucket.popleft()
+                comp.physical_status = mark['physical_status']
+                if mark['physical_finish']:
+                    comp.physical_finish = mark['physical_finish']
+                if mark['physical_language']:
+                    comp.physical_language = mark['physical_language']
+        db.session.commit()
+
+    write_audit_log('deck_reload', 'Deck', deck.id, f'Reloaded deck from link: {deck.name}')
+    db.session.commit()
+
+    return jsonify({'ok': True})
 
 
 # --- "My Decks" gallery: a responsive grid of deck cards (name + commander

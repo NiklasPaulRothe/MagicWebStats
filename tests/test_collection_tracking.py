@@ -299,6 +299,35 @@ def _client(app, user_id):
     return app.test_client(user=_db.session.get(User, user_id))
 
 
+def test_overview_shows_edit_modal_for_owner(app, setup):
+    # The owner sees the "Edit deck" button and the edit modal (name/decklist,
+    # version, archive) on the deck overview.
+    with app.app_context():
+        _db.session.add(_comp(1, "sol-a", status="unset"))
+        _db.session.commit()
+    client = _client(app, 1)
+    resp = client.get("/decks/overview/1")
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    assert 'id="edit-deck-btn"' in body
+    assert 'id="edit-deck-modal"' in body
+    assert 'name="next" value="overview"' in body
+    assert "Archivieren" in body  # archive submit label
+
+
+def test_overview_hides_edit_modal_for_non_owner(app, setup):
+    # A linked non-owner (Bob) viewing Alice's deck gets no edit controls.
+    with app.app_context():
+        _db.session.add(_comp(1, "sol-a", status="unset"))
+        _db.session.commit()
+    client = _client(app, 2)
+    resp = client.get("/decks/overview/1")
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    assert 'id="edit-deck-btn"' not in body
+    assert 'id="edit-deck-modal"' not in body
+
+
 def test_endpoint_sets_status_and_returns_recomputed(app, setup):
     with app.app_context():
         _db.session.add(_coll(1, "sol-a", count=1))
