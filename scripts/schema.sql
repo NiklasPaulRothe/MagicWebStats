@@ -588,6 +588,9 @@ claimed AS (
     JOIN magic_stats_owner.decks d ON d.id = dc.deck_id
     WHERE dc.physical_status = 'in_deck'
       AND dc.card_id IS NOT NULL
+      -- Only active decks allocate physical copies; a shelved/inactive deck no
+      -- longer holds a card against the collection.
+      AND d.active IS TRUE
     GROUP BY d.player_id, dc.card_id,
              LOWER(COALESCE(dc.physical_finish, '')), LOWER(COALESCE(dc.physical_language, ''))
 )

@@ -142,6 +142,24 @@
     cursor: pointer;
 }
 
+/* Name search box: matches the sort select's look. */
+.collection-search-input {
+    padding: 0.35rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #1a1a1a;
+    color: antiquewhite;
+    font-size: 0.85rem;
+    min-width: 12rem;
+}
+.collection-search-input:focus {
+    outline: none;
+    border-color: #f4c430;
+}
+.collection-search-input::placeholder {
+    color: #6e6e78;
+}
+
 .collection-sort-dir {
     width: 2rem;
     height: 2rem;
@@ -181,6 +199,13 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+/* The `hidden` attribute (used by the search filter) must beat the flex
+   display above — a class rule otherwise overrides the UA [hidden] rule, so
+   filtered cards would stay visible. */
+.collection-card[hidden] {
+    display: none;
 }
 
 .collection-card-art {
@@ -440,4 +465,252 @@
 /* More copies committed to decks than owned: red warning. */
 .cc-coll-owned_no_copy_available {
     background: rgba(248, 81, 73, 0.92);
+}
+
+
+/* ===========================================================================
+   Collection card popup (decks containing the card + printing slider)
+   =========================================================================== */
+
+/* Clickable affordance on cards that resolve to a known printing. */
+.collection-card[data-card-id] {
+    cursor: pointer;
+}
+
+.cc-modal[hidden] {
+    display: none;
+}
+
+.cc-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.cc-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(1, 4, 9, 0.72);
+}
+
+.cc-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(760px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 1.25rem 1.25rem 1.5rem;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.cc-modal-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.6rem;
+    background: transparent;
+    border: 0;
+    color: #c9d1d9;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.cc-modal-close:hover { color: #fff; }
+
+.cc-modal-body {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.cc-modal-art-wrap {
+    position: relative;
+    flex: 0 0 auto;
+    width: 240px;
+    max-width: 100%;
+}
+
+.cc-modal-art {
+    width: 100%;
+    border-radius: 4.75% / 3.5%;
+    display: block;
+    background: #161b22;
+}
+
+/* A shown printing that isn't the one the user clicked gets an obvious outline. */
+.cc-modal-art.is-other-printing {
+    outline: 3px solid #d29922;
+    outline-offset: 2px;
+}
+
+/* Corner banner reinforcing "you're looking at a different printing". */
+.cc-modal-printing-flag {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(210, 153, 34, 0.95);
+    color: #1b1300;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+.cc-modal-printing-flag[hidden] { display: none; }
+
+/* Printing slider controls under the art. */
+.cc-modal-slider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+.cc-modal-slider[hidden] { display: none; }
+
+.cc-slider-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+.cc-slider-btn:hover { background: #30363d; color: #fff; }
+
+.cc-slider-label {
+    font-size: 0.8rem;
+    color: #8b949e;
+    min-width: 0;
+    text-align: center;
+}
+
+.cc-modal-info {
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.cc-modal-title {
+    margin: 0 0 0.15rem;
+    font-size: 1.25rem;
+    color: #f0f6fc;
+}
+
+.cc-modal-type {
+    color: #8b949e;
+    font-size: 0.9rem;
+    margin-bottom: 0.9rem;
+}
+
+.cc-modal-decks-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: #c9d1d9;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 0.3rem;
+}
+
+.cc-modal-decks-empty {
+    color: #8b949e;
+    font-size: 0.88rem;
+    margin: 0.4rem 0;
+}
+
+.cc-deck-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.cc-deck-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.cc-deck-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cc-deck-name:hover { text-decoration: underline; }
+
+.cc-deck-meta {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    color: #8b949e;
+    letter-spacing: 0.03em;
+}
+.cc-deck-meta.is-other-printing {
+    color: #d29922;
+    font-weight: 700;
+}
+
+/* Status badges — mirror the deck-overview status palette, but as filled pills
+   so the decks list reads at a glance. */
+.cc-deck-status {
+    flex: 0 0 auto;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #0d1117;
+    white-space: nowrap;
+}
+.cc-deck-status.cc-coll-in_deck_ok     { background: #3fb950; }
+.cc-deck-status.cc-coll-available      { background: #58a6ff; }
+.cc-deck-status.cc-coll-owned_other    { background: #a371f7; color: #fff; }
+.cc-deck-status.cc-coll-owned_no_copy  { background: #d29922; }
+.cc-deck-status.cc-coll-proxy          { background: #8b949e; }
+.cc-deck-status.cc-coll-not_owned      { background: #6e7681; color: #fff; }
+.cc-deck-status.cc-coll-in_deck_faulty { background: #f85149; color: #fff; }
+
+
+/* Card oracle text in the popup (single- or double-faced). */
+.cc-modal-text {
+    font-size: 0.86rem;
+    color: #c9d1d9;
+    margin-bottom: 0.9rem;
+}
+.cc-modal-text p {
+    margin: 0 0 0.4rem;
+    line-height: 1.35;
+}
+/* Each face of a double-faced card, separated so both sides read clearly. */
+.cc-face-block {
+    padding: 0.5rem 0;
+    border-top: 1px solid #21262d;
+}
+.cc-face-block:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+.cc-face-name {
+    margin: 0 0 0.1rem;
+    font-size: 0.92rem;
+    color: #f0f6fc;
+}
+.cc-face-type {
+    font-size: 0.78rem;
+    color: #8b949e;
+    margin-bottom: 0.3rem;
 }

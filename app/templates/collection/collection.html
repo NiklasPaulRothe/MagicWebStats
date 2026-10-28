@@ -7,13 +7,6 @@
 {% block content %}
 {# Status labels + a sort rank (free copies first, then fully-committed, then
    over-committed) for the availability sort. #}
-{% set status_labels = {
-    'owned_spare_available': 'Free copy',
-    'owned_in_deck': 'In decks',
-    'owned_no_copy_available': 'Over-committed',
-    'owned_different_printing_available': 'Other printing',
-    'not_owned': 'Not owned',
-} %}
 {% set status_rank = {
     'owned_spare_available': '0',
     'owned_in_deck': '1',
@@ -78,13 +71,9 @@
                     data-dir="asc" aria-label="Toggle sort direction"
                     title="Ascending">&#9650;</button>
 
-            <label for="filter-status" class="collection-sort-label">Show</label>
-            <select id="filter-status" class="collection-sort-select">
-                <option value="">All</option>
-                <option value="owned_spare_available">Has free copy</option>
-                <option value="owned_in_deck">All copies in decks</option>
-                <option value="owned_no_copy_available">Over-committed</option>
-            </select>
+            <label for="search-name" class="collection-sort-label">Search</label>
+            <input type="search" id="search-name" class="collection-search-input"
+                   placeholder="Card name" autocomplete="off">
         </div>
         {% endif %}
     </div>
@@ -93,6 +82,7 @@
     <ul class="collection-grid" role="list" id="collection-grid">
         {% for card in cards %}
         <li class="collection-card"
+            {% if card.card_id %}data-card-id="{{ card.card_id }}"{% endif %}
             data-name="{{ card.name|lower }}"
             data-price="{{ '%.2f'|format(card.price) if card.price is not none else '' }}"
             data-edition="{{ (card.set_name or card.set_code or '')|lower }}"
@@ -117,8 +107,6 @@
                 {% if is_foil %}
                 <span class="collection-card-foil" title="{{ card.finish }}">{{ card.finish }}</span>
                 {% endif %}
-                <span class="collection-card-status cc-coll-{{ card.status }}"
-                      title="{{ status_labels.get(card.status, '') }}">{{ status_labels.get(card.status, '') }}</span>
             </div>
             <div class="collection-card-info">
                 <span class="collection-card-name">{{ card.name }}</span>
@@ -151,7 +139,7 @@
     var grid = document.getElementById('collection-grid');
     var field = document.getElementById('sort-field');
     var dirBtn = document.getElementById('sort-dir');
-    var statusFilter = document.getElementById('filter-status');
+    var searchInput = document.getElementById('search-name');
     if (!grid || !field || !dirBtn) {
         return;
     }
@@ -188,11 +176,16 @@
         cards.forEach(function (c) { grid.appendChild(c); });
     }
 
-    function applyFilter() {
-        if (!statusFilter) { return; }
-        var want = statusFilter.value;
+    // Live name search: match the query as a substring anywhere in the card
+    // name (case-insensitive; data-name is already lower-cased). Filtering only
+    // starts at 3+ characters; below that, every card is shown.
+    function applySearch() {
+        if (!searchInput) { return; }
+        var q = searchInput.value.trim().toLowerCase();
+        var active = q.length >= 3;
         grid.querySelectorAll('.collection-card').forEach(function (c) {
-            c.hidden = want !== '' && c.getAttribute('data-status') !== want;
+            var name = c.getAttribute('data-name') || '';
+            c.hidden = active && name.indexOf(q) === -1;
         });
     }
 
@@ -204,9 +197,50 @@
         dirBtn.title = asc ? 'Descending' : 'Ascending';
         sortCards();
     });
-    if (statusFilter) {
-        statusFilter.addEventListener('change', applyFilter);
+    if (searchInput) {
+        searchInput.addEventListener('input', applySearch);
     }
 })();
 </script>
+
+{# Collection card popup. Hidden until a card is clicked; populated client-side
+   from /collection/card/<id>. Lists the decks that contain the card with their
+   per-deck collection status, and a read-only printing slider that clearly
+   flags when a shown printing differs from the one clicked. #}
+<div class="cc-modal" id="cc-modal" hidden
+     role="dialog" aria-modal="true" aria-labelledby="cc-modal-title">
+    <div class="cc-modal-backdrop" data-cc-close="1"></div>
+    <div class="cc-modal-dialog" role="document">
+        <button type="button" class="cc-modal-close" data-cc-close="1"
+                aria-label="Close">&times;</button>
+        <div class="cc-modal-body">
+            <div class="cc-modal-art-wrap">
+                <img class="cc-modal-art" id="cc-modal-art" src="" alt="">
+                {# Shown only while viewing a printing other than the clicked one. #}
+                <div class="cc-modal-printing-flag" id="cc-modal-printing-flag" hidden>
+                    Different printing
+                </div>
+                <div class="cc-modal-slider" id="cc-modal-slider" hidden>
+                    <button type="button" class="cc-slider-btn" id="cc-slider-prev"
+                            aria-label="Previous printing">&larr;</button>
+                    <span class="cc-slider-label" id="cc-slider-label"></span>
+                    <button type="button" class="cc-slider-btn" id="cc-slider-next"
+                            aria-label="Next printing">&rarr;</button>
+                </div>
+            </div>
+            <div class="cc-modal-info">
+                <h2 class="cc-modal-title" id="cc-modal-title"></h2>
+                <div class="cc-modal-type" id="cc-modal-type"></div>
+                {# Oracle text; for double-faced cards both faces are rendered. #}
+                <div class="cc-modal-text" id="cc-modal-text"></div>
+                <section class="cc-modal-decks">
+                    <h3 class="cc-modal-decks-title">In your decks</h3>
+                    <div class="cc-modal-decks-body" id="cc-modal-decks-body"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/collection_modal.js') }}" defer></script>
 {% endblock %}

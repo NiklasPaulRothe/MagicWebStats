@@ -1,15 +1,18 @@
 import io
 import logging
 
-from flask import render_template, redirect, url_for, request, flash, abort
+from flask import render_template, redirect, url_for, request, flash, abort, jsonify
+import sqlalchemy as sa
 from flask_login import login_required, current_user
 
 from app import db
+from app import models
 from app.collection import bp
 from app.services.collection_service import (
     import_player_collection,
     get_player_collection,
     get_collection_statuses,
+    get_decks_containing_card,
     COLL_STATUS_SPARE,
 )
 
@@ -125,3 +128,88 @@ def import_collection():
         )
 
     return redirect(url_for('collection.collection'))
+
+
+def _front_image(card):
+    """Front-face (face_index == 0) image_uri for a Card, or None.
+
+    Falls back to the first face with any image when face 0 has none, so a
+    double-faced card still gets a thumbnail even if its front image is missing.
+    """
+    faces = sorted(card.faces, key=lambda f: f.face_index)
+    front = next((f for f in faces if f.face_index == 0), None)
+    if front and front.image_uri:
+        return front.image_uri
+    return next((f.image_uri for f in faces if f.image_uri), None)
+
+
+def _card_faces_payload(card):
+    """Faces for the popup: each face's name, type, oracle text, and image.
+
+    For a single-face card this is one entry; for a double-faced card it's both
+    faces in order, so the popup can show both sides' text.
+    """
+    return [
+        {
+            'name': f.name,
+            'mana_cost': f.mana_cost,
+            'type_line': f.type_line,
+            'oracle_text': f.oracle_text,
+            'image': f.image_uri,
+        }
+        for f in sorted(card.faces, key=lambda f: f.face_index)
+    ]
+
+
+# --- Collection card popup data: for a clicked collection card, return its
+# detail, every deck of the player that contains the card (any printing) with
+# the per-deck collection status, and all printings of the card so the popup
+# can offer a read-only printing slider that flags a non-clicked printing.
+# Read-only and scoped to the current user's player. ---
+@bp.route('/collection/card/<card_id>', methods=['GET'], strict_slashes=False)
+@login_required
+def collection_card(card_id):
+    player_id = current_user.player_id
+    if player_id is None:
+        return jsonify({'ok': False, 'message': 'No player linked to this account.'}), 400
+
+    card = db.session.get(models.Card, card_id)
+    if card is None:
+        return jsonify({'ok': False, 'message': 'Card not found.'}), 404
+
+    # Decks that contain this card (by oracle_id, across printings), each with
+    # its computed per-deck collection status. Mark which deck entries use the
+    # exact printing the user clicked.
+    decks = get_decks_containing_card(player_id, card.oracle_id)
+    for d in decks:
+        d['same_printing'] = (d['card_id'] == card_id)
+
+    # All printings of this card (shared oracle_id), oldest-first. Each carries
+    # its front image so the slider can show it; 'current' marks the clicked
+    # printing so the UI can flag "different printing" clearly.
+    printings = db.session.scalars(
+        sa.select(models.Card)
+        .where(models.Card.oracle_id == card.oracle_id)
+        .order_by(models.Card.released_at.asc().nulls_last(), models.Card.set_code.asc())
+    ).all()
+    printings_payload = [
+        {
+            'id': p.id,
+            'set_code': p.set_code,
+            'set_name': p.set_name,
+            'image': _front_image(p),
+            'current': (p.id == card_id),
+        }
+        for p in printings
+    ]
+
+    return jsonify({
+        'ok': True,
+        'id': card.id,
+        'name': card.name,
+        'type_line': card.type_line,
+        'image': _front_image(card),
+        'faces': _card_faces_payload(card),
+        'decks': decks,
+        'printings': printings_payload,
+    })

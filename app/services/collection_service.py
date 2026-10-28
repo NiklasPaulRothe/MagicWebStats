@@ -502,7 +502,13 @@ def _player_owned_pools(player_id: int) -> dict[tuple, int]:
 
 
 def _player_claimed_pools(player_id: int) -> dict[tuple, int]:
-    """Copies claimed 'in_deck' per pool across all of a player's decks."""
+    """Copies claimed 'in_deck' per pool across a player's ACTIVE decks.
+
+    Only active decks allocate physical copies: a shelved/inactive deck no
+    longer holds a card against the collection, so its 'in_deck' marks don't
+    count toward availability. This drives the 'claimed' side of every
+    availability status (deck overview, collection page, and the card popup).
+    """
     from app.models import Deck, DeckComponent
 
     rows = db.session.execute(
@@ -515,6 +521,7 @@ def _player_claimed_pools(player_id: int) -> dict[tuple, int]:
         .join(Deck, Deck.id == DeckComponent.deck_id)
         .where(
             Deck.player_id == player_id,
+            Deck.active.is_(True),
             DeckComponent.physical_status == "in_deck",
             DeckComponent.card_id.is_not(None),
         )
@@ -743,4 +750,102 @@ def get_collection_statuses(player_id: int) -> dict[tuple, str]:
             result[key] = COLL_STATUS_IN_DECK
         else:  # claimed > owned: over-claimed, no free copy
             result[key] = COLL_STATUS_NO_COPY
+    return result
+
+
+# Human-readable labels for the deck-card statuses, for UI that lists the decks
+# a card appears in (e.g. the collection-page card popup). Mirrors the status
+# vocabulary used on the deck overview.
+DECK_STATUS_LABELS = {
+    DECK_STATUS_IN_DECK_OK: "In deck (physical)",
+    DECK_STATUS_IN_DECK_FAULTY: "In deck (copy missing)",
+    DECK_STATUS_PROXY: "Proxy",
+    DECK_STATUS_AVAILABLE: "Available",
+    DECK_STATUS_OWNED_NO_COPY: "No free copy",
+    DECK_STATUS_OWNED_OTHER: "Owned (other printing)",
+    DECK_STATUS_NOT_OWNED: "Not owned",
+}
+
+
+def get_decks_containing_card(player_id: int, oracle_id: str) -> list[dict]:
+    """List every ACTIVE deck of a player that contains the given card.
+
+    "The card" is identified by ``oracle_id`` (shared across all printings), so
+    a deck using a different printing than the one the user clicked is still
+    included — that's what "decks I have a copy of this card in" means to a
+    user. Only active decks (Deck.active) and only in-deck components count
+    (inactive/archived decks and maybeboard/sideboard entries are excluded).
+
+    Returns a list of dicts, one per matching deck component, sorted by deck
+    name then deck id:
+
+        {
+          'deck_id': int, 'deck_name': str,
+          'component_id': int,
+          'card_id': str|None,          # the printing this deck uses
+          'set_code': str|None, 'set_name': str|None,
+          'count': int,
+          'physical_status': 'unset'|'in_deck'|'proxy',
+          'status': DECK_STATUS_*,       # computed availability status
+          'status_label': str,
+          'finish': str|None, 'language': str|None,
+          'same_printing': bool,         # filled by the caller vs. clicked card
+        }
+
+    Statuses are computed via compute_deck_collection_status (one call per deck
+    that contains the card), so the numbers match the deck overview exactly.
+    """
+    from app.models import Deck, DeckComponent, Card
+
+    if not oracle_id:
+        return []
+
+    # Every in-deck component (across this player's decks) whose printing shares
+    # the target oracle_id, with the deck name and the printing's set info.
+    rows = db.session.execute(
+        sa.select(
+            Deck.id, Deck.name,
+            DeckComponent.id, DeckComponent.card_id, DeckComponent.count,
+            DeckComponent.physical_status,
+            DeckComponent.physical_finish, DeckComponent.physical_language,
+            Card.set_code, Card.set_name,
+        )
+        .select_from(DeckComponent)
+        .join(Deck, Deck.id == DeckComponent.deck_id)
+        .join(Card, Card.id == DeckComponent.card_id)
+        .where(
+            Deck.player_id == player_id,
+            Deck.active.is_(True),
+            Card.oracle_id == oracle_id,
+            DeckComponent.in_deck.is_(True),
+        )
+        .order_by(Deck.name.asc(), Deck.id.asc(), DeckComponent.id.asc())
+    ).all()
+    if not rows:
+        return []
+
+    # Compute statuses once per deck (cached), then read each component's entry.
+    status_by_deck: dict[int, dict] = {}
+    result: list[dict] = []
+    for (deck_id, deck_name, comp_id, card_id, count, phys_status,
+         finish, language, set_code, set_name) in rows:
+        if deck_id not in status_by_deck:
+            status_by_deck[deck_id] = compute_deck_collection_status(player_id, deck_id)
+        comp_status = status_by_deck[deck_id].get(comp_id, {})
+        status = comp_status.get("status", DECK_STATUS_NOT_OWNED)
+        result.append({
+            "deck_id": deck_id,
+            "deck_name": deck_name,
+            "component_id": comp_id,
+            "card_id": card_id,
+            "set_code": set_code,
+            "set_name": set_name,
+            "count": count or 1,
+            "physical_status": phys_status,
+            "status": status,
+            "status_label": DECK_STATUS_LABELS.get(status, status),
+            "finish": finish,
+            "language": language,
+            "same_printing": False,  # caller fills this against the clicked card
+        })
     return result

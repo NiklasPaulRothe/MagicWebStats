@@ -75,8 +75,8 @@ END $$;
 -- owned_count  = summed collection copies of the exact printing+finish+language
 --                (condition ignored).
 -- claimed_count= number of deck cards the player has marked 'in_deck' whose
---                current printing+finish+language match that pool (across all
---                their decks).
+--                current printing+finish+language match that pool (across the
+--                player's ACTIVE decks only — inactive decks don't allocate).
 -- over_claimed = claimed_count > owned_count (not enough matching copies).
 -- The pool key is (player_id, card_id, finish, language); finish/language are
 -- normalized to lower-case so 'Foil' and 'foil' collapse together.
@@ -105,6 +105,9 @@ claimed AS (
     JOIN magic_stats_owner.decks d ON d.id = dc.deck_id
     WHERE dc.physical_status = 'in_deck'
       AND dc.card_id IS NOT NULL
+      -- Only active decks allocate physical copies; a shelved/inactive deck no
+      -- longer holds a card against the collection.
+      AND d.active IS TRUE
     GROUP BY d.player_id, dc.card_id,
              LOWER(COALESCE(dc.physical_finish, '')), LOWER(COALESCE(dc.physical_language, ''))
 )
