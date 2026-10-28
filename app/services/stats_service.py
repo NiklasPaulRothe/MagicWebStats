@@ -1327,7 +1327,9 @@ def get_color_identity_detail(name: str) -> dict | None:
     ) or 0
     games_share_pct = round((games_with_color / total_games) * 100, 1) if total_games else 0.0
 
-    # --- Active decks of this color with per-deck games/wins/winrate ---
+    # --- Decks of this color with per-deck games/wins/winrate ---
+    # Both active and archived decks are returned (flagged via ``active``) so the
+    # page can offer a show/hide toggle for archived decks.
     deck_game_count = (
         sa.select(func.count())
         .select_from(Participant)
@@ -1351,12 +1353,12 @@ def get_color_identity_detail(name: str) -> dict | None:
             Deck.name.label("name"),
             commander_label.label("commander"),
             Player.name.label("player"),
+            Deck.active.label("active"),
             deck_game_count.label("games"),
             deck_win_count.label("wins"),
         )
         .join(Player, Player.id == Deck.player_id)
         .where(Deck.color_identity == name)
-        .where(Deck.active == True)  # noqa: E712
         .order_by(deck_game_count.desc())
     ).all()
 
@@ -1368,11 +1370,15 @@ def get_color_identity_detail(name: str) -> dict | None:
             'name': row.name,
             'commander': row.commander,
             'player': row.player,
+            'active': bool(row.active),
             'games': d_games,
             'wins': d_wins,
             'winrate': round((d_wins / d_games) * 100, 1) if d_games else 0.0,
         })
-    # Secondary sort by winrate desc (stable) for decks with equal game counts.
+    # Default order: games desc, then winrate desc (stable). Archived decks are
+    # interleaved with active ones by this ranking rather than pinned below, so
+    # revealing them keeps the current sort order; the template only toggles
+    # their visibility.
     decks.sort(key=lambda d: (d['games'], d['winrate']), reverse=True)
 
     return {

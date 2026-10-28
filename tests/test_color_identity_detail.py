@@ -107,20 +107,35 @@ def test_detail_games_share(app, seeded_detail):
     assert d["games_share_pct"] == round(2 / 3 * 100, 1)
 
 
-def test_detail_active_decks_breakdown(app, seeded_detail):
+def test_detail_decks_breakdown_includes_archived(app, seeded_detail):
     with app.app_context():
         d = get_color_identity_detail("Azorius")
-    # Active decks table lists the 2 active Azorius decks (d1 active, d3 active cEDH).
+    # The decks table now lists all Azorius decks: d1 (active), d3 (active cEDH)
+    # and d2 (archived), each flagged via the ``active`` key.
     names = {row["name"] for row in d["decks"]}
-    assert names == {"AzoActive", "AzoCedh"}
+    assert names == {"AzoActive", "AzoCedh", "AzoArchived"}
     by_name = {row["name"]: row for row in d["decks"]}
-    # d1 played 2 games, won 1.
+    # d1 played 2 games, won 1; it is active.
     assert by_name["AzoActive"]["games"] == 2
     assert by_name["AzoActive"]["wins"] == 1
     assert by_name["AzoActive"]["winrate"] == 50.0
-    # d3 (cEDH) was never excluded from the per-deck table (it is active); it
-    # participated in g3 but did not win (winner was its own player though).
+    assert by_name["AzoActive"]["active"] is True
+    # d3 (cEDH) is active and appears; it participated in g3.
     assert by_name["AzoCedh"]["games"] == 1
+    assert by_name["AzoCedh"]["active"] is True
+    # d2 is archived and now included, flagged inactive.
+    assert by_name["AzoArchived"]["active"] is False
+
+
+def test_detail_decks_sorted_by_games_interleaved(app, seeded_detail):
+    with app.app_context():
+        d = get_color_identity_detail("Azorius")
+    # Default order ranks by games desc then winrate desc, with archived decks
+    # interleaved by that ranking rather than pinned below the active ones.
+    games_seq = [row["games"] for row in d["decks"]]
+    assert games_seq == sorted(games_seq, reverse=True)
+    # AzoActive (2 games) ranks above AzoCedh/AzoArchived regardless of active.
+    assert d["decks"][0]["name"] == "AzoActive"
 
 
 def _client(app, user):
@@ -137,6 +152,10 @@ def test_route_returns_200(app, seeded_detail):
     assert "Azorius" in body
     assert "Active Decks" in body
     assert "AzoActive" in body
+    # Archived deck is rendered (hidden by default) and the show/hide toggle exists.
+    assert "AzoArchived" in body
+    assert 'id="show-archived"' in body
+    assert "is-archived" in body
 
 
 def test_route_returns_404_for_unknown(app, seeded_detail):

@@ -100,3 +100,113 @@
     color: #f4c430;
     text-decoration: underline;
 }
+
+/* Section header row: title + archived toggle */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+/* The section title already has a bottom border; keep it spanning full width */
+.section-header .section-title {
+    flex: 1 1 auto;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+/* Toggle switch (slider) for showing/hiding archived decks */
+.ci-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    flex: 0 0 auto;
+}
+
+.ci-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.ci-toggle-slider {
+    position: relative;
+    width: 42px;
+    height: 22px;
+    background-color: #3a3a3a;
+    border: 1px solid rgba(244, 196, 48, 0.3);
+    border-radius: 22px;
+    transition: background-color 0.2s ease;
+    flex: 0 0 auto;
+}
+
+.ci-toggle-slider::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background-color: #aaa;
+    border-radius: 50%;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.ci-toggle input:checked + .ci-toggle-slider {
+    background-color: rgba(244, 196, 48, 0.35);
+}
+
+.ci-toggle input:checked + .ci-toggle-slider::before {
+    transform: translate(20px, -50%);
+    background-color: #f4c430;
+}
+
+.ci-toggle input:focus-visible + .ci-toggle-slider {
+    outline: 2px solid #f4c430;
+    outline-offset: 2px;
+}
+
+.ci-toggle-label {
+    color: #aaa;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Archived decks: hidden by default, shown when the toggle adds .hide-archived
+   is removed. */
+.modern-table.hide-archived tbody tr.is-archived {
+    display: none;
+}
+
+tbody tr.is-archived td {
+    opacity: 0.65;
+}
+
+.archived-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 7px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #d0a000;
+    background-color: rgba(244, 196, 48, 0.12);
+    border: 1px solid rgba(244, 196, 48, 0.3);
+    border-radius: 10px;
+    vertical-align: middle;
+}
+
+.ci-empty-note {
+    color: #aaa;
+    font-style: italic;
+    text-align: center;
+    padding: 16px 0 4px 0;
+    margin: 0;
+}

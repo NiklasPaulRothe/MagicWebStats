@@ -38,9 +38,16 @@
             </div>
         </div>
 
-        <!-- Active decks table -->
+        <!-- Decks table -->
         <div class="stats-section">
-            <h3 class="section-title">Active Decks</h3>
+            <div class="section-header">
+                <h3 class="section-title">Decks</h3>
+                <label class="ci-toggle" for="show-archived">
+                    <input type="checkbox" id="show-archived">
+                    <span class="ci-toggle-slider"></span>
+                    <span class="ci-toggle-label">Show archived decks</span>
+                </label>
+            </div>
 
             <div class="table-wrapper">
                 <table id="ci-decks-table" class="modern-table">
@@ -56,8 +63,11 @@
                     </thead>
                     <tbody>
                         {% for deck in decks %}
-                        <tr>
-                            <td><a class="deck-name-link" href="{{ url_for('decks.deck_show', deckname=deck.name) }}">{{ deck.name }}</a></td>
+                        <tr class="{{ 'is-archived' if not deck.active }}">
+                            <td>
+                                <a class="deck-name-link" href="{{ url_for('decks.deck_show', deckname=deck.name) }}">{{ deck.name }}</a>
+                                {% if not deck.active %}<span class="archived-badge">archived</span>{% endif %}
+                            </td>
                             <td>{{ deck.commander }}</td>
                             <td>{{ deck.player }}</td>
                             <td>{{ deck.games }}</td>
@@ -66,35 +76,60 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6">No active decks in this color identity.</td>
+                            <td colspan="6">No decks in this color identity.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            <p id="ci-decks-empty" class="ci-empty-note" hidden>No archived decks to show.</p>
         </div>
     </div>
 </main>
 
 <script>
-    // Client-side sorting for the active decks table, mirroring the color
-    // stats page behaviour so columns are clickable to sort.
     document.addEventListener('DOMContentLoaded', function () {
         const table = document.getElementById('ci-decks-table');
         if (!table) return;
         const tbody = table.querySelector('tbody');
         const headers = table.querySelectorAll('thead th');
-        let currentSort = { idx: null, asc: true };
+        const toggle = document.getElementById('show-archived');
+        const emptyNote = document.getElementById('ci-decks-empty');
 
+        // Archived decks are hidden by default via the table's hide-archived
+        // class; the toggle flips it on/off.
+        table.classList.add('hide-archived');
+
+        const dataRows = () => Array.from(tbody.querySelectorAll('tr'))
+            .filter(r => r.children.length === headers.length && !r.querySelector('td[colspan]'));
+
+        function updateArchivedState() {
+            const show = toggle.checked;
+            table.classList.toggle('hide-archived', !show);
+
+            // When archived decks are hidden, surface an empty-state note if the
+            // only decks in this color are archived (nothing visible otherwise).
+            if (emptyNote) {
+                const anyActive = dataRows().some(r => !r.classList.contains('is-archived'));
+                const anyArchived = dataRows().some(r => r.classList.contains('is-archived'));
+                emptyNote.hidden = !(!show && !anyActive && anyArchived);
+            }
+        }
+
+        if (toggle) {
+            toggle.addEventListener('change', updateArchivedState);
+            updateArchivedState();
+        }
+
+        // Client-side column sorting, mirroring the color stats page.
+        let currentSort = { idx: null, asc: true };
         headers.forEach((th, idx) => {
             th.addEventListener('click', function () {
                 const type = th.getAttribute('data-type');
                 currentSort.asc = currentSort.idx === idx ? !currentSort.asc : true;
                 currentSort.idx = idx;
 
-                const rows = Array.from(tbody.querySelectorAll('tr'))
-                    .filter(r => r.children.length === headers.length && !r.querySelector('td[colspan]'));
-
+                const rows = dataRows();
                 rows.sort((a, b) => {
                     let valA = a.children[idx].textContent.trim();
                     let valB = b.children[idx].textContent.trim();
