@@ -90,27 +90,45 @@ def normalize_finish(value):
     return 'Normal'
 
 
-def resolve_local_url():
-    """Return LOCAL_DATABASE_URL, refusing anything that looks like production."""
+def resolve_url(explicit=None, allow_nonlocal=False):
+    """Resolve the target DB URL.
+
+    Default target is LOCAL_DATABASE_URL and the host MUST be localhost. To run
+    against a remote/production database you must pass BOTH --database-url and
+    --i-know-this-is-production, which lifts the localhost guard. This is a
+    deliberate, explicit action because the migration WRITES.
+    """
     load_dotenv()
+    if explicit:
+        url = explicit.strip().strip("'\"").replace('postgres://', 'postgresql://')
+        host = (urlsplit(url).hostname or '').lower()
+        is_local = host in {'localhost', '127.0.0.1', '::1'}
+        if not is_local and not allow_nonlocal:
+            sys.exit(f'ABORT: target host {host!r} is not local. To run against '
+                     'a remote/production database, pass --database-url <url> '
+                     'AND --i-know-this-is-production.')
+        return url
+
     local_url = (os.environ.get('LOCAL_DATABASE_URL') or '').strip().strip("'\"")
     prod_url = (os.environ.get('DATABASE_URL') or '').strip().strip("'\"")
 
     if not local_url:
-        sys.exit('ABORT: LOCAL_DATABASE_URL is not set. This script only runs '
-                 'against the local database.')
+        sys.exit('ABORT: LOCAL_DATABASE_URL is not set (and no --database-url '
+                 'given). This script defaults to the local database.')
 
     local_url = local_url.replace('postgres://', 'postgresql://')
     normalized_prod = prod_url.replace('postgres://', 'postgresql://')
 
-    if normalized_prod and local_url == normalized_prod:
-        sys.exit('ABORT: LOCAL_DATABASE_URL equals DATABASE_URL. Refusing to '
-                 'run against production.')
+    if normalized_prod and local_url == normalized_prod and not allow_nonlocal:
+        sys.exit('ABORT: LOCAL_DATABASE_URL equals DATABASE_URL. Pass '
+                 '--i-know-this-is-production to proceed when both point at the '
+                 'same database.')
 
     host = (urlsplit(local_url).hostname or '').lower()
-    if host not in {'localhost', '127.0.0.1', '::1'}:
+    if host not in {'localhost', '127.0.0.1', '::1'} and not allow_nonlocal:
         sys.exit(f'ABORT: LOCAL_DATABASE_URL host is {host!r}, not a local '
-                 'address. Refusing to run — this script targets local only.')
+                 'address. Pass --database-url <url> AND '
+                 '--i-know-this-is-production to target a remote database.')
 
     return local_url
 
@@ -179,6 +197,12 @@ def main():
     parser.add_argument('--set-finish', action='store_true',
                         help="Also set physical_finish from Archidekt's modifier "
                              'for cards that become in_deck.')
+    parser.add_argument('--database-url', default=None,
+                        help='Target DB URL. Defaults to LOCAL_DATABASE_URL. Required '
+                             '(with --i-know-this-is-production) to target a remote DB.')
+    parser.add_argument('--i-know-this-is-production', action='store_true',
+                        help='Lift the localhost-only guard so the migration may '
+                             'run against a remote/production database.')
     parser.add_argument('--apply', action='store_true',
                         help='Commit the changes. Without this flag the script '
                              'is a dry run and writes nothing.')
@@ -187,7 +211,7 @@ def main():
     # Import here so a missing dependency surfaces only when actually running.
     import pyrchidekt.api
 
-    local_url = resolve_local_url()
+    local_url = resolve_url(args.database_url, args.i_know_this_is_production)
     schema = args.schema
     engine = sa.create_engine(local_url, future=True)
     dc, decks, cards = build_tables(schema)
