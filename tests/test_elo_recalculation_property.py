@@ -265,7 +265,41 @@ def test_average_field_winner_plateaus_below_cap():
     )
     # And clearly above the centre (winning everything is still good).
     assert r40 > RATING_CENTER
-    # Volume-independent: more games at the same performance => same rating.
-    assert math.isclose(r5, r40, abs_tol=1.0), (
-        f"Plateau drifted with volume: 5 wins -> {r5:.1f}, 40 wins -> {r40:.1f}"
+    # No volume inflation: playing MORE games at the same performance must not
+    # push the rating higher. If anything the soft cap eases it slightly down;
+    # we only forbid upward drift (within a small numerical margin).
+    assert r40 <= r5 + 10.0, (
+        f"Rating inflated with volume: 5 wins -> {r5:.1f}, 40 wins -> {r40:.1f}"
+    )
+
+
+def test_equal_decks_converge_to_similar_ratings():
+    """User invariant: four equally strong decks that each win exactly 25% of a
+    long series against each other should end up at roughly the same rating.
+
+    Four decks play cycles of four games, each deck winning one game per cycle
+    (so every deck has an identical 25% record). They start equal and remain
+    equal in expectation, so after many games they should cluster tightly near
+    the centre -- the rating must reward *relative strength*, not the incidental
+    order in which the wins happened to fall."""
+    decks = [MockDeck(id=i, player_id=i) for i in range(1, 5)]
+    games, parts = [], {}
+    gid = 0
+    for _ in range(40):  # 160 games total, each deck wins 40
+        for winner in (1, 2, 3, 4):
+            gid += 1
+            parts[gid] = [MockParticipant(deck_id=d, player_id=d) for d in [1, 2, 3, 4]]
+            games.append(MockGame(id=gid, winner_id=winner))
+
+    results = {r.deck_id: r for r in recalculate_all_elo(decks, games, parts)}
+    ratings = [results[d.id].new_rating for d in decks]
+    spread = max(ratings) - min(ratings)
+
+    # "Roughly the same": a tight cluster, and centred near 500 (nobody pulled
+    # far from the middle by equal play).
+    assert spread < 60.0, (
+        f"Equal decks diverged by {spread:.1f}: {[round(x, 1) for x in ratings]}"
+    )
+    assert all(abs(x - RATING_CENTER) < 60.0 for x in ratings), (
+        f"Equal decks drifted from centre: {[round(x, 1) for x in ratings]}"
     )

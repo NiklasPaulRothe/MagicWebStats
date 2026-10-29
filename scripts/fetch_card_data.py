@@ -350,12 +350,15 @@ def _execute_rulings_batch(cur, batch: list) -> None:
 RATING_MIN = 0.0
 RATING_MAX = 1000.0
 RATING_CENTER = 500.0
-RD_INITIAL = 350.0
-RD_MIN = 50.0
-RD_DECAY = 0.92
-LOGISTIC_SCALE = 200.0   # 0-1000-scale analogue of classic Elo's 400
-STEP_SCALE = 260.0       # rating points a full-confidence game moves per unit perf
-CENTER_PULL = 0.75       # per-game relaxation toward the centre (soft cap)
+RD_INITIAL = 300.0
+RD_MIN = 40.0
+RD_DECAY = 0.97
+LOGISTIC_SCALE = 240.0   # 0-1000-scale analogue of classic Elo's 400
+K_SCALE = 120.0          # max points a new deck moves in one game at perf = 1
+CENTER_PULL = 0.035      # small, confidence-independent mean reversion
+EDGE_DAMP_WIDTH = 150.0  # steps damped within this distance of a cap
+RECALC_PASSES = 6        # fixed-point iteration passes (order-independence)
+PASS_RD_ANNEAL = 0.68    # per-pass starting-RD shrink factor
 DECK_OWNER_OVERRIDE_PLAYER_ID = 24
 
 
@@ -377,24 +380,34 @@ def _clamp(value, low=RATING_MIN, high=RATING_MAX):
     return max(low, min(high, value))
 
 
+def _edge_damp(rating):
+    """Step multiplier: 1 in the mid-range, fading linearly to 0 at the caps."""
+    distance = min(rating - RATING_MIN, RATING_MAX - rating)
+    if distance >= EDGE_DAMP_WIDTH:
+        return 1.0
+    return max(0.0, distance / EDGE_DAMP_WIDTH)
+
+
 def calculate_elo_ratings(conn):
     """Recalculate bounded strength ratings for all decks from scratch.
 
+    Mirrors app/services/elo_service.recalculate_all_elo: a fixed-point
+    iteration (RECALC_PASSES replays of the full history with per-pass RD
+    annealing) so the result is order-independent and equal records converge.
+
     Writes three columns per deck: elo_rating (mean estimate, NULL when the deck
-    has fewer than 5 counted games), elo_rd (confidence / range) and elo_games
-    (counted games). NULL + the elo_games gate replaces the old `0` sentinel,
-    because on the 0-1000 scale 0 is a legal rating.
+    has fewer than 5 counted games), elo_rd (reported confidence from games
+    played) and elo_games (counted games). NULL + the elo_games gate replaces
+    the old `0` sentinel, because on the 0-1000 scale 0 is a legal rating.
     """
     cur = conn.cursor()
 
     # Load all decks (id, player_id)
     cur.execute('SELECT id, player_id FROM magic_stats_owner.decks')
     decks = cur.fetchall()
-    state = {
-        row[0]: {'rating': RATING_CENTER, 'rd': RD_INITIAL, 'games_played': 0}
-        for row in decks
-    }
     deck_player_map = {row[0]: row[1] for row in decks}
+    ratings = {row[0]: RATING_CENTER for row in decks}
+    games_played = {row[0]: 0 for row in decks}
 
     # Load all games ordered by date/id for chronological processing
     cur.execute('SELECT id, winner_id FROM magic_stats_owner.games ORDER BY date, id')
@@ -407,68 +420,79 @@ def calculate_elo_ratings(conn):
     for game_id, player_id, deck_id in all_participants:
         participants_by_game.setdefault(game_id, []).append((player_id, deck_id))
 
-    for game_id, winner_player_id in games:
-        participants = participants_by_game.get(game_id, [])
-        if len(participants) < 3 or len(participants) > 5:
-            continue
+    for pass_index in range(RECALC_PASSES):
+        start_rd = max(RD_MIN, RD_INITIAL * (PASS_RD_ANNEAL ** pass_index))
+        rd = {row[0]: start_rd for row in decks}
+        games_this_pass = {row[0]: 0 for row in decks}
 
-        # Build ratings for valid participants (deck belongs to player, or player 24)
-        deck_ratings = {}
-        valid_participants = []
-        for player_id, deck_id in participants:
-            deck_owner = deck_player_map.get(deck_id)
-            if deck_owner != player_id and deck_owner != DECK_OWNER_OVERRIDE_PLAYER_ID:
+        for game_id, winner_player_id in games:
+            participants = participants_by_game.get(game_id, [])
+            if len(participants) < 3 or len(participants) > 5:
                 continue
-            if deck_id in state:
-                deck_ratings[deck_id] = state[deck_id]['rating']
-                valid_participants.append((player_id, deck_id))
 
-        if len(deck_ratings) < 2:
-            continue
+            # Build ratings for valid participants (deck belongs to player, or player 24)
+            deck_ratings = {}
+            valid_participants = []
+            for player_id, deck_id in participants:
+                deck_owner = deck_player_map.get(deck_id)
+                if deck_owner != player_id and deck_owner != DECK_OWNER_OVERRIDE_PLAYER_ID:
+                    continue
+                if deck_id in ratings:
+                    deck_ratings[deck_id] = ratings[deck_id]
+                    valid_participants.append((player_id, deck_id))
 
-        # Normalised expected finish (strength-of-schedule signal; sums to 1)
-        raw_expected = {
-            did: expected_multiplayer_score(did, deck_ratings)
-            for did in deck_ratings
-        }
-        total_expected = sum(raw_expected.values())
-        normalized_expected = {
-            did: raw / total_expected
-            for did, raw in raw_expected.items()
-        }
+            if len(deck_ratings) < 2:
+                continue
 
-        for player_id, deck_id in valid_participants:
-            won = 1.0 if winner_player_id == player_id else 0.0
-            rating = state[deck_id]['rating']
-            rd = state[deck_id]['rd']
+            n = len(deck_ratings)
 
-            perf = won - normalized_expected[deck_id]
-            confidence = rd / RD_INITIAL
-            push = STEP_SCALE * perf
-            pull = CENTER_PULL * (RATING_CENTER - rating)
+            # Normalised expected finish (strength-of-schedule signal; sums to 1)
+            raw_expected = {
+                did: expected_multiplayer_score(did, deck_ratings)
+                for did in deck_ratings
+            }
+            total_expected = sum(raw_expected.values())
+            normalized_expected = {
+                did: raw / total_expected
+                for did, raw in raw_expected.items()
+            }
 
-            state[deck_id]['rating'] = _clamp(rating + confidence * (push + pull))
-            state[deck_id]['rd'] = max(RD_MIN, rd * RD_DECAY)
-            state[deck_id]['games_played'] += 1
+            for player_id, deck_id in valid_participants:
+                won = 1.0 if winner_player_id == player_id else 0.0
+                rating = ratings[deck_id]
+
+                perf = (won - normalized_expected[deck_id]) * n / (n - 1)
+                k = K_SCALE * (rd[deck_id] / RD_INITIAL) * _edge_damp(rating)
+                pull = CENTER_PULL * (RATING_CENTER - rating)
+
+                ratings[deck_id] = _clamp(rating + k * perf + pull)
+                rd[deck_id] = max(RD_MIN, rd[deck_id] * RD_DECAY)
+                games_this_pass[deck_id] += 1
+
+        games_played = games_this_pass
+
+    # Reported RD reflects games actually played (real confidence).
+    def reported_rd(count):
+        return max(RD_MIN, RD_INITIAL * (RD_DECAY ** count))
 
     # Write results back to the database
-    for deck_id, values in state.items():
-        games_played = values['games_played']
-        if games_played >= 5:
-            rating = round(values['rating'])
-            deviation = round(values['rd'])
+    for deck_id in ratings:
+        count = games_played[deck_id]
+        if count >= 5:
+            rating = round(ratings[deck_id])
+            deviation = round(reported_rd(count))
         else:
             rating = None
             deviation = None
         cur.execute(
             'UPDATE magic_stats_owner.decks '
             'SET elo_rating = %s, elo_rd = %s, elo_games = %s WHERE id = %s',
-            (rating, deviation, games_played, deck_id)
+            (rating, deviation, count, deck_id)
         )
 
     conn.commit()
     cur.close()
-    updated = sum(1 for v in state.values() if v['games_played'] >= 5)
+    updated = sum(1 for count in games_played.values() if count >= 5)
     print(f"  Updated {updated} decks with strength ratings ({len(games)} games processed)")
 
 

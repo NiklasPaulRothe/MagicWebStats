@@ -52,48 +52,65 @@ RATING_CENTER: float = 500.0
 """Fixed 0-1000 scale; new decks start at the centre (500)."""
 
 # --- Confidence (rating deviation) constants -------------------------------
-RD_INITIAL: float = 350.0
-"""RD of a brand-new deck: wide, so early games swing heavily."""
+RD_INITIAL: float = 300.0
+"""RD of a brand-new deck: wide, so early games swing heavily. Also the step
+size at zero games; the step scales with ``rd / RD_INITIAL``."""
 
-RD_MIN: float = 50.0
+RD_MIN: float = 40.0
 """Floor for RD: a fully-settled deck still allows small movement so it can
 react to a genuine shift in performance (no deck ever freezes completely)."""
 
-RD_DECAY: float = 0.92
-"""Multiplicative narrowing of RD per game played (0 < d < 1). Smaller =
-confidence builds faster. RD approaches RD_MIN geometrically with games."""
+RD_DECAY: float = 0.97
+"""Multiplicative narrowing of RD per game played (0 < d < 1). RD approaches
+RD_MIN geometrically with games; this is also the deck's reported deviation."""
 
 # --- Update-strength constants ---------------------------------------------
-# The per-game update is   new = rating + confidence * (STEP_SCALE * perf
-#                                                        + CENTER_PULL * (CENTER - rating))
-# where ``perf = actual - normalized_expected`` is the per-seat performance
-# surplus (roughly in [-1, +1]) and ``confidence = rd / RD_INITIAL`` in (0, 1].
+# The per-game update is   new = rating + k * perf + CENTER_PULL * (CENTER - rating)
+# where:
+#   perf = (won - normalized_expected) * n / (n - 1)   -- per-seat performance
+#          surplus, scaled so a win is ~+1 and a loss ~-1/(n-1) against an even
+#          pod; positive when you do better than your rating predicted.
+#   k    = K_SCALE * (rd / RD_INITIAL) * edge_damp(rating)   -- step size, large
+#          while the deck is new (wide rd) and shrinking as it settles.
+#   CENTER_PULL * (CENTER - rating)  -- a small, confidence-INDEPENDENT mean
+#          reversion. It does NOT compress the mid-range (it is tiny there), but
+#          over many games it (a) cancels the small order-dependent offsets that
+#          equal decks would otherwise accumulate from sequential updates, and
+#          (b) caps a relentless winner: the pull grows with distance until it
+#          balances the per-game gains, so an average-field all-winner plateaus
+#          in the upper-middle rather than pinning to 1000.
 #
-# Because both the push (STEP_SCALE * perf) and the pull (CENTER_PULL * distance)
-# carry the same ``confidence`` factor, confidence cancels at equilibrium, so a
-# deck with a *fixed* performance level settles around
-#       rating_eq = CENTER + (STEP_SCALE / CENTER_PULL) * perf_eq
-# regardless of how many games it has played. The ratio STEP_SCALE / CENTER_PULL
-# therefore sets the span of the scale that performance can reach, and CENTER_PULL
-# alone sets how fast a deck relaxes toward that equilibrium.
-#
-# perf is self-limiting: as a deck climbs, its expected score against a fixed
-# field rises, so perf shrinks -- which is exactly why beating an *average* field
-# plateaus well below the ceiling (the caps are reserved for decks that keep
-# over-performing against *strong* fields, where expected stays low and perf
-# stays large). The hard clamp to [0, 1000] is only a numerical safety net.
-STEP_SCALE: float = 260.0
-"""Rating points a full-confidence game moves per unit of performance surplus
-(``perf``). With CENTER_PULL below, max sustained over-performance settles a
-deck in the upper-middle of the scale, not at the cap."""
+# perf is additionally self-limiting: as a deck climbs, its expected score
+# against a fixed field rises, so perf shrinks -- reserving the extremes for
+# decks that keep over-performing against *strong* fields.
+K_SCALE: float = 120.0
+"""Max rating points a brand-new deck (full rd) moves in one game at perf = 1."""
 
-CENTER_PULL: float = 0.75
-"""Per-game relaxation toward the centre, as a fraction of the deck's current
-distance from it (scaled by confidence). Larger = stronger soft cap / harder to
-reach the extremes and faster regression when a deck stops performing."""
+CENTER_PULL: float = 0.035
+"""Confidence-independent per-game mean reversion toward the centre. Small, so
+the mid-range stays spread out; see the note above for what it buys."""
+
+EDGE_DAMP_WIDTH: float = 150.0
+"""Within this many points of either cap, the step size is linearly damped to
+0, so no deck can be shoved past the boundary and ratings ease into the extremes
+instead of slamming them."""
+
+# --- Fixed-point iteration -------------------------------------------------
+RECALC_PASSES: int = 6
+"""Number of times the full game history is replayed. Each pass starts from the
+previous pass's ratings and a progressively narrower RD (see PASS_RD_ANNEAL), so
+later passes compute every deck's expectation against (near-)converged opponent
+ratings and merely settle. This makes the result a fixed point that no longer
+depends on the within-history ordering of games -- in particular, decks with
+identical records converge to (near-)identical ratings."""
+
+PASS_RD_ANNEAL: float = 0.68
+"""Per-pass shrink factor for the starting RD: pass p begins at
+``RD_INITIAL * PASS_RD_ANNEAL**p`` (floored at RD_MIN). The first pass learns
+from a wide RD; refinement passes move progressively less."""
 
 
-LOGISTIC_SCALE: float = 200.0
+LOGISTIC_SCALE: float = 240.0
 """Divisor in the logistic expected-score curve, the 0-1000-scale analogue of
 classic Elo's 400 (which is tuned for a ~0-3000 scale). Smaller = rating gaps
 are more decisive, so strength-of-schedule separates decks more sharply: a
@@ -135,12 +152,26 @@ def expected_multiplayer_score(deck_id: int, deck_ratings: dict[int, float]) -> 
 def _clamp(value: float, low: float = RATING_MIN, high: float = RATING_MAX) -> float:
     """Clamp ``value`` into ``[low, high]`` (hard safety bound on the scale).
 
-    The soft cap (centring pull) does the real work of keeping ratings away
-    from the extremes; this clamp only guarantees the invariant
+    The soft cap (centring pull) and edge damping do the real work of keeping
+    ratings away from the extremes; this clamp only guarantees the invariant
     ``RATING_MIN <= rating <= RATING_MAX`` can never be violated by numerical
     overshoot.
     """
     return max(low, min(high, value))
+
+
+def _edge_damp(rating: float) -> float:
+    """Step-size multiplier that fades from 1 in the mid-range to 0 at the caps.
+
+    Returns 1.0 while the rating is at least ``EDGE_DAMP_WIDTH`` away from both
+    bounds, then falls linearly to 0 at the bound itself. This lets ratings ease
+    into the extremes (and never be pushed past them) while leaving the whole
+    middle of the scale undamped, so the mid-range keeps its spread.
+    """
+    distance = min(rating - RATING_MIN, RATING_MAX - rating)
+    if distance >= EDGE_DAMP_WIDTH:
+        return 1.0
+    return max(0.0, distance / EDGE_DAMP_WIDTH)
 
 
 @dataclass
@@ -168,11 +199,18 @@ def recalculate_all_elo(
 ) -> list[EloResult]:
     """Recalculate bounded strength ratings for all decks across all games.
 
-    Processes games in chronological order (as supplied). For each valid pod it
-    computes every participant's normalised expected finish, then moves each
-    deck's rating toward the evidence of this game while applying the centring
-    soft cap. Step size is governed by the deck's current RD, which narrows as
-    the deck plays.
+    Replays the full game history ``RECALC_PASSES`` times (a fixed-point
+    iteration). Each pass starts from the previous pass's ratings and a
+    progressively narrower starting RD (``PASS_RD_ANNEAL``), so later passes
+    compute every deck's expectation against (near-)converged opponent ratings
+    and merely settle. The benefit is order-independence: the result no longer
+    depends on the within-history ordering of games, and decks with identical
+    records converge to (near-)identical ratings.
+
+    Within a pass, games are processed in the supplied (chronological) order.
+    For each valid pod every participant's normalised expected finish is
+    computed, then each deck's rating moves by ``k * perf`` (RD- and
+    edge-scaled) plus a small centring pull (see the update note above).
 
     A deck's participant is valid if:
     - the deck's owner (``player_id``) matches the participant's ``player_id``, OR
@@ -190,91 +228,98 @@ def recalculate_all_elo(
 
     Returns:
         One ``EloResult`` per deck with the final mean rating, games_played and
-        RD. The caller persists the results (and decides the min-games gate).
+        a reported RD (``max(RD_MIN, RD_INITIAL * RD_DECAY**games)``, i.e. the
+        deck's confidence from how many games it actually played -- distinct
+        from the internal per-pass RD used to anneal the iteration). The caller
+        persists the results (and decides the min-games gate).
     """
-    # Initialise every deck at the centre with a wide RD (low confidence).
-    state: dict[int, dict[str, float | int]] = {
-        deck.id: {'rating': RATING_CENTER, 'rd': RD_INITIAL, 'games_played': 0}
-        for deck in decks
-    }
-
     deck_owners: dict[int, int] = {deck.id: deck.player_id for deck in decks}
 
-    for game in games:
-        participants = participants_by_game.get(game.id, [])
-        if len(participants) < 3 or len(participants) > 5:
-            continue
+    # Ratings carried across passes; RD/games are recomputed each pass.
+    ratings: dict[int, float] = {deck.id: RATING_CENTER for deck in decks}
+    games_played: dict[int, int] = {deck.id: 0 for deck in decks}
 
-        # Resolve this pod's valid participants and their current ratings.
-        deck_ratings: dict[int, float] = {}
-        valid_participants = []
-        for p in participants:
-            deck_owner = deck_owners.get(p.deck_id)
-            if deck_owner is None:
+    for pass_index in range(RECALC_PASSES):
+        # The first pass learns from a wide RD; refinement passes start narrower
+        # so they settle toward the fixed point instead of re-introducing noise.
+        start_rd = max(RD_MIN, RD_INITIAL * (PASS_RD_ANNEAL ** pass_index))
+        rd: dict[int, float] = {deck.id: start_rd for deck in decks}
+        games_this_pass: dict[int, int] = {deck.id: 0 for deck in decks}
+
+        for game in games:
+            participants = participants_by_game.get(game.id, [])
+            if len(participants) < 3 or len(participants) > 5:
                 continue
-            if deck_owner != p.player_id and deck_owner != DECK_OWNER_OVERRIDE_PLAYER_ID:
+
+            # Resolve this pod's valid participants and their current ratings.
+            deck_ratings: dict[int, float] = {}
+            valid_participants = []
+            for p in participants:
+                deck_owner = deck_owners.get(p.deck_id)
+                if deck_owner is None:
+                    continue
+                if deck_owner != p.player_id and deck_owner != DECK_OWNER_OVERRIDE_PLAYER_ID:
+                    continue
+                if p.deck_id in ratings:
+                    deck_ratings[p.deck_id] = ratings[p.deck_id]
+                    valid_participants.append(p)
+
+            if len(deck_ratings) < 2:
                 continue
-            if p.deck_id in state:
-                deck_ratings[p.deck_id] = state[p.deck_id]['rating']
-                valid_participants.append(p)
 
-        if len(deck_ratings) < 2:
-            continue
+            n = len(deck_ratings)
 
-        # Normalised expected finish for each deck (pod sums to 1). This is the
-        # strength-of-schedule signal: a high value means you were expected to
-        # win this particular pod.
-        raw_expected = {
-            did: expected_multiplayer_score(did, deck_ratings)
-            for did in deck_ratings
-        }
-        total_expected = sum(raw_expected.values())
-        normalized_expected = {
-            did: raw / total_expected
-            for did, raw in raw_expected.items()
-        }
+            # Normalised expected finish for each deck (pod sums to 1). This is
+            # the strength-of-schedule signal: a high value means you were
+            # expected to win this particular pod.
+            raw_expected = {
+                did: expected_multiplayer_score(did, deck_ratings)
+                for did in deck_ratings
+            }
+            total_expected = sum(raw_expected.values())
+            normalized_expected = {
+                did: raw / total_expected
+                for did, raw in raw_expected.items()
+            }
 
-        for participant in valid_participants:
-            did = participant.deck_id
-            won = 1.0 if game.winner_id == participant.player_id else 0.0
+            for participant in valid_participants:
+                did = participant.deck_id
+                won = 1.0 if game.winner_id == participant.player_id else 0.0
 
-            rating = state[did]['rating']
-            rd = state[did]['rd']
+                rating = ratings[did]
 
-            # Per-seat performance surplus for THIS pod, roughly in [-1, +1]:
-            # actual finish (1 win / 0 loss) minus the deck's normalised
-            # expectation. Beating a weak field (where you were already expected
-            # to win) yields a small surplus; performing against a strong field
-            # (low expectation) yields a large one. This is the strength-of-
-            # schedule signal, and it shrinks as the deck climbs against a fixed
-            # field, which is what makes an average-only schedule plateau.
-            perf = won - normalized_expected[did]
+                # Per-seat performance surplus, scaled by n/(n-1) so a win is
+                # ~+1 and a loss ~-1/(n-1) against an even pod. Positive when the
+                # deck did better than its rating predicted; large when it did so
+                # against a strong field (low expectation), small against a weak
+                # one -- the strength-of-schedule signal, self-limiting as a deck
+                # climbs against a fixed field.
+                perf = (won - normalized_expected[did]) * n / (n - 1)
 
-            # Step size scales with confidence: a wide RD (new deck) moves far
-            # (heavy early swings); a narrow RD (settled deck) barely moves.
-            confidence = rd / RD_INITIAL
+                # Step size: large while the deck is new (wide rd), shrinking as
+                # it settles, and damped near the caps so it eases into extremes.
+                k = K_SCALE * (rd[did] / RD_INITIAL) * _edge_damp(rating)
 
-            # Push from this game's evidence + soft-cap pull toward the centre.
-            # Both share the confidence factor, so they cancel at equilibrium
-            # (see the STEP_SCALE / CENTER_PULL note above): a deck settles at a
-            # rating set by its sustained performance, not by how long it played.
-            push = STEP_SCALE * perf
-            pull = CENTER_PULL * (RATING_CENTER - rating)
-            new_rating = _clamp(rating + confidence * (push + pull))
+                # Small, confidence-independent mean reversion (see update note).
+                pull = CENTER_PULL * (RATING_CENTER - rating)
 
-            # Narrow RD toward its floor as the deck gains a game of evidence.
-            new_rd = max(RD_MIN, rd * RD_DECAY)
+                ratings[did] = _clamp(rating + k * perf + pull)
+                rd[did] = max(RD_MIN, rd[did] * RD_DECAY)
+                games_this_pass[did] += 1
 
-            state[did]['rating'] = new_rating
-            state[did]['rd'] = new_rd
-            state[did]['games_played'] += 1
+        games_played = games_this_pass
+
+    # Reported RD reflects how many games the deck actually played (its real
+    # confidence), independent of the per-pass annealing used internally.
+    def reported_rd(count: int) -> float:
+        return max(RD_MIN, RD_INITIAL * (RD_DECAY ** count))
 
     return [
         EloResult(
             deck_id=deck_id,
-            new_rating=values['rating'],
-            games_played=values['games_played'],
-            rd=values['rd'],
+            new_rating=ratings[deck_id],
+            games_played=games_played[deck_id],
+            rd=reported_rd(games_played[deck_id]),
         )
-        for deck_id, values in state.items()
+        for deck_id in ratings
     ]
