@@ -51,18 +51,47 @@ RATING_MAX: float = 1000.0
 RATING_CENTER: float = 500.0
 """Fixed 0-1000 scale; new decks start at the centre (500)."""
 
-# --- Confidence (rating deviation) constants -------------------------------
+# --- Movement (step-size) constants ----------------------------------------
+# These control HOW FAST the rating moves, which is a separate concern from the
+# reported confidence interval below. A deck's step size shrinks as it plays
+# (new decks swing hard, settled decks drift slowly) but never reaches zero:
+# this is a *living game*, so a deck whose real strength shifts (power creep, a
+# rework) must always be able to move, just gradually once it is settled.
 RD_INITIAL: float = 300.0
-"""RD of a brand-new deck: wide, so early games swing heavily. Also the step
-size at zero games; the step scales with ``rd / RD_INITIAL``."""
+"""Internal step scale for a brand-new deck (0 games): wide, so early games
+swing heavily. The per-game step scales with ``movement_rd / RD_INITIAL``."""
 
-RD_MIN: float = 40.0
-"""Floor for RD: a fully-settled deck still allows small movement so it can
-react to a genuine shift in performance (no deck ever freezes completely)."""
+RD_MIN: float = 45.0
+"""Floor for the internal step scale -- NOT a displayed value. Calibrated to
+this group's volume (the most-played deck is ~50 games): by ~30 games the step
+has essentially reached this floor, so a settled deck still drifts slowly if its
+real performance changes but never jumps. A deck never freezes completely."""
 
-RD_DECAY: float = 0.97
-"""Multiplicative narrowing of RD per game played (0 < d < 1). RD approaches
-RD_MIN geometrically with games; this is also the deck's reported deviation."""
+RD_DECAY: float = 0.955
+"""Per-game shrink of the internal step scale (0 < d < 1). At 0.955 the step
+reaches ~RD_MIN by roughly 30 games -- tuned to this group's volume rather than
+the hundreds-of-games timescale a slower decay would imply."""
+
+# --- Displayed confidence interval (stored, not a movement driver) ---------
+# elo_rd is a *snapshot* statistic: "how settled is this score right now",
+# reported as a +/- interval, NOT something that moves the rating. Per the
+# design it ramps linearly from its widest at the gate (CI_MIN_GAMES games) down
+# to exactly 0 once a deck is settled (CI_SETTLED_GAMES games), and stays 0
+# after. "Settled" therefore means a zero-width interval -- a single trusted
+# number -- while the rating itself can still drift via the movement rules above.
+CI_WIDEST: float = 200.0
+"""The +/- confidence interval at the gate (CI_MIN_GAMES games), in rating
+points. Cosmetic for now (not displayed); rescale freely later."""
+
+CI_MIN_GAMES: int = 5
+"""Games at which a deck becomes rated (the leaderboard gate). The confidence
+interval is at its widest (CI_WIDEST) here."""
+
+CI_SETTLED_GAMES: int = 30
+"""Games at which the confidence interval reaches 0 (fully settled). Chosen for
+this group's volume: a 30-game sample is treated as a trustworthy single value.
+Beyond this the interval stays 0 (the rating can still drift, but we no longer
+express uncertainty about the current number)."""
 
 # --- Update-strength constants ---------------------------------------------
 # The per-game update is   new = rating + k * perf + CENTER_PULL * (CENTER - rating)
@@ -174,6 +203,36 @@ def _edge_damp(rating: float) -> float:
     return max(0.0, distance / EDGE_DAMP_WIDTH)
 
 
+def confidence_interval(games_played: int) -> float:
+    """Return the +/- confidence interval for a deck's current rating.
+
+    This is a *snapshot* statistic describing how settled the score is right
+    now -- it does NOT move the rating (the movement rules in
+    ``recalculate_all_elo`` do that). It ramps linearly from ``CI_WIDEST`` at
+    the gate (``CI_MIN_GAMES`` games) down to exactly ``0`` once the deck is
+    settled (``CI_SETTLED_GAMES`` games), and stays 0 beyond that.
+
+    A settled deck therefore has a zero-width interval -- a single trusted
+    number -- even though its rating can still drift slowly if its real
+    performance changes (a living game never fully freezes a score).
+
+    Args:
+        games_played: The deck's count of valid games.
+
+    Returns:
+        The half-width of the confidence interval in rating points. Decks below
+        ``CI_MIN_GAMES`` return ``CI_WIDEST`` (they are not rated yet anyway);
+        decks at or beyond ``CI_SETTLED_GAMES`` return ``0.0``.
+    """
+    if games_played <= CI_MIN_GAMES:
+        return CI_WIDEST
+    if games_played >= CI_SETTLED_GAMES:
+        return 0.0
+    span = CI_SETTLED_GAMES - CI_MIN_GAMES
+    remaining = CI_SETTLED_GAMES - games_played
+    return CI_WIDEST * remaining / span
+
+
 @dataclass
 class EloResult:
     """Result of a rating recalculation for a single deck.
@@ -228,10 +287,11 @@ def recalculate_all_elo(
 
     Returns:
         One ``EloResult`` per deck with the final mean rating, games_played and
-        a reported RD (``max(RD_MIN, RD_INITIAL * RD_DECAY**games)``, i.e. the
-        deck's confidence from how many games it actually played -- distinct
-        from the internal per-pass RD used to anneal the iteration). The caller
-        persists the results (and decides the min-games gate).
+        the confidence interval ``rd`` (see ``confidence_interval``: the +/-
+        half-width of the current score, 0 once the deck is settled at
+        ``CI_SETTLED_GAMES`` games -- distinct from the internal movement step
+        and from the per-pass annealing RD). The caller persists the results
+        (and decides the min-games gate).
     """
     deck_owners: dict[int, int] = {deck.id: deck.player_id for deck in decks}
 
@@ -309,17 +369,12 @@ def recalculate_all_elo(
 
         games_played = games_this_pass
 
-    # Reported RD reflects how many games the deck actually played (its real
-    # confidence), independent of the per-pass annealing used internally.
-    def reported_rd(count: int) -> float:
-        return max(RD_MIN, RD_INITIAL * (RD_DECAY ** count))
-
     return [
         EloResult(
             deck_id=deck_id,
             new_rating=ratings[deck_id],
             games_played=games_played[deck_id],
-            rd=reported_rd(games_played[deck_id]),
+            rd=confidence_interval(games_played[deck_id]),
         )
         for deck_id in ratings
     ]

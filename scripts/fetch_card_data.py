@@ -350,15 +350,20 @@ def _execute_rulings_batch(cur, batch: list) -> None:
 RATING_MIN = 0.0
 RATING_MAX = 1000.0
 RATING_CENTER = 500.0
-RD_INITIAL = 300.0
-RD_MIN = 40.0
-RD_DECAY = 0.97
+RD_INITIAL = 300.0       # internal step scale at 0 games (movement, not display)
+RD_MIN = 45.0            # floor for the internal step; settled deck still drifts
+RD_DECAY = 0.955         # per-game step shrink; ~settled by 30 games
 LOGISTIC_SCALE = 240.0   # 0-1000-scale analogue of classic Elo's 400
 K_SCALE = 120.0          # max points a new deck moves in one game at perf = 1
 CENTER_PULL = 0.035      # small, confidence-independent mean reversion
 EDGE_DAMP_WIDTH = 150.0  # steps damped within this distance of a cap
 RECALC_PASSES = 6        # fixed-point iteration passes (order-independence)
 PASS_RD_ANNEAL = 0.68    # per-pass starting-RD shrink factor
+# Displayed confidence interval (elo_rd): linear ramp, widest at the gate down
+# to 0 once settled. A snapshot statistic, NOT a movement driver.
+CI_WIDEST = 200.0
+CI_MIN_GAMES = 5
+CI_SETTLED_GAMES = 30
 DECK_OWNER_OVERRIDE_PLAYER_ID = 24
 
 
@@ -386,6 +391,20 @@ def _edge_damp(rating):
     if distance >= EDGE_DAMP_WIDTH:
         return 1.0
     return max(0.0, distance / EDGE_DAMP_WIDTH)
+
+
+def confidence_interval(games_played):
+    """+/- confidence interval for the current rating (snapshot, not movement).
+
+    Linear ramp from CI_WIDEST at CI_MIN_GAMES down to 0 at CI_SETTLED_GAMES,
+    staying 0 beyond. Mirrors app/services/elo_service.confidence_interval.
+    """
+    if games_played <= CI_MIN_GAMES:
+        return CI_WIDEST
+    if games_played >= CI_SETTLED_GAMES:
+        return 0.0
+    span = CI_SETTLED_GAMES - CI_MIN_GAMES
+    return CI_WIDEST * (CI_SETTLED_GAMES - games_played) / span
 
 
 def calculate_elo_ratings(conn):
@@ -471,16 +490,12 @@ def calculate_elo_ratings(conn):
 
         games_played = games_this_pass
 
-    # Reported RD reflects games actually played (real confidence).
-    def reported_rd(count):
-        return max(RD_MIN, RD_INITIAL * (RD_DECAY ** count))
-
     # Write results back to the database
     for deck_id in ratings:
         count = games_played[deck_id]
         if count >= 5:
             rating = round(ratings[deck_id])
-            deviation = round(reported_rd(count))
+            deviation = round(confidence_interval(count))
         else:
             rating = None
             deviation = None

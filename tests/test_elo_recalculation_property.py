@@ -8,8 +8,9 @@ a deck's rating as a bounded *estimate of strength* on a fixed 0-1000 scale
 that make the new system fair, instead of the old zero-sum equivalence:
 
 1. Every rating stays within [RATING_MIN, RATING_MAX] (the cap holds).
-2. RD (the internal range / confidence) starts at RD_INITIAL and narrows
-   monotonically toward RD_MIN as a deck plays — never widens.
+2. The reported ``rd`` is a confidence INTERVAL (snapshot, not a movement
+   driver): it ramps from CI_WIDEST at the gate to 0 at CI_SETTLED_GAMES games
+   and never widens as a deck plays more.
 3. The recalculation is deterministic (same input -> same output).
 4. games_played only counts valid pods (3-5 participants, >=2 valid decks).
 5. Strength-of-schedule asymmetry: winning every game against a *strong* field
@@ -28,9 +29,10 @@ from app.services.elo_service import (
     RATING_MIN,
     RATING_MAX,
     RATING_CENTER,
-    RD_INITIAL,
-    RD_MIN,
-    RD_DECAY,
+    CI_WIDEST,
+    CI_MIN_GAMES,
+    CI_SETTLED_GAMES,
+    confidence_interval,
     recalculate_all_elo,
 )
 
@@ -127,22 +129,34 @@ def test_ratings_stay_within_bounds(scenario):
 
 @given(scenario=elo_game_scenario())
 @settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.too_slow])
-def test_rd_narrows_monotonically_with_games(scenario):
-    """Invariant 2: RD equals RD_INITIAL decayed once per counted game, floored
-    at RD_MIN. A deck with more games is never *less* confident (higher RD) than
-    one with fewer, and RD never exceeds its starting width."""
+def test_confidence_interval_ramps_to_zero_when_settled(scenario):
+    """Invariant 2: the reported ``rd`` is the confidence INTERVAL -- a snapshot
+    of how settled the score is, not a movement driver. It ramps linearly from
+    CI_WIDEST at the gate down to exactly 0 at CI_SETTLED_GAMES games, and is 0
+    beyond. It never widens as a deck plays more."""
     results = recalculate_all_elo(
         scenario['decks'], scenario['games'], scenario['participants_by_game']
     )
     for r in results:
-        # RD is bounded by its start and its floor.
-        assert RD_MIN <= r.rd <= RD_INITIAL
-        # RD is exactly the geometric decay of the counted games (floored).
-        expected_rd = max(RD_MIN, RD_INITIAL * (RD_DECAY ** r.games_played))
-        assert math.isclose(r.rd, expected_rd, rel_tol=1e-9), (
-            f"Deck {r.deck_id}: rd {r.rd} != expected {expected_rd} "
-            f"for {r.games_played} games"
-        )
+        # The interval is bounded by [0, CI_WIDEST].
+        assert 0.0 <= r.rd <= CI_WIDEST
+        # It matches the deck's games via the shared function (single source).
+        assert math.isclose(r.rd, confidence_interval(r.games_played), rel_tol=1e-9)
+        # A settled deck has a zero-width interval (a single trusted number).
+        if r.games_played >= CI_SETTLED_GAMES:
+            assert r.rd == 0.0
+
+
+def test_confidence_interval_is_monotone_non_increasing():
+    """The confidence interval must never widen as games accrue: it shrinks (or
+    holds) with every additional game, reaching 0 at CI_SETTLED_GAMES."""
+    prev = confidence_interval(0)
+    for g in range(0, CI_SETTLED_GAMES + 20):
+        cur = confidence_interval(g)
+        assert cur <= prev + 1e-9, f"interval widened at {g} games: {prev} -> {cur}"
+        prev = cur
+    assert confidence_interval(CI_SETTLED_GAMES) == 0.0
+    assert confidence_interval(CI_SETTLED_GAMES + 50) == 0.0
 
 
 @given(scenario=elo_game_scenario())
@@ -182,7 +196,8 @@ def test_unplayed_decks_remain_at_center(scenario):
         r = results[deck.id]
         if r.games_played == 0:
             assert math.isclose(r.new_rating, RATING_CENTER, rel_tol=1e-9)
-            assert math.isclose(r.rd, RD_INITIAL, rel_tol=1e-9)
+            # An unplayed deck has the widest possible confidence interval.
+            assert math.isclose(r.rd, CI_WIDEST, rel_tol=1e-9)
 
 
 def _establish_field_and_play(opponents_are_strong: bool) -> dict:
