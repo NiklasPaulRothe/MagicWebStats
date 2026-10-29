@@ -77,6 +77,8 @@ def test_no_column_name_overrides_remain(entry):
 # Columns with >= 0 CHECK constraints: (model_class, constraint_name, column_expression)
 CHECK_GTE_ZERO_CONSTRAINTS = [
     (Deck, "ck_deck_elo_rating", "elo_rating >= 0"),
+    (Deck, "ck_deck_elo_rd", "elo_rd >= 0"),
+    (Deck, "ck_deck_elo_games", "elo_games >= 0"),
     (Deck, "ck_deck_version", "version >= 0"),
     (Deck, "ck_deck_patch", "patch >= 0"),
     (Deck, "ck_deck_change", "change >= 0"),

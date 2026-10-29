@@ -814,15 +814,18 @@ def get_deck_highlights(player_id: int, min_games_best: int = 5) -> dict:
             'winrate': winrate,
         })
 
-    # Highest rated: the player's active, non-cEDH deck with the top real Elo.
-    # elo_rating > 0 excludes NULL and the 0 sentinel the Elo pipeline writes
-    # for decks with fewer than 5 games (consistent with get_aggregate_elo).
+    # Highest rated: the player's active, non-cEDH deck with the top rating.
+    # A deck is "rated" when it has a non-NULL rating AND at least 5 counted
+    # games (elo_games >= 5). This replaces the old `elo_rating > 0` gate: on
+    # the 0-1000 scale 0 is a legal rating, so NULL + the elo_games gate now
+    # marks an unrated deck (consistent with get_aggregate_elo).
     hr_row = db.session.execute(
         sa.select(Deck.id, Deck.name, Deck.commander, Deck.elo_rating)
         .where(Deck.player_id == player_id)
         .where(Deck.active == True)  # noqa: E712
         .where(Deck.cedh != True)  # noqa: E712
-        .where(Deck.elo_rating > 0)
+        .where(Deck.elo_rating.is_not(None))
+        .where(Deck.elo_games >= 5)
         .order_by(Deck.elo_rating.desc(), Deck.name)
         .limit(1)
     ).first()
@@ -947,7 +950,8 @@ def get_aggregate_elo(player_id: int) -> int | None:
         .where(Deck.player_id == player_id)
         .where(Deck.active == True)  # noqa: E712
         .where(Deck.cedh != True)  # noqa: E712
-        .where(Deck.elo_rating > 0)  # exclude unrated decks (elo 0 = <5 games) and NULL
+        .where(Deck.elo_rating.is_not(None))  # exclude unrated decks (NULL)
+        .where(Deck.elo_games >= 5)  # and decks below the 5-game gate
     )
 
     if avg_elo is None:

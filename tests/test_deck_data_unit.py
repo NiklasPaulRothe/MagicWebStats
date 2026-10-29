@@ -341,7 +341,7 @@ class TestGetDeckData:
             deck = Deck(
                 id=1, name="My Deck", commander="Aesi",
                 player_id=1, active=True, color_identity="Simic",
-                decklist="https://example.com/deck", elo_rating=1600.0,
+                decklist="https://example.com/deck", elo_rating=600.0,
             )
             db_session.add(deck)
             db_session.flush()
@@ -352,7 +352,7 @@ class TestGetDeckData:
             assert results[0]["player_name"] == "Luna"
             assert results[0]["color_identity"] == "Simic"
             assert results[0]["decklist"] == "https://example.com/deck"
-            assert results[0]["elo"] == 1600.0
+            assert results[0]["elo"] == 600.0
 
     def test_empty_color_imgs_and_tags(self, app, db_session):
         """When no color components or tags exist, return empty lists."""

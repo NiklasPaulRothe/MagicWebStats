@@ -105,7 +105,14 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.decks (
     -- FK is added after deck_folders is created (ALTER below) to avoid a
     -- forward reference in this top-down build script.
     folder_id      INTEGER,
-    elo_rating     FLOAT NOT NULL DEFAULT 1500 CHECK (elo_rating >= 0),
+    -- Deck strength rating on a fixed 0-1000 scale (centre 500). NULL = unrated
+    -- (fewer than 5 counted games; see elo_games). On this scale 0 is a legal
+    -- rating, so NULL — not 0 — is the unrated sentinel. elo_rd is the rating
+    -- deviation (confidence / internal range); elo_games is the count of valid
+    -- games. Computed by app/services/elo_service.py (and the nightly job).
+    elo_rating     FLOAT CHECK (elo_rating >= 0 AND elo_rating <= 1000),
+    elo_rd         FLOAT CHECK (elo_rd >= 0),
+    elo_games      INTEGER NOT NULL DEFAULT 0 CHECK (elo_games >= 0),
     decklist       TEXT,
     decksite       TEXT,
     archidekt_id   TEXT,

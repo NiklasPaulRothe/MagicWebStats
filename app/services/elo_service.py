@@ -1,46 +1,130 @@
-"""Elo rating calculation service.
+"""Deck strength-rating service (capped, confidence-weighted).
 
-Provides functions for computing Elo ratings in a multiplayer (3-5 player)
-Commander/EDH context. Extracted from app/decks/routes.py to enable
-independent testing without a database or Flask request context.
+Computes a bounded "strength rating" for every deck in a multiplayer
+(3-5 player) Commander/EDH context. This replaces the old chess-style Elo,
+which was additive and unbounded and therefore inflated over time: a deck
+accumulated rating simply by playing many games, and new decks entering at a
+fixed seed fed points to established decks.
+
+The new system treats a deck's rating as an *estimate of its strength on a
+fixed 0-1000 scale (centred at 500)*, not as an accumulated bank balance:
+
+- **Bounded scale with a soft cap.** Every update includes a gentle pull back
+  toward the centre (500) proportional to how far the deck currently sits from
+  it. That centring force is what caps both ends: the further out you are, the
+  harder it pulls back, so results have to keep justifying your position and no
+  amount of extra games lets you drift past what your record supports. Stop
+  performing and you regress toward the middle. Points are not conserved or
+  created; the rating settles at the equilibrium between your results and the
+  centring pull.
+
+- **Opponent-relative performance (strength of schedule).** A deck's expected
+  finish in a pod is its averaged pairwise win probability against the pod,
+  normalised so the pod sums to 1 (unchanged from the old system). The update
+  is driven by ``actual - expected``. Beating a weak field yields a small
+  surplus (you were expected to win), so rating gains shrink and plateau below
+  the ceiling for an average-only schedule. Taking games off a strong field
+  yields a large surplus, pushing you up fast. The asymmetry you want is
+  inherent to opponent-relative scoring.
+
+- **Confidence / rating deviation (RD).** Each deck carries its own RD: wide
+  for a new deck (few games -> large step size -> heavy swings) and narrowing
+  as it plays (settled estimate -> small steps). RD replaces the old
+  median-experience K-factor and doubles as the deck's internal *range*
+  (e.g. "rating +/- RD"), stored for later use.
+
+The scale is deliberately friendly to a downstream Commander *bracket* estimate
+(mapping rating bands to brackets), but no bracket logic lives here.
 """
 
-import statistics
 from dataclasses import dataclass
 
 
 DECK_OWNER_OVERRIDE_PLAYER_ID: int = 24
-"""Player ID whose decks are always included in Elo calculations
+"""Player ID whose decks are always included in rating calculations
 even when played by a different player (community/shared decks)."""
 
 
+# --- Scale constants -------------------------------------------------------
+RATING_MIN: float = 0.0
+RATING_MAX: float = 1000.0
+RATING_CENTER: float = 500.0
+"""Fixed 0-1000 scale; new decks start at the centre (500)."""
+
+# --- Confidence (rating deviation) constants -------------------------------
+RD_INITIAL: float = 350.0
+"""RD of a brand-new deck: wide, so early games swing heavily."""
+
+RD_MIN: float = 50.0
+"""Floor for RD: a fully-settled deck still allows small movement so it can
+react to a genuine shift in performance (no deck ever freezes completely)."""
+
+RD_DECAY: float = 0.92
+"""Multiplicative narrowing of RD per game played (0 < d < 1). Smaller =
+confidence builds faster. RD approaches RD_MIN geometrically with games."""
+
+# --- Update-strength constants ---------------------------------------------
+# The per-game update is   new = rating + confidence * (STEP_SCALE * perf
+#                                                        + CENTER_PULL * (CENTER - rating))
+# where ``perf = actual - normalized_expected`` is the per-seat performance
+# surplus (roughly in [-1, +1]) and ``confidence = rd / RD_INITIAL`` in (0, 1].
+#
+# Because both the push (STEP_SCALE * perf) and the pull (CENTER_PULL * distance)
+# carry the same ``confidence`` factor, confidence cancels at equilibrium, so a
+# deck with a *fixed* performance level settles around
+#       rating_eq = CENTER + (STEP_SCALE / CENTER_PULL) * perf_eq
+# regardless of how many games it has played. The ratio STEP_SCALE / CENTER_PULL
+# therefore sets the span of the scale that performance can reach, and CENTER_PULL
+# alone sets how fast a deck relaxes toward that equilibrium.
+#
+# perf is self-limiting: as a deck climbs, its expected score against a fixed
+# field rises, so perf shrinks -- which is exactly why beating an *average* field
+# plateaus well below the ceiling (the caps are reserved for decks that keep
+# over-performing against *strong* fields, where expected stays low and perf
+# stays large). The hard clamp to [0, 1000] is only a numerical safety net.
+STEP_SCALE: float = 260.0
+"""Rating points a full-confidence game moves per unit of performance surplus
+(``perf``). With CENTER_PULL below, max sustained over-performance settles a
+deck in the upper-middle of the scale, not at the cap."""
+
+CENTER_PULL: float = 0.75
+"""Per-game relaxation toward the centre, as a fraction of the deck's current
+distance from it (scaled by confidence). Larger = stronger soft cap / harder to
+reach the extremes and faster regression when a deck stops performing."""
+
+
+LOGISTIC_SCALE: float = 200.0
+"""Divisor in the logistic expected-score curve, the 0-1000-scale analogue of
+classic Elo's 400 (which is tuned for a ~0-3000 scale). Smaller = rating gaps
+are more decisive, so strength-of-schedule separates decks more sharply: a
+~200-point edge here already implies a strong favourite. This sets how much
+beating a strong field is worth relative to beating a weak one."""
+
+
 def expected_score(rating: float, opponent_rating: float) -> float:
-    """Pairwise expected score using the standard Elo formula.
+    """Pairwise expected score (logistic, same shape as classic Elo).
 
     Args:
-        rating: The player's current Elo rating.
-        opponent_rating: The opponent's current Elo rating.
+        rating: The deck's current rating.
+        opponent_rating: The opponent deck's current rating.
 
     Returns:
-        A float between 0 and 1 representing the expected probability
-        of winning against the opponent.
+        A float in (0, 1): the probability the deck beats the opponent.
+        ``LOGISTIC_SCALE`` (200) replaces classic Elo's 400 because the scale
+        is now 0-1000, so a given rating gap stays comparably decisive.
     """
-    return 1 / (1 + 10 ** ((opponent_rating - rating) / 400))
+    return 1 / (1 + 10 ** ((opponent_rating - rating) / LOGISTIC_SCALE))
 
 
 def expected_multiplayer_score(deck_id: int, deck_ratings: dict[int, float]) -> float:
     """Average pairwise expected score against all opponents in a pod.
 
-    Computes the mean of pairwise expected scores for the given deck
-    against every other deck in the game.
-
     Args:
-        deck_id: The ID of the deck to compute the expected score for.
-        deck_ratings: A mapping of deck_id -> current Elo rating for all
-            participants in the game.
+        deck_id: The deck to compute the expected score for.
+        deck_ratings: Mapping of deck_id -> current rating for all participants.
 
     Returns:
-        The average pairwise expected score (unnormalized).
+        The mean pairwise expected score (unnormalised).
     """
     opponents = {did: r for did, r in deck_ratings.items() if did != deck_id}
     my_rating = deck_ratings[deck_id]
@@ -48,43 +132,33 @@ def expected_multiplayer_score(deck_id: int, deck_ratings: dict[int, float]) -> 
     return pairwise_sum / len(opponents)
 
 
-def get_game_k_factor(participants_games_played: list[int]) -> int:
-    """Determine K-factor for a game based on median experience of participants.
+def _clamp(value: float, low: float = RATING_MIN, high: float = RATING_MAX) -> float:
+    """Clamp ``value`` into ``[low, high]`` (hard safety bound on the scale).
 
-    A single K-factor per game ensures the rating update is zero-sum:
-    total Elo gained equals total Elo lost across all participants.
-
-    Args:
-        participants_games_played: List of games-played counts for each
-            participant in the game.
-
-    Returns:
-        60 if median games played <= 10 (new players, high volatility),
-        40 if median games played <= 30 (intermediate),
-        24 otherwise (experienced players, low volatility).
+    The soft cap (centring pull) does the real work of keeping ratings away
+    from the extremes; this clamp only guarantees the invariant
+    ``RATING_MIN <= rating <= RATING_MAX`` can never be violated by numerical
+    overshoot.
     """
-    median_games = statistics.median(participants_games_played)
-    if median_games <= 10:
-        return 60
-    elif median_games <= 30:
-        return 40
-    else:
-        return 24
+    return max(low, min(high, value))
 
 
 @dataclass
 class EloResult:
-    """Result of an Elo recalculation for a single deck.
+    """Result of a rating recalculation for a single deck.
 
     Attributes:
         deck_id: The deck's database ID.
-        new_rating: The computed Elo rating after processing all games.
+        new_rating: The deck's mean strength estimate on the 0-1000 scale.
         games_played: The number of valid games the deck participated in.
+        rd: The deck's rating deviation (confidence / internal range). A low RD
+            means a settled estimate; a high RD means few games / heavy swings.
     """
 
     deck_id: int
     new_rating: float
     games_played: int
+    rd: float
 
 
 def recalculate_all_elo(
@@ -92,36 +166,38 @@ def recalculate_all_elo(
     games: list,
     participants_by_game: dict[int, list],
 ) -> list[EloResult]:
-    """Recalculate Elo ratings for all decks across all games.
+    """Recalculate bounded strength ratings for all decks across all games.
 
-    Processes games in order, applying multiplayer Elo updates with
-    normalized expected scores and a single K-factor per game.
+    Processes games in chronological order (as supplied). For each valid pod it
+    computes every participant's normalised expected finish, then moves each
+    deck's rating toward the evidence of this game while applying the centring
+    soft cap. Step size is governed by the deck's current RD, which narrows as
+    the deck plays.
 
-    A deck's participant is considered valid if:
-    - The deck's owner (player_id attribute) matches the participant's player_id, OR
-    - The deck's owner is DECK_OWNER_OVERRIDE_PLAYER_ID (shared/community deck)
+    A deck's participant is valid if:
+    - the deck's owner (``player_id``) matches the participant's ``player_id``, OR
+    - the deck's owner is ``DECK_OWNER_OVERRIDE_PLAYER_ID`` (shared/community deck).
 
-    Games with fewer than 3 or more than 5 participants are skipped.
-    Games with fewer than 2 valid participants after filtering are skipped.
+    Games with fewer than 3 or more than 5 participants are skipped. Games with
+    fewer than 2 valid participants after filtering are skipped.
 
     Args:
-        decks: List of deck objects with `.id` and `.player_id` attributes.
-        games: List of game objects with `.id` and `.winner_id` attributes,
-            in the order they should be processed.
-        participants_by_game: Mapping of game_id -> list of participant
-            objects with `.deck_id` and `.player_id` attributes.
+        decks: Deck objects with ``.id`` and ``.player_id`` attributes.
+        games: Game objects with ``.id`` and ``.winner_id`` attributes, in the
+            order they should be processed (chronological).
+        participants_by_game: Mapping game_id -> list of participant objects
+            with ``.deck_id`` and ``.player_id`` attributes.
 
     Returns:
-        A list of EloResult with the final rating and games_played for
-        each deck. The caller is responsible for persisting the results.
+        One ``EloResult`` per deck with the final mean rating, games_played and
+        RD. The caller persists the results (and decides the min-games gate).
     """
-    # Initialize ratings: all decks start at 1500
-    elo_ratings: dict[int, dict[str, float | int]] = {
-        deck.id: {'elo_rating': 1500.0, 'games_played': 0}
+    # Initialise every deck at the centre with a wide RD (low confidence).
+    state: dict[int, dict[str, float | int]] = {
+        deck.id: {'rating': RATING_CENTER, 'rd': RD_INITIAL, 'games_played': 0}
         for deck in decks
     }
 
-    # Build a lookup for deck ownership
     deck_owners: dict[int, int] = {deck.id: deck.player_id for deck in decks}
 
     for game in games:
@@ -129,24 +205,25 @@ def recalculate_all_elo(
         if len(participants) < 3 or len(participants) > 5:
             continue
 
-        # Build current ratings for this game's valid participants
+        # Resolve this pod's valid participants and their current ratings.
         deck_ratings: dict[int, float] = {}
         valid_participants = []
         for p in participants:
             deck_owner = deck_owners.get(p.deck_id)
             if deck_owner is None:
                 continue
-            # Deck is valid if owner matches participant, or owner is the override ID
             if deck_owner != p.player_id and deck_owner != DECK_OWNER_OVERRIDE_PLAYER_ID:
                 continue
-            if p.deck_id in elo_ratings:
-                deck_ratings[p.deck_id] = elo_ratings[p.deck_id]['elo_rating']
+            if p.deck_id in state:
+                deck_ratings[p.deck_id] = state[p.deck_id]['rating']
                 valid_participants.append(p)
 
         if len(deck_ratings) < 2:
             continue
 
-        # Normalize expected scores so they sum to 1
+        # Normalised expected finish for each deck (pod sums to 1). This is the
+        # strength-of-schedule signal: a high value means you were expected to
+        # win this particular pod.
         raw_expected = {
             did: expected_multiplayer_score(did, deck_ratings)
             for did in deck_ratings
@@ -157,29 +234,47 @@ def recalculate_all_elo(
             for did, raw in raw_expected.items()
         }
 
-        # Single K-factor for the whole game → guarantees zero-sum
-        games_played_list = [
-            elo_ratings[p.deck_id]['games_played'] for p in valid_participants
-        ]
-        k = get_game_k_factor(games_played_list)
-
-        # Apply updates
         for participant in valid_participants:
             did = participant.deck_id
-            actual_score = 1.0 if game.winner_id == participant.player_id else 0.0
+            won = 1.0 if game.winner_id == participant.player_id else 0.0
 
-            rating = elo_ratings[did]['elo_rating']
-            new_rating = rating + k * (actual_score - normalized_expected[did])
+            rating = state[did]['rating']
+            rd = state[did]['rd']
 
-            elo_ratings[did]['elo_rating'] = new_rating
-            elo_ratings[did]['games_played'] += 1
+            # Per-seat performance surplus for THIS pod, roughly in [-1, +1]:
+            # actual finish (1 win / 0 loss) minus the deck's normalised
+            # expectation. Beating a weak field (where you were already expected
+            # to win) yields a small surplus; performing against a strong field
+            # (low expectation) yields a large one. This is the strength-of-
+            # schedule signal, and it shrinks as the deck climbs against a fixed
+            # field, which is what makes an average-only schedule plateau.
+            perf = won - normalized_expected[did]
 
-    # Build result list
+            # Step size scales with confidence: a wide RD (new deck) moves far
+            # (heavy early swings); a narrow RD (settled deck) barely moves.
+            confidence = rd / RD_INITIAL
+
+            # Push from this game's evidence + soft-cap pull toward the centre.
+            # Both share the confidence factor, so they cancel at equilibrium
+            # (see the STEP_SCALE / CENTER_PULL note above): a deck settles at a
+            # rating set by its sustained performance, not by how long it played.
+            push = STEP_SCALE * perf
+            pull = CENTER_PULL * (RATING_CENTER - rating)
+            new_rating = _clamp(rating + confidence * (push + pull))
+
+            # Narrow RD toward its floor as the deck gains a game of evidence.
+            new_rd = max(RD_MIN, rd * RD_DECAY)
+
+            state[did]['rating'] = new_rating
+            state[did]['rd'] = new_rd
+            state[did]['games_played'] += 1
+
     return [
         EloResult(
             deck_id=deck_id,
-            new_rating=values['elo_rating'],
+            new_rating=values['rating'],
             games_played=values['games_played'],
+            rd=values['rd'],
         )
-        for deck_id, values in elo_ratings.items()
+        for deck_id, values in state.items()
     ]

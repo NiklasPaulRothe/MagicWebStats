@@ -28,8 +28,8 @@ def seeded(app, db_session):
         1 = subject, 2 = frequent opponent, 3/4 = fillers.
 
     Decks (subject owns two so deck-highlights has something to pick):
-        d1  player 1  active  elo 1500
-        d2  player 1  active  elo 1700   -> aggregate elo = round((1500+1700)/2) = 1600
+        d1  player 1  active  elo 500  (12 games)
+        d2  player 1  active  elo 700  (12 games) -> aggregate elo = round((500+700)/2) = 600
         d2.. opponents own their own decks
 
     Games (all non-cEDH unless noted) — the subject (player 1) is in each:
@@ -61,11 +61,13 @@ def seeded(app, db_session):
         # Subject's two decks (rated) + one deck per opponent.
         db_session.add(Deck(
             id=1, name="Deck_1a", commander="Cmd_1a",
-            player_id=1, active=True, color_identity="TestColor", elo_rating=1500,
+            player_id=1, active=True, color_identity="TestColor",
+            elo_rating=500, elo_games=12,
         ))
         db_session.add(Deck(
             id=2, name="Deck_1b", commander="Cmd_1b",
-            player_id=1, active=True, color_identity="TestColor", elo_rating=1700,
+            player_id=1, active=True, color_identity="TestColor",
+            elo_rating=700, elo_games=12,
         ))
         for did, pid in [(3, 2), (4, 3), (5, 4)]:
             db_session.add(Deck(
@@ -142,8 +144,8 @@ def test_merged_dict_contains_all_sections_with_sane_values(app, seeded):
         periods = [b["period"] for b in profile["win_trend"]]
         assert periods == ["2025-01", "2025-02", "2025-03"]
 
-        # Aggregate elo: round((1500 + 1700) / 2) = 1600.
-        assert profile["aggregate_elo"] == 1600
+        # Aggregate elo: round((500 + 700) / 2) = 600.
+        assert profile["aggregate_elo"] == 600
 
         # Finishers: mode of wins' final_blow is 'Combat' (g1); fastest = 3 (g3).
         assert profile["finishers"]["most_common_final_blow"] == "Combat"
@@ -190,7 +192,7 @@ def test_one_failing_section_does_not_blank_the_profile(app, seeded, monkeypatch
         # Other sections remain populated with real data.
         assert profile["overview"]["games"] == 3
         assert profile["overview"]["wins"] == 2
-        assert profile["aggregate_elo"] == 1600
+        assert profile["aggregate_elo"] == 600
         assert profile["finishers"]["most_common_final_blow"] == "Combat"
         assert profile["interaction"]["removal_played"]["avg"] == 2.0
         assert profile["win_trend"] != []
