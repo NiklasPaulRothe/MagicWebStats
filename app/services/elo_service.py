@@ -434,7 +434,6 @@ def recalculate_all_elo(
                 continue
 
             winner_pid = game.winner_id
-            pod_prior = {p.deck_id: prior[p.deck_id] for p in valid}
             winner_deck_id = None
             for p in valid:
                 if p.player_id == winner_pid:
@@ -468,11 +467,40 @@ def recalculate_all_elo(
                 rating = working[did]
                 step = _settle_step(g - 1)
                 if won:
-                    reference = pod_power(did, pod_prior)
+                    # Build the reference opponent field. Each opponent is kept
+                    # with its real rating or shortened estimate; purely-unrated
+                    # "filler" opponents (those that only lost) are dropped, but
+                    # only while they are at most half of the losing opponents --
+                    # a winner is never a loser here (the subject won), so every
+                    # opponent is a loser in this branch. If dropping leaves no
+                    # opponents, fall back to the full field.
+                    ref_values: dict[int, float] = {did: rating}
+                    rated_vals: dict[int, float] = {}
+                    unrated_vals: dict[int, float] = {}
+                    for o in valid:
+                        if o.deck_id == did:
+                            continue
+                        val, is_r = opp_ref(o.deck_id)
+                        (rated_vals if is_r else unrated_vals)[o.deck_id] = val
+                    losers = len(rated_vals) + len(unrated_vals)
+                    drop_unrated = unrated_vals and (len(unrated_vals) * 2 <= losers)
+                    ref_values.update(rated_vals)
+                    if not drop_unrated:
+                        ref_values.update(unrated_vals)
+                    if len(ref_values) < 2:
+                        # Nothing left to measure against -> keep the full field.
+                        ref_values = {o.deck_id: opp_ref(o.deck_id)[0] for o in valid}
+                        ref_values[did] = rating
+                    reference = pod_power(did, ref_values)
                     gap = rating - reference
                     delta = movement(True, gap, step)
                 else:
-                    reference = prior[winner_deck_id] if winner_deck_id is not None else rating
+                    # Loss: measured against the winner only (always included,
+                    # with its shortened estimate if unrated).
+                    if winner_deck_id is not None:
+                        reference = opp_ref(winner_deck_id)[0]
+                    else:
+                        reference = rating
                     gap = rating - reference
                     delta = movement(False, gap, step)
                 working[did] = _clamp(rating + delta)
