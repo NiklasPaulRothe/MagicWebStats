@@ -1,40 +1,47 @@
-"""Deck strength-rating service (capped, confidence-weighted).
+"""Deck strength-rating service (power-level model).
 
-Computes a bounded "strength rating" for every deck in a multiplayer
-(3-5 player) Commander/EDH context. This replaces the old chess-style Elo,
-which was additive and unbounded and therefore inflated over time: a deck
-accumulated rating simply by playing many games, and new decks entering at a
-fixed seed fed points to established decks.
+Computes a bounded deck *power level* on a fixed 0-1000 scale (centre 500) for a
+multiplayer (3-5 player) Commander/EDH context. The number is an estimate of how
+strong a deck is, deliberately decoupled from raw winrate: decks are usually
+played into favourable matchups, so winrate hovers near even against comparable
+decks. What matters is *whom* a deck beats, not how often it wins.
 
-The new system treats a deck's rating as an *estimate of its strength on a
-fixed 0-1000 scale (centred at 500)*, not as an accumulated bank balance:
+This is the model described in ideas/elo.md. Core rules:
 
-- **Bounded scale with a soft cap.** Every update includes a gentle pull back
-  toward the centre (500) proportional to how far the deck currently sits from
-  it. That centring force is what caps both ends: the further out you are, the
-  harder it pulls back, so results have to keep justifying your position and no
-  amount of extra games lets you drift past what your record supports. Stop
-  performing and you regress toward the middle. Points are not conserved or
-  created; the rating settles at the equilibrium between your results and the
-  centring pull.
+- **One curve, power gap -> expected win share.** Against a reference power the
+  deck's expected share of games rises with its rating gap: 25% at an even gap
+  (one seat of four), climbing through the mid-range and reaching a wall at
+  +/-400 where the lower deck is not expected to win at all. See
+  ``expected_share``.
 
-- **Opponent-relative performance (strength of schedule).** A deck's expected
-  finish in a pod is its averaged pairwise win probability against the pod,
-  normalised so the pod sums to 1 (unchanged from the old system). The update
-  is driven by ``actual - expected``. Beating a weak field yields a small
-  surplus (you were expected to win), so rating gains shrink and plateau below
-  the ceiling for an average-only schedule. Taking games off a strong field
-  yields a large surplus, pushing you up fast. The asymmetry you want is
-  inherent to opponent-relative scoring.
+- **Expected = no movement, surprise = movement.** Each game moves a deck by the
+  gap between what happened and the curve's expectation, scaled by a settling
+  step. Winning when you were expected to, or losing when you were expected to,
+  moves you ~nothing; an upset (weak deck wins / strong deck loses) moves you a
+  lot, in proportion to how surprising it was.
 
-- **Confidence / rating deviation (RD).** Each deck carries its own RD: wide
-  for a new deck (few games -> large step size -> heavy swings) and narrowing
-  as it plays (settled estimate -> small steps). RD replaces the old
-  median-experience K-factor and doubles as the deck's internal *range*
-  (e.g. "rating +/- RD"), stored for later use.
+- **One-sided 400 wall.** The wall only zeroes the *expected* side, never the
+  surprise: a deck 400+ above the pod that wins does not move (expected), but a
+  deck 400+ below the pod that wins moves up hard (big upset). Symmetrically a
+  favourite losing to a far-weaker winner moves down, while an expected loss
+  does not move.
 
-The scale is deliberately friendly to a downstream Commander *bracket* estimate
-(mapping rating bands to brackets), but no bracket logic lives here.
+- **Asymmetric attribution.** On a **win**, the reference is the *pod power* --
+  the strongest deck, blended toward the pod average as the pod tightens (three
+  strong decks are harder than one strong plus two irrelevant). On a **loss**,
+  the reference is the *winner's rating alone* (you can lose to a strong deck no
+  matter what the other seats did).
+
+- **5-game bootstrap.** A deck's first rating is seeded after 5 games from the
+  decks it beat / lost to (see ``bootstrap_seed``) rather than the per-game
+  update, to avoid the cold-start bias of everyone sitting at 500.
+
+- **Confidence interval.** A snapshot of how settled the score is: widest at the
+  gate (5 games), linear to 0 once settled (~30 games). Stored, not a movement
+  driver, and not displayed yet.
+
+The scale is friendly to a future Commander *bracket* estimate, but no bracket
+logic lives here.
 """
 
 from dataclasses import dataclass
@@ -45,184 +52,196 @@ DECK_OWNER_OVERRIDE_PLAYER_ID: int = 24
 even when played by a different player (community/shared decks)."""
 
 
-# --- Scale constants -------------------------------------------------------
+# --- Scale ------------------------------------------------------------------
 RATING_MIN: float = 0.0
 RATING_MAX: float = 1000.0
 RATING_CENTER: float = 500.0
-"""Fixed 0-1000 scale; new decks start at the centre (500)."""
+"""Fixed 0-1000 scale; a deck with no information sits at the centre (500)."""
 
-# --- Movement (step-size) constants ----------------------------------------
-# These control HOW FAST the rating moves, which is a separate concern from the
-# reported confidence interval below. A deck's step size shrinks as it plays
-# (new decks swing hard, settled decks drift slowly) but never reaches zero:
-# this is a *living game*, so a deck whose real strength shifts (power creep, a
-# rework) must always be able to move, just gradually once it is settled.
-RD_INITIAL: float = 300.0
-"""Internal step scale for a brand-new deck (0 games): wide, so early games
-swing heavily. The per-game step scales with ``movement_rd / RD_INITIAL``."""
+# --- The curve: power gap -> expected win share -----------------------------
+# A deck's expected *share of games won* in a pod is a function of its rating
+# gap to the reference power (pod power on a win, winner rating on a loss). The
+# curve is pinned at an even gap -> EVEN_SHARE (0.25, one seat of four) and
+# rises/falls with the gap, reaching ~0 win expectation at -WALL_GAP and
+# saturating near its max at +WALL_GAP. Implemented as a logistic in the gap,
+# shifted so gap 0 maps to EVEN_SHARE.
+EVEN_SHARE: float = 0.25
+"""Expected win share at a zero power gap (an even deck wins one pod in four)."""
 
-RD_MIN: float = 45.0
-"""Floor for the internal step scale -- NOT a displayed value. Calibrated to
-this group's volume (the most-played deck is ~50 games): by ~30 games the step
-has essentially reached this floor, so a settled deck still drifts slowly if its
-real performance changes but never jumps. A deck never freezes completely."""
+WALL_GAP: float = 400.0
+"""The gap beyond which the lower deck is not expected to win: the one-sided
+movement wall (see ``movement``). Also the curve's effective saturation point."""
 
-RD_DECAY: float = 0.955
-"""Per-game shrink of the internal step scale (0 < d < 1). At 0.955 the step
-reaches ~RD_MIN by roughly 30 games -- tuned to this group's volume rather than
-the hundreds-of-games timescale a slower decay would imply."""
+CURVE_SCALE: float = 230.0
+"""Logistic width of the win-share curve, in rating points. Softened from 180
+after validation showed the curve was slightly overconfident at the top (strong
+decks won a bit less than predicted). Larger = gentler extremes / less
+overconfidence. With EVEN_SHARE=0.25 this yields roughly +100 -> ~0.36,
++200 -> ~0.49, +300 -> ~0.62, +400 -> ~0.73. Smaller = steeper / more tier
+separation."""
 
-# --- Displayed confidence interval (stored, not a movement driver) ---------
-# elo_rd is a *snapshot* statistic: "how settled is this score right now",
-# reported as a +/- interval, NOT something that moves the rating. Per the
-# design it ramps linearly from its widest at the gate (CI_MIN_GAMES games) down
-# to exactly 0 once a deck is settled (CI_SETTLED_GAMES games), and stays 0
-# after. "Settled" therefore means a zero-width interval -- a single trusted
-# number -- while the rating itself can still drift via the movement rules above.
+# --- Pod power (win-side reference) -----------------------------------------
+POD_BLEND_SCALE: float = 150.0
+"""Controls how pod power blends the strongest deck with the pod average. The
+blend weight toward the average is ``1 / (1 + spread / POD_BLEND_SCALE)`` where
+``spread = max_rating - mean_of_others``: a tight pod (small spread) -> weight
+~1 -> pod power ~= the average (every deck matters); a lopsided pod (one giant,
+weak rest) -> weight ~0 -> pod power ~= the max (only the big threat counts)."""
+
+# --- Movement ---------------------------------------------------------------
+STEP_MAX: float = 110.0
+"""Largest rating change a brand-new deck (full step) can take in one game, at
+maximum surprise. Shrinks with games via the settling schedule below."""
+
+SETTLE_GAMES: int = 30
+"""Games over which the per-game step shrinks from STEP_MAX to STEP_MIN. Matches
+the confidence-interval horizon: a deck is settled around here."""
+
+STEP_MIN: float = 12.0
+"""Floor for the per-game step. A settled deck still drifts slowly if its real
+power changes (living game) but never jumps. Never zero."""
+
+# --- Confidence interval (stored snapshot, not a movement driver) -----------
 CI_WIDEST: float = 200.0
-"""The +/- confidence interval at the gate (CI_MIN_GAMES games), in rating
-points. Cosmetic for now (not displayed); rescale freely later."""
+"""The +/- confidence interval at the gate (CI_MIN_GAMES games), in points."""
 
 CI_MIN_GAMES: int = 5
-"""Games at which a deck becomes rated (the leaderboard gate). The confidence
-interval is at its widest (CI_WIDEST) here."""
+"""Games at which a deck becomes rated (the leaderboard gate) and is seeded by
+the bootstrap. The confidence interval is at its widest here."""
 
 CI_SETTLED_GAMES: int = 30
-"""Games at which the confidence interval reaches 0 (fully settled). Chosen for
-this group's volume: a 30-game sample is treated as a trustworthy single value.
-Beyond this the interval stays 0 (the rating can still drift, but we no longer
-express uncertainty about the current number)."""
+"""Games at which the confidence interval reaches 0 (fully settled)."""
 
-# --- Update-strength constants ---------------------------------------------
-# The per-game update is   new = rating + k * perf + CENTER_PULL * (CENTER - rating)
-# where:
-#   perf = (won - normalized_expected) * n / (n - 1)   -- per-seat performance
-#          surplus, scaled so a win is ~+1 and a loss ~-1/(n-1) against an even
-#          pod; positive when you do better than your rating predicted.
-#   k    = K_SCALE * (rd / RD_INITIAL) * edge_damp(rating)   -- step size, large
-#          while the deck is new (wide rd) and shrinking as it settles.
-#   CENTER_PULL * (CENTER - rating)  -- a small, confidence-INDEPENDENT mean
-#          reversion. It does NOT compress the mid-range (it is tiny there), but
-#          over many games it (a) cancels the small order-dependent offsets that
-#          equal decks would otherwise accumulate from sequential updates, and
-#          (b) caps a relentless winner: the pull grows with distance until it
-#          balances the per-game gains, so an average-field all-winner plateaus
-#          in the upper-middle rather than pinning to 1000.
-#
-# perf is additionally self-limiting: as a deck climbs, its expected score
-# against a fixed field rises, so perf shrinks -- reserving the extremes for
-# decks that keep over-performing against *strong* fields.
-K_SCALE: float = 120.0
-"""Max rating points a brand-new deck (full rd) moves in one game at perf = 1."""
+# --- Bootstrap --------------------------------------------------------------
+BOOTSTRAP_OFFSET: float = 200.0
+"""Half the WALL_GAP: a deck is seeded no more than this above the best deck it
+beat and no less than this below the worst deck it lost to."""
 
-CENTER_PULL: float = 0.035
-"""Confidence-independent per-game mean reversion toward the centre. Small, so
-the mid-range stays spread out; see the note above for what it buys."""
-
-EDGE_DAMP_WIDTH: float = 150.0
-"""Within this many points of either cap, the step size is linearly damped to
-0, so no deck can be shoved past the boundary and ratings ease into the extremes
-instead of slamming them."""
-
-# --- Fixed-point iteration -------------------------------------------------
-RECALC_PASSES: int = 6
-"""Number of times the full game history is replayed. Each pass starts from the
-previous pass's ratings and a progressively narrower RD (see PASS_RD_ANNEAL), so
-later passes compute every deck's expectation against (near-)converged opponent
-ratings and merely settle. This makes the result a fixed point that no longer
-depends on the within-history ordering of games -- in particular, decks with
-identical records converge to (near-)identical ratings."""
-
-PASS_RD_ANNEAL: float = 0.68
-"""Per-pass shrink factor for the starting RD: pass p begins at
-``RD_INITIAL * PASS_RD_ANNEAL**p`` (floored at RD_MIN). The first pass learns
-from a wide RD; refinement passes move progressively less."""
-
-
-LOGISTIC_SCALE: float = 240.0
-"""Divisor in the logistic expected-score curve, the 0-1000-scale analogue of
-classic Elo's 400 (which is tuned for a ~0-3000 scale). Smaller = rating gaps
-are more decisive, so strength-of-schedule separates decks more sharply: a
-~200-point edge here already implies a strong favourite. This sets how much
-beating a strong field is worth relative to beating a weak one."""
-
-
-def expected_score(rating: float, opponent_rating: float) -> float:
-    """Pairwise expected score (logistic, same shape as classic Elo).
-
-    Args:
-        rating: The deck's current rating.
-        opponent_rating: The opponent deck's current rating.
-
-    Returns:
-        A float in (0, 1): the probability the deck beats the opponent.
-        ``LOGISTIC_SCALE`` (200) replaces classic Elo's 400 because the scale
-        is now 0-1000, so a given rating gap stays comparably decisive.
-    """
-    return 1 / (1 + 10 ** ((opponent_rating - rating) / LOGISTIC_SCALE))
-
-
-def expected_multiplayer_score(deck_id: int, deck_ratings: dict[int, float]) -> float:
-    """Average pairwise expected score against all opponents in a pod.
-
-    Args:
-        deck_id: The deck to compute the expected score for.
-        deck_ratings: Mapping of deck_id -> current rating for all participants.
-
-    Returns:
-        The mean pairwise expected score (unnormalised).
-    """
-    opponents = {did: r for did, r in deck_ratings.items() if did != deck_id}
-    my_rating = deck_ratings[deck_id]
-    pairwise_sum = sum(expected_score(my_rating, opp_r) for opp_r in opponents.values())
-    return pairwise_sum / len(opponents)
+RECALC_PASSES: int = 4
+"""Full-history replays. Pass 1 bootstraps + plays; later passes recompute
+against the previous pass's ratings so the result is order-independent and decks
+with identical records converge."""
 
 
 def _clamp(value: float, low: float = RATING_MIN, high: float = RATING_MAX) -> float:
-    """Clamp ``value`` into ``[low, high]`` (hard safety bound on the scale).
-
-    The soft cap (centring pull) and edge damping do the real work of keeping
-    ratings away from the extremes; this clamp only guarantees the invariant
-    ``RATING_MIN <= rating <= RATING_MAX`` can never be violated by numerical
-    overshoot.
-    """
+    """Clamp ``value`` into ``[low, high]`` (hard safety bound on the scale)."""
     return max(low, min(high, value))
 
 
-def _edge_damp(rating: float) -> float:
-    """Step-size multiplier that fades from 1 in the mid-range to 0 at the caps.
+def expected_share(gap: float) -> float:
+    """Expected share of games won given a rating ``gap`` to the reference power.
 
-    Returns 1.0 while the rating is at least ``EDGE_DAMP_WIDTH`` away from both
-    bounds, then falls linearly to 0 at the bound itself. This lets ratings ease
-    into the extremes (and never be pushed past them) while leaving the whole
-    middle of the scale undamped, so the mid-range keeps its spread.
+    ``gap = deck_rating - reference`` (pod power on a win, winner rating on a
+    loss). Pinned so ``gap == 0`` returns ``EVEN_SHARE`` (0.25) and the share
+    rises toward ~1 as the gap approaches ``+WALL_GAP`` and toward ~0 as it
+    approaches ``-WALL_GAP``. Logistic in the gap with width ``CURVE_SCALE``.
+
+    Returns a value in (0, 1).
     """
-    distance = min(rating - RATING_MIN, RATING_MAX - rating)
-    if distance >= EDGE_DAMP_WIDTH:
-        return 1.0
-    return max(0.0, distance / EDGE_DAMP_WIDTH)
+    # Logistic centred at the gap that would give EVEN_SHARE. We want
+    # f(0) = EVEN_SHARE, so shift the logistic by the point where a plain
+    # logistic equals EVEN_SHARE.
+    import math
+
+    # plain logistic L(x) = 1 / (1 + e^(-x / CURVE_SCALE)); L(0) = 0.5.
+    # We want f(0) = EVEN_SHARE, so offset the input so the curve passes through
+    # (0, EVEN_SHARE): solve L(offset) = EVEN_SHARE.
+    offset = CURVE_SCALE * math.log(EVEN_SHARE / (1 - EVEN_SHARE))
+    return 1.0 / (1.0 + math.exp(-(gap + offset) / CURVE_SCALE))
+
+
+def pod_power(deck_id: int, pod_ratings: dict[int, float]) -> float:
+    """Reference power of a pod *from the perspective of a winning deck*.
+
+    Blends the strongest opponent with the pod average: tight pods weight the
+    average (all decks matter), lopsided pods weight the max (only the big
+    threat counts). ``deck_id`` is excluded -- the reference is the field the
+    deck beat, not itself.
+
+    Args:
+        deck_id: The winning deck (excluded from the reference field).
+        pod_ratings: Mapping deck_id -> rating for every deck in the pod.
+
+    Returns:
+        The reference power the winner is measured against.
+    """
+    others = [r for did, r in pod_ratings.items() if did != deck_id]
+    if not others:
+        return pod_ratings[deck_id]
+    top = max(others)
+    mean_field = sum(others) / len(others)   # average of the opposing field
+    spread = top - mean_field
+    weight_to_mean = 1.0 / (1.0 + spread / POD_BLEND_SCALE)
+    return top - weight_to_mean * (top - mean_field)
+
+
+def _settle_step(games_so_far: int) -> float:
+    """Per-game rating step for a deck that already has ``games_so_far`` games.
+
+    Linearly shrinks from ``STEP_MAX`` (new deck) to ``STEP_MIN`` (settled) over
+    ``SETTLE_GAMES`` games, then holds at ``STEP_MIN`` -- never zero, so a
+    settled deck can still drift if its real power changes.
+    """
+    if games_so_far >= SETTLE_GAMES:
+        return STEP_MIN
+    frac = games_so_far / SETTLE_GAMES
+    return STEP_MAX - (STEP_MAX - STEP_MIN) * frac
+
+
+def movement(won: bool, gap: float, step: float) -> float:
+    """Rating change for one game, given the result, the power ``gap`` and the
+    current ``step`` size.
+
+    ``gap = deck_rating - reference`` where the reference is the pod power on a
+    win and the winner's rating on a loss. The change is the surprise
+    (actual - expected) times the step. The one-sided ``WALL_GAP`` clamp zeroes
+    only the *expected* side:
+
+    - Win with ``gap >= +WALL_GAP`` (expected win): 0 -- you were supposed to.
+    - Win with ``gap <= -WALL_GAP`` (huge upset): full credit, no cap.
+    - Loss with ``gap <= -WALL_GAP`` (expected loss): 0.
+    - Loss with ``gap >= +WALL_GAP`` (surprise loss): full penalty, no cap.
+
+    Returns the signed rating delta (positive = up).
+    """
+    if won:
+        # Expected side: already far above the field and you won -> no info.
+        if gap >= WALL_GAP:
+            return 0.0
+        surprise = 1.0 - expected_share(gap)  # how unexpected the win was
+        return step * surprise
+    else:
+        # Expected side: already far below the winner and you lost -> no info.
+        if gap <= -WALL_GAP:
+            return 0.0
+        # Surprise of the loss: you were expected to win this share, but didn't.
+        surprise = expected_share(gap)
+        return -step * surprise
+
+
+@dataclass
+class EloResult:
+    """Result of a rating recalculation for a single deck.
+
+    Attributes:
+        deck_id: The deck's database ID.
+        new_rating: The deck's power-level estimate on the 0-1000 scale.
+        games_played: The number of valid games the deck participated in.
+        rd: The confidence interval half-width (see ``confidence_interval``);
+            0 once the deck is settled.
+    """
+
+    deck_id: int
+    new_rating: float
+    games_played: int
+    rd: float
 
 
 def confidence_interval(games_played: int) -> float:
-    """Return the +/- confidence interval for a deck's current rating.
+    """+/- confidence interval for a deck's current rating (snapshot statistic).
 
-    This is a *snapshot* statistic describing how settled the score is right
-    now -- it does NOT move the rating (the movement rules in
-    ``recalculate_all_elo`` do that). It ramps linearly from ``CI_WIDEST`` at
-    the gate (``CI_MIN_GAMES`` games) down to exactly ``0`` once the deck is
-    settled (``CI_SETTLED_GAMES`` games), and stays 0 beyond that.
-
-    A settled deck therefore has a zero-width interval -- a single trusted
-    number -- even though its rating can still drift slowly if its real
-    performance changes (a living game never fully freezes a score).
-
-    Args:
-        games_played: The deck's count of valid games.
-
-    Returns:
-        The half-width of the confidence interval in rating points. Decks below
-        ``CI_MIN_GAMES`` return ``CI_WIDEST`` (they are not rated yet anyway);
-        decks at or beyond ``CI_SETTLED_GAMES`` return ``0.0``.
+    Linear ramp from ``CI_WIDEST`` at ``CI_MIN_GAMES`` down to 0 at
+    ``CI_SETTLED_GAMES``; 0 beyond. Does NOT move the rating.
     """
     if games_played <= CI_MIN_GAMES:
         return CI_WIDEST
@@ -233,22 +252,100 @@ def confidence_interval(games_played: int) -> float:
     return CI_WIDEST * remaining / span
 
 
-@dataclass
-class EloResult:
-    """Result of a rating recalculation for a single deck.
+def _valid_pod(game, participants, deck_owners, known_ids):
+    """Return the list of valid participants for a game, or [] if the pod is not
+    ratable (wrong size, too few valid decks).
 
-    Attributes:
-        deck_id: The deck's database ID.
-        new_rating: The deck's mean strength estimate on the 0-1000 scale.
-        games_played: The number of valid games the deck participated in.
-        rd: The deck's rating deviation (confidence / internal range). A low RD
-            means a settled estimate; a high RD means few games / heavy swings.
+    A participant is valid if the deck's owner matches the participant's player,
+    or the owner is the community-override player.
     """
+    if len(participants) < 3 or len(participants) > 5:
+        return []
+    valid = []
+    for p in participants:
+        owner = deck_owners.get(p.deck_id)
+        if owner is None:
+            continue
+        if owner != p.player_id and owner != DECK_OWNER_OVERRIDE_PLAYER_ID:
+            continue
+        if p.deck_id in known_ids:
+            valid.append(p)
+    if len(valid) < 2:
+        return []
+    return valid
 
-    deck_id: int
-    new_rating: float
-    games_played: int
-    rd: float
+
+def _drop_base_when_mostly_rated(
+    entries: list[tuple[float, bool]],
+    total_entries: int,
+    total_rated: int,
+) -> list[float]:
+    """Filter bootstrap evidence per the "ignore base-500 opponents" rule.
+
+    ``entries`` are ``(rating, is_rated)`` for one side (beaten OR lost_to),
+    where ``is_rated`` means the opponent had a real or shortened-estimate value
+    (not a pure 500 base fallback). ``total_entries`` / ``total_rated`` are the
+    pod-wide counts across BOTH sides, so the >=50% decision is made over the
+    whole bootstrap evidence, not per side.
+
+    If at least half of all evidence opponents are rated, drop the unrated
+    (pure-base) ones and keep only real signal; otherwise keep everything (we
+    do not have enough known opponents to be picky).
+    """
+    if total_entries and total_rated * 2 >= total_entries:
+        kept = [r for (r, is_rated) in entries if is_rated]
+        return kept
+    return [r for (r, _is_rated) in entries]
+
+
+def bootstrap_seed(
+    deck_id: int,
+    beaten: list[tuple[float, bool]],
+    lost_to: list[tuple[float, bool]],
+) -> float:
+    """Seed a deck's rating from the decks it beat and lost to (5-game bootstrap).
+
+    ``beaten`` / ``lost_to`` are lists of ``(rating, is_rated)`` for the
+    opponents the deck beat / lost to during its first games. ``is_rated`` is
+    True when that opponent had a genuine rating OR a shortened one-layer
+    estimate, and False when it was only a flat 500 base fallback (no usable
+    signal). Values were resolved by the caller.
+
+    Per ideas/elo.md and the "ignore base evaluations" rule: if at least half of
+    all evidence opponents are rated, the pure-base (unrated) opponents are
+    dropped so the seed reflects only decks we actually know something about.
+    Otherwise all evidence is used.
+
+    Seeding (see ideas/elo.md 1.8), on the filtered evidence:
+    - Both sides present: bracket ``[worst_loss - BOOTSTRAP_OFFSET,
+      best_win + BOOTSTRAP_OFFSET]``; seed at its midpoint. If inverted
+      (best beaten rated above worst lost-to), seed at the midpoint of
+      (best_win, worst_loss).
+    - Only wins: ``BOOTSTRAP_OFFSET`` above the best deck beaten.
+    - Only losses: ``BOOTSTRAP_OFFSET`` below the worst deck lost to.
+    - Neither: the centre.
+    """
+    total_entries = len(beaten) + len(lost_to)
+    total_rated = sum(1 for _, r in beaten if r) + sum(1 for _, r in lost_to if r)
+
+    beaten_vals = _drop_base_when_mostly_rated(beaten, total_entries, total_rated)
+    lost_vals = _drop_base_when_mostly_rated(lost_to, total_entries, total_rated)
+
+    best_win = max(beaten_vals) if beaten_vals else None
+    worst_loss = min(lost_vals) if lost_vals else None
+
+    if best_win is not None and worst_loss is not None:
+        hi = best_win + BOOTSTRAP_OFFSET      # ceiling implied by wins
+        lo = worst_loss - BOOTSTRAP_OFFSET    # floor implied by losses
+        if lo <= hi:
+            return _clamp((lo + hi) / 2.0)
+        # Inverted / contradictory evidence: split the two signals directly.
+        return _clamp((best_win + worst_loss) / 2.0)
+    if best_win is not None:
+        return _clamp(best_win + BOOTSTRAP_OFFSET)
+    if worst_loss is not None:
+        return _clamp(worst_loss - BOOTSTRAP_OFFSET)
+    return RATING_CENTER
 
 
 def recalculate_all_elo(
@@ -256,118 +353,137 @@ def recalculate_all_elo(
     games: list,
     participants_by_game: dict[int, list],
 ) -> list[EloResult]:
-    """Recalculate bounded strength ratings for all decks across all games.
+    """Recalculate power-level ratings for all decks across all games.
 
-    Replays the full game history ``RECALC_PASSES`` times (a fixed-point
-    iteration). Each pass starts from the previous pass's ratings and a
-    progressively narrower starting RD (``PASS_RD_ANNEAL``), so later passes
-    compute every deck's expectation against (near-)converged opponent ratings
-    and merely settle. The benefit is order-independence: the result no longer
-    depends on the within-history ordering of games, and decks with identical
-    records converge to (near-)identical ratings.
+    Processes games chronologically. The first ``CI_MIN_GAMES`` valid games a
+    deck plays are collected and used to *bootstrap* its starting rating (via
+    ``bootstrap_seed``) at the moment it reaches the gate; before that the deck
+    contributes to opponents as the centre but is not itself updated by the
+    per-game rule. From the gate onward the deck moves by the surprise rule
+    (``movement``), with the win/loss attribution and one-sided wall.
 
-    Within a pass, games are processed in the supplied (chronological) order.
-    For each valid pod every participant's normalised expected finish is
-    computed, then each deck's rating moves by ``k * perf`` (RD- and
-    edge-scaled) plus a small centring pull (see the update note above).
+    The whole history is replayed ``RECALC_PASSES`` times: later passes recompute
+    against the previous pass's final ratings, which removes within-history order
+    dependence and lets equal records converge.
 
-    A deck's participant is valid if:
-    - the deck's owner (``player_id``) matches the participant's ``player_id``, OR
-    - the deck's owner is ``DECK_OWNER_OVERRIDE_PLAYER_ID`` (shared/community deck).
+    A deck's participant is valid if the deck's owner matches the participant's
+    player, or the owner is ``DECK_OWNER_OVERRIDE_PLAYER_ID``. Pods outside 3-5
+    participants, or with fewer than 2 valid decks, are skipped.
 
-    Games with fewer than 3 or more than 5 participants are skipped. Games with
-    fewer than 2 valid participants after filtering are skipped.
-
-    Args:
-        decks: Deck objects with ``.id`` and ``.player_id`` attributes.
-        games: Game objects with ``.id`` and ``.winner_id`` attributes, in the
-            order they should be processed (chronological).
-        participants_by_game: Mapping game_id -> list of participant objects
-            with ``.deck_id`` and ``.player_id`` attributes.
-
-    Returns:
-        One ``EloResult`` per deck with the final mean rating, games_played and
-        the confidence interval ``rd`` (see ``confidence_interval``: the +/-
-        half-width of the current score, 0 once the deck is settled at
-        ``CI_SETTLED_GAMES`` games -- distinct from the internal movement step
-        and from the per-pass annealing RD). The caller persists the results
-        (and decides the min-games gate).
+    Returns one ``EloResult`` per deck (rating, games_played, confidence
+    interval). The caller persists and applies the min-games gate.
     """
     deck_owners: dict[int, int] = {deck.id: deck.player_id for deck in decks}
+    known_ids = set(deck_owners)
 
-    # Ratings carried across passes; RD/games are recomputed each pass.
-    ratings: dict[int, float] = {deck.id: RATING_CENTER for deck in decks}
+    # Total valid games per deck (used to know whether an unrated opponent could
+    # still reach the 5-game gate; the same every pass). Computed once.
     games_played: dict[int, int] = {deck.id: 0 for deck in decks}
+    for game in games:
+        valid0 = _valid_pod(game, participants_by_game.get(game.id, []), deck_owners, known_ids)
+        for p in valid0:
+            games_played[p.deck_id] += 1
+
+    # Carried across passes:
+    #   ratings[d]   -- the deck's rating (centre until first seeded).
+    #   is_rated[d]  -- True once the deck reached its gate and got a real seed
+    #                   (i.e. it has a genuine value, not the base centre).
+    #   pre_evidence[d] -- the deck's own pre-gate (beaten, lost_to) evidence
+    #                   lists (raw opponent reference values) from the LAST pass,
+    #                   so an unrated opponent can be given a shortened one-layer
+    #                   estimate from its own games this pass.
+    ratings: dict[int, float] = {deck.id: RATING_CENTER for deck in decks}
+    is_rated: dict[int, bool] = {deck.id: False for deck in decks}
+    pre_evidence: dict[int, tuple[list[float], list[float]]] = {
+        deck.id: ([], []) for deck in decks
+    }
 
     for pass_index in range(RECALC_PASSES):
-        # The first pass learns from a wide RD; refinement passes start narrower
-        # so they settle toward the fixed point instead of re-introducing noise.
-        start_rd = max(RD_MIN, RD_INITIAL * (PASS_RD_ANNEAL ** pass_index))
-        rd: dict[int, float] = {deck.id: start_rd for deck in decks}
-        games_this_pass: dict[int, int] = {deck.id: 0 for deck in decks}
+        # Frozen snapshots read during this pass (previous pass's results).
+        prior = dict(ratings)
+        prior_rated = dict(is_rated)
+        prior_evidence = {d: (list(b), list(l)) for d, (b, l) in pre_evidence.items()}
+
+        working: dict[int, float] = {deck.id: RATING_CENTER for deck in decks}
+        working_rated: dict[int, bool] = {deck.id: False for deck in decks}
+        seen: dict[int, int] = {deck.id: 0 for deck in decks}
+        # (beaten, lost_to) evidence as (value, is_rated) tuples, collected this
+        # pass and used to seed at the gate; the raw values are also carried to
+        # the next pass for shortened estimates.
+        pass_beaten: dict[int, list[tuple[float, bool]]] = {deck.id: [] for deck in decks}
+        pass_lost: dict[int, list[tuple[float, bool]]] = {deck.id: [] for deck in decks}
+
+        # Rebind the opponent_reference closure to this pass's frozen snapshots.
+        def opp_ref(opp_id: int) -> tuple[float, bool]:
+            if prior_rated.get(opp_id):
+                return prior[opp_id], True
+            beaten_prev, lost_prev = prior_evidence.get(opp_id, ([], []))
+            if beaten_prev or lost_prev:
+                est = bootstrap_seed(
+                    opp_id,
+                    [(v, True) for v in beaten_prev],
+                    [(v, True) for v in lost_prev],
+                )
+                return est, True
+            return RATING_CENTER, False
 
         for game in games:
             participants = participants_by_game.get(game.id, [])
-            if len(participants) < 3 or len(participants) > 5:
+            valid = _valid_pod(game, participants, deck_owners, known_ids)
+            if not valid:
                 continue
 
-            # Resolve this pod's valid participants and their current ratings.
-            deck_ratings: dict[int, float] = {}
-            valid_participants = []
-            for p in participants:
-                deck_owner = deck_owners.get(p.deck_id)
-                if deck_owner is None:
+            winner_pid = game.winner_id
+            pod_prior = {p.deck_id: prior[p.deck_id] for p in valid}
+            winner_deck_id = None
+            for p in valid:
+                if p.player_id == winner_pid:
+                    winner_deck_id = p.deck_id
+                    break
+
+            for p in valid:
+                did = p.deck_id
+                won = (p.player_id == winner_pid)
+                seen[did] += 1
+                g = seen[did]
+
+                if g <= CI_MIN_GAMES:
+                    # Pre-gate: gather bootstrap evidence, don't move yet.
+                    if won:
+                        # Beat the whole opposing field -> record the strongest
+                        # opponent (by reference value), with its rated flag.
+                        refs = [opp_ref(o.deck_id) for o in valid if o.deck_id != did]
+                        if refs:
+                            pass_beaten[did].append(max(refs, key=lambda t: t[0]))
+                    else:
+                        # Lost -> the winner's rating is the relevant signal.
+                        if winner_deck_id is not None:
+                            pass_lost[did].append(opp_ref(winner_deck_id))
+                    if g == CI_MIN_GAMES:
+                        working[did] = bootstrap_seed(did, pass_beaten[did], pass_lost[did])
+                        working_rated[did] = True
                     continue
-                if deck_owner != p.player_id and deck_owner != DECK_OWNER_OVERRIDE_PLAYER_ID:
-                    continue
-                if p.deck_id in ratings:
-                    deck_ratings[p.deck_id] = ratings[p.deck_id]
-                    valid_participants.append(p)
 
-            if len(deck_ratings) < 2:
-                continue
+                # Post-gate: move by the surprise rule.
+                rating = working[did]
+                step = _settle_step(g - 1)
+                if won:
+                    reference = pod_power(did, pod_prior)
+                    gap = rating - reference
+                    delta = movement(True, gap, step)
+                else:
+                    reference = prior[winner_deck_id] if winner_deck_id is not None else rating
+                    gap = rating - reference
+                    delta = movement(False, gap, step)
+                working[did] = _clamp(rating + delta)
 
-            n = len(deck_ratings)
-
-            # Normalised expected finish for each deck (pod sums to 1). This is
-            # the strength-of-schedule signal: a high value means you were
-            # expected to win this particular pod.
-            raw_expected = {
-                did: expected_multiplayer_score(did, deck_ratings)
-                for did in deck_ratings
-            }
-            total_expected = sum(raw_expected.values())
-            normalized_expected = {
-                did: raw / total_expected
-                for did, raw in raw_expected.items()
-            }
-
-            for participant in valid_participants:
-                did = participant.deck_id
-                won = 1.0 if game.winner_id == participant.player_id else 0.0
-
-                rating = ratings[did]
-
-                # Per-seat performance surplus, scaled by n/(n-1) so a win is
-                # ~+1 and a loss ~-1/(n-1) against an even pod. Positive when the
-                # deck did better than its rating predicted; large when it did so
-                # against a strong field (low expectation), small against a weak
-                # one -- the strength-of-schedule signal, self-limiting as a deck
-                # climbs against a fixed field.
-                perf = (won - normalized_expected[did]) * n / (n - 1)
-
-                # Step size: large while the deck is new (wide rd), shrinking as
-                # it settles, and damped near the caps so it eases into extremes.
-                k = K_SCALE * (rd[did] / RD_INITIAL) * _edge_damp(rating)
-
-                # Small, confidence-independent mean reversion (see update note).
-                pull = CENTER_PULL * (RATING_CENTER - rating)
-
-                ratings[did] = _clamp(rating + k * perf + pull)
-                rd[did] = max(RD_MIN, rd[did] * RD_DECAY)
-                games_this_pass[did] += 1
-
-        games_played = games_this_pass
+        ratings = working
+        is_rated = working_rated
+        # Carry this pass's raw evidence values for next pass's estimates.
+        pre_evidence = {
+            d: ([v for v, _ in pass_beaten[d]], [v for v, _ in pass_lost[d]])
+            for d in pre_evidence
+        }
 
     return [
         EloResult(
