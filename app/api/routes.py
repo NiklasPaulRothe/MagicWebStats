@@ -300,9 +300,10 @@ def deck_participant_averages(deckname):
 @login_required
 def deck_performance(deckname):
     """Return deck performance stats (games, wins, winrate, turn stats, pod size breakdown), optionally filtered by a 'since' date."""
-    from app.models import Deck, Participant, Game
-    import statistics
     from collections import defaultdict
+    from app.models import Deck, Participant, Game
+    from app.services.elo_service import DECK_OWNER_OVERRIDE_PLAYER_ID
+    from app.services.stats_service import compute_deck_performance
 
     deck = Deck.query.filter_by(name=deckname).first()
     if not deck:
@@ -310,13 +311,18 @@ def deck_performance(deckname):
 
     since = request.args.get('since')
 
-    # Base query for participants of this deck played by its owner
+    # Shared/community "precon" decks (owner == DECK_OWNER_OVERRIDE_PLAYER_ID)
+    # count every game the deck appears in regardless of pilot; normal decks
+    # count only games their owner piloted. Win attribution (handled inside
+    # compute_deck_performance via the per-game pilot) is correct either way.
+    is_shared_deck = (deck.player_id == DECK_OWNER_OVERRIDE_PLAYER_ID)
     query = (
         sa.select(Participant)
         .join(Game, Game.id == Participant.game_id)
-        .where(Participant.player_id == deck.player_id)
         .where(Participant.deck_id == deck.id)
     )
+    if not is_shared_deck:
+        query = query.where(Participant.player_id == deck.player_id)
 
     if since:
         from datetime import date as date_type
@@ -334,69 +340,15 @@ def deck_performance(deckname):
     game_ids = [p.game_id for p in participants]
     games = {g.id: g for g in Game.query.filter(Game.id.in_(game_ids)).all()}
 
-    # Get all participants per game for pod size calculation
     all_participants_in_games = Participant.query.filter(Participant.game_id.in_(game_ids)).all()
     participants_by_game = defaultdict(list)
     for p in all_participants_in_games:
         participants_by_game[p.game_id].append(p)
 
-    # Overall stats
-    total_games = len(game_ids)
-    wins = sum(1 for gid in game_ids if games[gid].winner_id == deck.player_id)
-    winrate = round((wins / total_games) * 100, 1) if total_games else 0
-
-    # Win turn stats
-    win_turns = [games[gid].turns for gid in game_ids if games[gid].winner_id == deck.player_id and games[gid].turns]
-
-    # Pod size breakdown
-    wins_by_size = {3: 0, 4: 0, 5: 0}
-    total_by_size = {3: 0, 4: 0, 5: 0}
-    win_turns_by_size = {3: [], 4: [], 5: []}
-
-    for gid in game_ids:
-        game = games[gid]
-        num_players = len(participants_by_game.get(gid, []))
-        if num_players in (3, 4, 5):
-            total_by_size[num_players] += 1
-            if game.winner_id == deck.player_id:
-                wins_by_size[num_players] += 1
-                if game.turns:
-                    win_turns_by_size[num_players].append(game.turns)
-
-    # Avg participants
-    participant_counts = [len(participants_by_game[gid]) for gid in game_ids if gid in participants_by_game]
-    avg_participants = round(statistics.mean(participant_counts), 1) if participant_counts else "–"
-
-    # Last played
-    dates = [games[gid].date for gid in game_ids if games[gid].date]
-    last_played = max(dates).strftime("%Y-%m-%d") if dates else "–"
-
-    result = {
-        'empty': False,
-        'games': total_games,
-        'wins': wins,
-        'winrate': winrate,
-        'avg_turns': round(statistics.mean(win_turns), 1) if win_turns else "–",
-        'median_turns': statistics.median(win_turns) if win_turns else "–",
-        'min_turns': min(win_turns) if win_turns else "–",
-        'max_turns': max(win_turns) if win_turns else "–",
-        'avg_participants': avg_participants,
-        'last_played': last_played,
-        'by_size': {}
-    }
-
-    for size in (3, 4, 5):
-        games_count = total_by_size[size]
-        wins_count = wins_by_size[size]
-        turns = win_turns_by_size[size]
-        result['by_size'][str(size)] = {
-            'games': games_count,
-            'wins': wins_count,
-            'winrate': round((wins_count / games_count) * 100, 1) if games_count else "–",
-            'avg_turns': round(statistics.mean(turns), 1) if turns else "–",
-            'median_turns': statistics.median(turns) if turns else "–"
-        }
-
+    # Delegate to the shared (override-safe) computation so this filter endpoint
+    # and the server-rendered page can never diverge.
+    result = compute_deck_performance(deck, participants, games, participants_by_game)
+    result['empty'] = False
     return jsonify(result)
 
 

@@ -211,8 +211,24 @@ def build_game_history(
 
         all_participants_in_game = participants_by_game.get(game_id, [])
 
-        # Resolve opponents (participants whose player_id differs from the deck's owner)
-        opponents = [p for p in all_participants_in_game if p.player_id != deck.player_id]
+        # Identify THIS deck's seat in the game (the pilot). For a normal deck
+        # this is the owner; for a shared "precon" deck it may be anyone. We key
+        # off deck_id, not the owner's player_id, so the pilot seat is resolved
+        # correctly no matter who played it. ``my_participant`` is passed in
+        # already filtered to this deck, but a game can in principle have the
+        # deck seated once -- take the matching seat here.
+        my_participant = next(
+            (p for p in all_participants_in_game if p.deck_id == deck.id),
+            None,
+        )
+        pilot_player_id = my_participant.player_id if my_participant else deck.player_id
+        pilot_player = players.get(pilot_player_id)
+        pilot_name = pilot_player.name if pilot_player else "Unknown"
+
+        # Opponents are everyone who is NOT this deck's seat (exclude by the
+        # pilot's player_id so the piloting player is treated as "mine", not an
+        # opponent -- important for shared decks where the pilot != owner).
+        opponents = [p for p in all_participants_in_game if p.player_id != pilot_player_id]
         opponent_data = []
         for opp in opponents:
             player = players.get(opp.player_id)
@@ -231,15 +247,11 @@ def build_game_history(
         turn_count = game_data.turns if game_data.turns else "-"
         final_blow = game_data.final_blow if game_data.final_blow else "Not Tracked"
 
-        # Get participant data for this deck in this game
-        my_participant = next(
-            (p for p in all_participants_in_game
-             if p.player_id == deck.player_id and p.deck_id == deck.id),
-            None,
-        )
+        # This deck won iff the game's winner is the player who piloted it.
+        is_win = game_data.winner_id == pilot_player_id
+
         participant_data = None
         if my_participant:
-            is_win = game_data.winner_id == deck.player_id
             participant_data = {
                 "mulligans": getattr(my_participant, "mulligans", None),
                 "landdrops": getattr(my_participant, "landdrops", None),
@@ -262,7 +274,8 @@ def build_game_history(
             "turns": turn_count,
             "final_blow": final_blow,
             "participant_data": participant_data,
-            "is_win": game_data.winner_id == deck.player_id,
+            "is_win": is_win,
+            "pilot": pilot_name,
         })
 
     return sorted(rows, key=lambda r: r["datum"], reverse=True)
