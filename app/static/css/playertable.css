@@ -178,7 +178,7 @@
     padding: var(--space-6);
 }
 
-/* Player name link. */
+/* Player / color-identity name link. */
 .player-link {
     color: var(--color-accent);
     text-decoration: none;
@@ -187,6 +187,30 @@
 .player-link:hover {
     color: var(--color-accent-strong);
     text-decoration: underline;
+}
+
+/* Color-identity cell: ONE column holding the name (left) and the pip cluster.
+   The pip area is a fixed width whose icons are centre-justified, so the
+   symbols share one vertical centre axis across every row — a single colour
+   sits dead-centre, two colours straddle it (one slightly left, one slightly
+   right), three centre as a group — independent of the name's length. */
+.color-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+.color-cell .player-link { flex: 1 1 auto; }
+.color-pips {
+    flex: 0 0 auto;
+    width: 90px;                 /* room for up to 5 pips, shared by all rows */
+    display: inline-flex;
+    justify-content: center;
+    gap: 2px;
+}
+.color-icon {
+    width: 16px;
+    height: 16px;
+    display: block;
 }
 
 /* ── Responsive ───────────────────────────────────────────────────────────

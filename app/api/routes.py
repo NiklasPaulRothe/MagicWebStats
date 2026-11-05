@@ -40,6 +40,7 @@ def color_data():
             "wins": r['wins'],
             "winrate_pct": r['winrate_pct'],
             "color_imgs": imgs,
+            "color_key": r['color_key'],
         })
     return jsonify(response)
 

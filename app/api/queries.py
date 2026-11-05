@@ -129,6 +129,10 @@ class ColorDataResult(TypedDict):
     games: int
     wins: int
     winrate_pct: float  # rounded to 2 decimal places
+    # Sort key encoding colour-count then the WUBRG hierarchy, e.g.
+    # "0:" (colorless) < "1:0" (W) < "1:1" (U) < "2:01" (WU) < "2:02" (WB) ...
+    # The UI sorts the Color-Identity column lexicographically by this.
+    color_key: str
 
 
 class DeckDataResult(TypedDict):
@@ -462,12 +466,30 @@ def get_color_data(session: Session) -> list[ColorDataResult]:
 
     rows = session.execute(stmt).all()
 
+    # Build the WUBRG sort key per identity. WUBRG rank: White<U<Black<Red<Green.
+    # key = "{count}:{sorted rank digits}" so a lexicographic compare orders by
+    # colour count first, then by the WUBRG hierarchy within a tier.
+    wubrg_rank = {"White": 0, "Blue": 1, "Black": 2, "Red": 3, "Green": 4}
+    comp_rows = session.execute(
+        select(ColorComponent.color_identity, ColorComponent.color)
+    ).all()
+    colors_by_identity: dict[str, list[int]] = {}
+    for ci_name, color_name in comp_rows:
+        rank = wubrg_rank.get(color_name)
+        if rank is not None:
+            colors_by_identity.setdefault(ci_name, []).append(rank)
+
+    def _color_key(identity_name: str) -> str:
+        ranks = sorted(colors_by_identity.get(identity_name, []))
+        return f"{len(ranks)}:{''.join(str(r) for r in ranks)}"
+
     return [
         ColorDataResult(
             name=row.name,
             games=row.games,
             wins=row.wins,
             winrate_pct=float(row.winrate_pct),
+            color_key=_color_key(row.name),
         )
         for row in rows
     ]
