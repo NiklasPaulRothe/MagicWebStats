@@ -7,7 +7,7 @@ from app import db
 from app.stats import bp
 from flask import render_template, flash, redirect, url_for, abort, request
 from flask_login import login_required, current_user
-from app.auth import role_required, has_personal_stats_access
+from app.auth import min_role_required, has_personal_stats_access, ROLE_MAINTAINER, ROLE_ADMIN
 import sqlalchemy as sa
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm, GameEditForm, ParticipantEditSubForm
@@ -49,7 +49,7 @@ def _assert_game_owner(game: Game) -> None:
 
 
 @bp.route('/manage/games')
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_hub():
     page = request.args.get('page', 1, type=int)
@@ -109,7 +109,7 @@ def game_hub():
 
 
 @bp.route('/manage/games/<int:game_id>/delete', methods=['POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_delete(game_id):
     # Load game or 404
@@ -135,7 +135,7 @@ def game_delete(game_id):
 
 
 @bp.route('/manage/games/<int:game_id>/edit', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_edit(game_id):
     # Load game or 404
@@ -363,7 +363,7 @@ def game_edit(game_id):
 
 
 @bp.route('/PlayerAdd', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def player_add():
     form = PlayerAddForm()
@@ -377,7 +377,7 @@ def player_add():
     return render_template('stats/PlayerAdd.html', form=form)
 
 @bp.route('/DeckAdd', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def deck_add():
     form = DeckAddForm()
@@ -428,7 +428,7 @@ def deck_add():
     return render_template('stats/DeckAdd.html', form=form, ci_data=ci_data)
 
 @bp.route('/game-add', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_add():
     from app.services.game_service import create_game, ParticipantInput
@@ -622,7 +622,7 @@ def tracking_sheet_personal():
 
 
 @bp.route('/audit-log')
-@role_required('admin')
+@min_role_required(ROLE_ADMIN)
 @login_required
 def audit_log():
     

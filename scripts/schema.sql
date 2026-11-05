@@ -56,7 +56,9 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.users (
     password_hash VARCHAR(256),
     player_id     INTEGER REFERENCES magic_stats_owner.players(id) ON DELETE SET NULL,
     active        BOOLEAN NOT NULL DEFAULT true,
-    role          VARCHAR(64) NOT NULL DEFAULT 'user',
+    -- Role tier (hierarchical): 'user' < 'maintainer' < 'admin'. See app/auth.
+    role          VARCHAR(64) NOT NULL DEFAULT 'user'
+                  CONSTRAINT ck_users_role CHECK (role IN ('user', 'maintainer', 'admin')),
     bio           VARCHAR(1000),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -64,6 +66,13 @@ CREATE TABLE IF NOT EXISTS magic_stats_owner.users (
 
 -- For an already-built database, add the bio column idempotently (no Alembic — ADR-001):
 ALTER TABLE magic_stats_owner.users ADD COLUMN IF NOT EXISTS bio VARCHAR(1000);
+
+-- For an already-built database, ensure the role CHECK constraint exists
+-- (guarded drop+add keeps a re-run safe). Mirrors
+-- scripts/migrate_ui_redesign_branch.sql.
+ALTER TABLE magic_stats_owner.users DROP CONSTRAINT IF EXISTS ck_users_role;
+ALTER TABLE magic_stats_owner.users
+    ADD CONSTRAINT ck_users_role CHECK (role IN ('user', 'maintainer', 'admin'));
 
 -- Index the player link used on every profile/user page (User.player_id lookup).
 CREATE INDEX IF NOT EXISTS idx_users_player_id ON magic_stats_owner.users (player_id);

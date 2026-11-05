@@ -8,7 +8,7 @@ import sqlalchemy as sa
 logger = logging.getLogger(__name__)
 
 from app import db, models
-from app.auth import role_required
+from app.auth import min_role_required, is_maintainer, ROLE_ADMIN
 from app.decks import bp
 from app.decks.forms import DeckEditForm
 from app.models import Deck, Player, User, Game, Participant, DeckFolder
@@ -443,13 +443,15 @@ def add_achievement():
 def deck_archive(player_name):
     player = db.first_or_404(sa.select(Player).where(Player.name == player_name))
     is_owner = (current_user.player_id == player.id)
-    is_admin = (current_user.role == 'admin')
+    # Maintainers (and admins, who outrank them) may moderate any player's
+    # archive — e.g. dearchive a deck that isn't theirs.
+    can_moderate = is_maintainer(current_user)
     return render_template(
         'decks/archive.html',
         spieler=player,
         player_name=player_name,
         is_owner=is_owner,
-        is_admin=is_admin
+        is_admin=can_moderate
     )
 
 
@@ -458,7 +460,9 @@ def deck_archive(player_name):
 def dearchive(deck_id):
     deck = db.get_or_404(Deck, deck_id)
     player_name = request.form.get('player_name')
-    if deck.player_id != current_user.player_id and current_user.role != 'admin':
+    # The deck owner may always dearchive their own deck; maintainers+ may
+    # dearchive anyone's.
+    if deck.player_id != current_user.player_id and not is_maintainer(current_user):
         abort(403)
     dearchive_deck(deck)
     db.session.commit()
@@ -466,7 +470,7 @@ def dearchive(deck_id):
 
 
 @bp.route('/elo', methods=['GET'])
-@role_required('admin')
+@min_role_required(ROLE_ADMIN)
 @login_required
 def calculate_elo():
     # Fetch all data needed for the rating recalculation. Games must be

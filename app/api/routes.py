@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 import sqlalchemy as sa
 
-from app.auth import role_required
+from app.auth import min_role_required, ROLE_MAINTAINER
 from app.models import Player, User, Color, ColorComponent, Deck, Card, ColorIdentity, AuditLog
 from app.services.audit import write_audit_log
 from app.services.color_service import resolve_color_images
@@ -76,7 +76,7 @@ def userdecks(spieler):
 
 
 @bp.route('/quick-add-player', methods=['POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def quick_add_player():
     """Add a new player via AJAX. Returns the new player name on success."""
@@ -102,7 +102,7 @@ def quick_add_player():
 
 
 @bp.route('/quick-add-deck', methods=['POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def quick_add_deck():
     """Add a new deck via AJAX. Returns deck info on success."""
@@ -178,7 +178,7 @@ def quick_add_deck():
 
 
 @bp.route('/deck-participant-averages/<deckname>')
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def deck_participant_averages(deckname):
     """Return participant averages for a deck, optionally filtered by a 'since' date."""

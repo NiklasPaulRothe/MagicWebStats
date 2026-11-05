@@ -29,6 +29,12 @@ class User(UserMixin, db.Model):
         sa.ForeignKey(f'{DB_SCHEMA}.players.id', ondelete='SET NULL'),
     )
     active: so.Mapped[bool] = so.mapped_column(sa.Boolean)
+    # Role tier: 'user' < 'maintainer' < 'admin' (see app/auth). Production
+    # enforces the allowed set via the ck_users_role CHECK constraint (see
+    # scripts/schema.sql). The ORM column is intentionally left unconstrained so
+    # authorization stays LEVEL-based and fail-closed: an unknown role resolves
+    # to level -1 and is denied everywhere (app/auth.role_level), behavior the
+    # test-suite exercises with arbitrary role strings.
     role: so.Mapped[str] = so.mapped_column(sa.String(64))
     bio: so.Mapped[Optional[str]] = so.mapped_column(sa.String(1000))
 

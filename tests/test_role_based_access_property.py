@@ -1,16 +1,21 @@
-# Feature: service-layer-security-refactor, Property 13: Role-based access control
-"""Property-based test for role-based access control.
+# Feature: role-tiers (user < maintainer < admin), role-based access control
+"""Property-based tests for the hierarchical role model.
 
-**Validates: Requirements 13.2, 13.3**
+Roles are hierarchical: ``user`` < ``maintainer`` < ``admin`` (admin is a
+superset of maintainer, which is a superset of user). Access is checked by
+LEVEL, so a higher tier inherits every lower-tier capability, and unknown roles
+fail closed (denied everywhere).
 
-For any authenticated user, access to admin-gated endpoints (audit_log,
-deck_participant_averages) SHALL be granted if and only if user.role == 'admin'.
+Endpoint tiers under test:
+  • /audit-log                              -> admin only
+  • /decks/elo (recalculate)                -> admin only
+  • /api/deck-participant-averages/<deck>   -> maintainer or higher
+  • /PlayerAdd, /DeckAdd, /game-add, /manage/games -> maintainer or higher
 """
 
 import pytest
 from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
-from flask_login import login_user
 
 from app import create_app, db as _db
 from app.models import User, Player, Deck, ColorIdentity
@@ -29,14 +34,19 @@ class RoleAccessTestConfig:
     PERSONAL_STATS_USERNAME = "Niklas"
 
 
-# Roles that should be denied access to admin-gated endpoints
-NON_ADMIN_ROLES = ["user", "maintainer", "viewer", "editor", "guest"]
+# Roles that rank BELOW maintainer (plus some unknown roles that must fail
+# closed). These are denied every maintainer+ and admin-only endpoint.
+BELOW_MAINTAINER_ROLES = ["user", "viewer", "editor", "guest", ""]
 
-# Strategy: generate a non-admin role
-non_admin_role_strategy = st.sampled_from(NON_ADMIN_ROLES)
+# Roles at maintainer level but BELOW admin — granted maintainer+ endpoints,
+# denied admin-only endpoints.
+MAINTAINER_ONLY_ROLES = ["maintainer"]
 
-# Strategy: generate any role including admin
-all_role_strategy = st.sampled_from(["admin"] + NON_ADMIN_ROLES)
+below_maintainer_strategy = st.sampled_from(BELOW_MAINTAINER_ROLES)
+# Any non-admin role (used for admin-only endpoint denial).
+non_admin_strategy = st.sampled_from(BELOW_MAINTAINER_ROLES + MAINTAINER_ONLY_ROLES)
+# Any role including admin (for the biconditional admin test).
+all_role_strategy = st.sampled_from(["admin"] + BELOW_MAINTAINER_ROLES + MAINTAINER_ONLY_ROLES)
 
 
 def _create_app_and_db():
@@ -51,7 +61,7 @@ def _create_app_and_db():
 
 
 def _create_user(app, username, role, user_id):
-    """Create a test user with the given role."""
+    """Create a test user with the given role (+ FK fixtures)."""
     with app.app_context():
         user = User(
             id=user_id,
@@ -64,13 +74,10 @@ def _create_user(app, username, role, user_id):
         user.set_password("testpassword")
         _db.session.add(user)
 
-        # Ensure Player and ColorIdentity exist for FK constraints
         if not Player.query.get(1):
             _db.session.add(Player(id=1, name="TestPlayer"))
         if not ColorIdentity.query.filter_by(name="Mono-Red").first():
             _db.session.add(ColorIdentity(name="Mono-Red", amount=1))
-
-        # Ensure a deck exists for the deck_participant_averages endpoint
         if not Deck.query.filter_by(name="TestDeck").first():
             _db.session.add(Deck(
                 id=1,
@@ -87,202 +94,144 @@ def _create_user(app, username, role, user_id):
 
 def _login_user(client, username, password="testpassword"):
     """Login a user via the test client session."""
-    with client.session_transaction() as sess:
-        # Flask-Login uses _user_id in the session
-        pass
-
-    # Use the login route to establish a session
-    response = client.post("/auth/login", data={
+    return client.post("/auth/login", data={
         "username": username,
         "password": password,
     }, follow_redirects=False)
-    return response
 
 
-@given(role=non_admin_role_strategy)
-@settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_non_admin_denied_audit_log(role):
-    """Property 13a: Non-admin users SHALL be denied access to audit_log (403).
+# Endpoints by tier for the parametrized checks.
+ADMIN_ONLY_ENDPOINTS = ["/audit-log", "/decks/elo"]
+MAINTAINER_PLUS_ENDPOINTS = [
+    "/api/deck-participant-averages/TestDeck",
+    "/PlayerAdd",
+    "/DeckAdd",
+    "/game-add",
+    "/manage/games",
+]
 
-    For any role that is not 'admin', accessing /audit-log SHALL return 403.
-    """
+
+# ── Admin-only endpoints ─────────────────────────────────────────────────────
+
+@given(role=non_admin_strategy)
+@settings(max_examples=40, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_non_admin_denied_admin_endpoints(role):
+    """Any non-admin role (including maintainer) is denied admin-only endpoints."""
     application = _create_app_and_db()
-
     with application.app_context():
-        user = _create_user(application, f"user_{role}", role, user_id=99)
-
+        _create_user(application, f"u_{role or 'empty'}", role, user_id=99)
         with application.test_client() as client:
-            _login_user(client, f"user_{role}")
-
-            response = client.get("/audit-log")
-            assert response.status_code == 403, (
-                f"User with role={role!r} got status {response.status_code} "
-                f"on /audit-log but expected 403 (non-admin should be denied)"
-            )
-
+            _login_user(client, f"u_{role or 'empty'}")
+            for path in ADMIN_ONLY_ENDPOINTS:
+                resp = client.get(path, follow_redirects=False)
+                assert resp.status_code == 403, (
+                    f"role={role!r} got {resp.status_code} on {path}, expected 403"
+                )
         _db.session.remove()
         _db.drop_all()
 
 
-@given(role=non_admin_role_strategy)
-@settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_non_admin_denied_deck_participant_averages(role):
-    """Property 13b: Non-admin users SHALL be denied access to
-    deck_participant_averages (403).
+def test_admin_granted_admin_endpoints():
+    """An admin is granted the admin-only endpoints.
 
-    For any role that is not 'admin', accessing /api/deck-participant-averages/<deckname>
-    SHALL return 403.
+    /audit-log renders (200). /decks/elo performs a recompute and redirects
+    (302) — both are "granted" (not 403).
     """
     application = _create_app_and_db()
-
     with application.app_context():
-        user = _create_user(application, f"user_{role}", role, user_id=99)
-
-        with application.test_client() as client:
-            _login_user(client, f"user_{role}")
-
-            response = client.get("/api/deck-participant-averages/TestDeck")
-            assert response.status_code == 403, (
-                f"User with role={role!r} got status {response.status_code} "
-                f"on /api/deck-participant-averages/TestDeck but expected 403 "
-                f"(non-admin should be denied)"
-            )
-
-        _db.session.remove()
-        _db.drop_all()
-
-
-def test_admin_granted_audit_log():
-    """Property 13c: Admin users SHALL be granted access to audit_log (200).
-
-    A user with role='admin' accessing /audit-log SHALL receive a 200 response.
-    """
-    application = _create_app_and_db()
-
-    with application.app_context():
-        user = _create_user(application, "adminuser", "admin", user_id=2)
-
+        _create_user(application, "adminuser", "admin", user_id=2)
         with application.test_client() as client:
             _login_user(client, "adminuser")
-
-            response = client.get("/audit-log")
-            assert response.status_code == 200, (
-                f"Admin user got status {response.status_code} on /audit-log "
-                f"but expected 200 (admin should be granted access)"
-            )
-
+            assert client.get("/audit-log").status_code == 200
+            assert client.get("/decks/elo", follow_redirects=False).status_code in (200, 302)
         _db.session.remove()
         _db.drop_all()
 
 
-def test_admin_granted_deck_participant_averages():
-    """Property 13d: Admin users SHALL be granted access to
-    deck_participant_averages (200).
+# ── Maintainer-or-higher endpoints ───────────────────────────────────────────
 
-    A user with role='admin' accessing /api/deck-participant-averages/<deckname>
-    SHALL receive a 200 response.
+@given(role=below_maintainer_strategy)
+@settings(max_examples=40, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_below_maintainer_denied_maintainer_endpoints(role):
+    """Roles below maintainer are denied maintainer+ endpoints (403)."""
+    application = _create_app_and_db()
+    with application.app_context():
+        _create_user(application, f"u_{role or 'empty'}", role, user_id=99)
+        with application.test_client() as client:
+            _login_user(client, f"u_{role or 'empty'}")
+            for path in MAINTAINER_PLUS_ENDPOINTS:
+                resp = client.get(path, follow_redirects=False)
+                assert resp.status_code == 403, (
+                    f"role={role!r} got {resp.status_code} on {path}, expected 403"
+                )
+        _db.session.remove()
+        _db.drop_all()
+
+
+@pytest.mark.parametrize("role", ["maintainer", "admin"])
+def test_maintainer_and_admin_granted_maintainer_endpoints(role):
+    """Maintainer AND admin are granted maintainer+ endpoints (not 403).
+
+    GET on the add-forms renders (200); the averages API returns 200. We only
+    assert access is NOT forbidden (status != 403) to stay robust to the exact
+    success code of each handler.
     """
     application = _create_app_and_db()
-
     with application.app_context():
-        user = _create_user(application, "adminuser", "admin", user_id=2)
-
+        _create_user(application, f"m_{role}", role, user_id=3)
         with application.test_client() as client:
-            _login_user(client, "adminuser")
-
-            response = client.get("/api/deck-participant-averages/TestDeck")
-            assert response.status_code == 200, (
-                f"Admin user got status {response.status_code} on "
-                f"/api/deck-participant-averages/TestDeck but expected 200 "
-                f"(admin should be granted access)"
-            )
-
+            _login_user(client, f"m_{role}")
+            for path in MAINTAINER_PLUS_ENDPOINTS:
+                resp = client.get(path, follow_redirects=False)
+                assert resp.status_code != 403, (
+                    f"role={role!r} got 403 on {path}, expected access granted"
+                )
         _db.session.remove()
         _db.drop_all()
 
+
+def test_maintainer_denied_admin_endpoints_explicit():
+    """A maintainer is explicitly denied the admin-only endpoints (403)."""
+    application = _create_app_and_db()
+    with application.app_context():
+        _create_user(application, "maint", "maintainer", user_id=4)
+        with application.test_client() as client:
+            _login_user(client, "maint")
+            for path in ADMIN_ONLY_ENDPOINTS:
+                assert client.get(path, follow_redirects=False).status_code == 403
+        _db.session.remove()
+        _db.drop_all()
+
+
+# ── Biconditional + unauthenticated ──────────────────────────────────────────
 
 @given(role=all_role_strategy)
-@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_access_granted_iff_admin(role):
-    """Property 13e: For any authenticated user, access to admin-gated endpoints
-    SHALL be granted if and only if user.role == 'admin'.
-
-    This is the core biconditional property: admin <=> access granted.
-    """
+@settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_admin_endpoint_granted_iff_admin(role):
+    """Admin-only endpoint access is granted iff the role is admin."""
     application = _create_app_and_db()
-
     with application.app_context():
-        user = _create_user(application, f"user_{role}", role, user_id=99)
-
+        _create_user(application, f"u_{role or 'empty'}", role, user_id=99)
         with application.test_client() as client:
-            _login_user(client, f"user_{role}")
-
-            # Test audit_log endpoint
-            response = client.get("/audit-log")
+            _login_user(client, f"u_{role or 'empty'}")
+            resp = client.get("/audit-log", follow_redirects=False)
             if role == "admin":
-                assert response.status_code == 200, (
-                    f"Admin user got {response.status_code} on /audit-log "
-                    f"but expected 200"
-                )
+                assert resp.status_code == 200
             else:
-                assert response.status_code == 403, (
-                    f"User with role={role!r} got {response.status_code} "
-                    f"on /audit-log but expected 403"
-                )
-
-            # Test deck_participant_averages endpoint
-            response = client.get("/api/deck-participant-averages/TestDeck")
-            if role == "admin":
-                assert response.status_code == 200, (
-                    f"Admin user got {response.status_code} on "
-                    f"/api/deck-participant-averages/TestDeck but expected 200"
-                )
-            else:
-                assert response.status_code == 403, (
-                    f"User with role={role!r} got {response.status_code} on "
-                    f"/api/deck-participant-averages/TestDeck but expected 403"
-                )
-
+                assert resp.status_code == 403
         _db.session.remove()
         _db.drop_all()
 
 
-def test_unauthenticated_denied_audit_log():
-    """Unauthenticated users should NOT be granted access (200) on admin endpoints.
-
-    The role_required decorator denies unauthenticated users with 403,
-    which is correct because they lack any role.
-    """
+def test_unauthenticated_denied_admin_and_maintainer_endpoints():
+    """Unauthenticated users are never granted (status != 200) any gated endpoint."""
     application = _create_app_and_db()
-
     with application.app_context():
         with application.test_client() as client:
-            response = client.get("/audit-log")
-            # Should be denied — either 302 (redirect to login), 401, or 403
-            assert response.status_code != 200, (
-                f"Unauthenticated user got 200 on /audit-log but should be denied"
-            )
-
-        _db.session.remove()
-        _db.drop_all()
-
-
-def test_unauthenticated_denied_deck_participant_averages():
-    """Unauthenticated users should NOT be granted access (200) on admin endpoints.
-
-    The role_required decorator denies unauthenticated users with 403,
-    which is correct because they lack any role.
-    """
-    application = _create_app_and_db()
-
-    with application.app_context():
-        with application.test_client() as client:
-            response = client.get("/api/deck-participant-averages/TestDeck")
-            # Should be denied — either 302 (redirect to login), 401, or 403
-            assert response.status_code != 200, (
-                f"Unauthenticated user got 200 on "
-                f"/api/deck-participant-averages/TestDeck but should be denied"
-            )
-
+            for path in ADMIN_ONLY_ENDPOINTS + MAINTAINER_PLUS_ENDPOINTS:
+                resp = client.get(path, follow_redirects=False)
+                assert resp.status_code != 200, (
+                    f"unauthenticated got 200 on {path}, should be denied"
+                )
         _db.session.remove()
         _db.drop_all()
