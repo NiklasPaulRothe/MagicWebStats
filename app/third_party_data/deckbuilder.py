@@ -203,7 +203,6 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
         logger.error("Something went wrong while committing to the database for %s: %s", deck.name, e)
         db.session.rollback()
     logger.info('end load cards....')
-    return redirect(url_for('main.index'), code=302)
 
 
 def load_cards_from_moxfield(moxfield_id, deck_id):
@@ -317,7 +316,6 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
         logger.error("Something went wrong while committing to the database for %s: %s", deck.get('name'), e)
         db.session.rollback()
     logger.info('end load cards....')
-    return redirect(url_for('main.index'), code=302)
 
 @bp.route('/LoadAllDecks', methods=['GET'])
 @role_required('admin')
