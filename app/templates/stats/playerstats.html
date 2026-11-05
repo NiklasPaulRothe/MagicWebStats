@@ -30,11 +30,13 @@
                     <th data-type="string" data-key="name">Player</th>
                     <th data-type="number" data-key="games">Games</th>
                     <th data-type="number" data-key="wins">Wins</th>
-                    <th data-type="number" data-key="winrate_pct">Winrate %</th>
+                    <th data-type="number" data-key="winrate_pct">Winrate<br>%</th>
                     <th data-type="number" data-key="first">First</th>
-                    <th data-type="number" data-key="first_pct">First %</th>
-                    <th data-type="number" data-key="early_sol_ring">Fast Mana</th>
-                    <th data-type="number" data-key="sol_ring_pct">Fast Mana %</th>
+                    <th data-type="number" data-key="first_pct">First<br>%</th>
+                    <th data-type="number" data-key="early_sol_ring">Fast<br>mana</th>
+                    <th data-type="number" data-key="sol_ring_pct">Fast mana<br>%</th>
+                    <th data-type="number" data-key="avg_removal_played">Removal<br>played</th>
+                    <th data-type="number" data-key="avg_removal_targeted">Removal<br>targeted</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -145,6 +147,10 @@
                         return `<td><a href="/player/${encode(n)}" class="player-link">${n}</a></td>`;
                     }
                     const v = item[key];
+                    // Removal averages are null when <5 tracked games -> show "-".
+                    if (key === 'avg_removal_played' || key === 'avg_removal_targeted') {
+                        return `<td>${v !== null && v !== undefined ? v : '\u2013'}</td>`;
+                    }
                     return `<td>${v !== null && v !== undefined ? v : ''}</td>`;
                 }).join('');
                 tbody.appendChild(row);

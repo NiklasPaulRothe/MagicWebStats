@@ -230,6 +230,7 @@ class TestPlayerStatsEndpoint:
         expected_keys = {
             "name", "games", "early_sol_ring", "sol_ring_pct",
             "wins", "winrate_pct", "first", "first_pct",
+            "avg_removal_played", "avg_removal_targeted",
         }
         assert set(formatted.keys()) == expected_keys
 
@@ -670,6 +671,7 @@ class TestPlayerStatsByYearEndpoint:
             expected_keys = {
                 "name", "games", "early_sol_ring", "sol_ring_pct",
                 "wins", "winrate_pct", "first", "first_pct",
+                "avg_removal_played", "avg_removal_targeted",
             }
             assert set(formatted.keys()) == expected_keys
 

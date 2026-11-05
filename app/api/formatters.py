@@ -45,6 +45,10 @@ def format_player_stats(r: PlayerStatsResult) -> dict:
         "winrate_pct": r["winrate_pct"],
         "first": r["first"],
         "first_pct": r["first_pct"],
+        # None when <5 games have tracked removal; serializes to JSON null and
+        # the player-stats table renders it as "-".
+        "avg_removal_played": r["avg_removal_played"],
+        "avg_removal_targeted": r["avg_removal_targeted"],
     }
 
 

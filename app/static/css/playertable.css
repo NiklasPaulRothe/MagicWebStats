@@ -20,14 +20,19 @@
     font-size: var(--fs-sm);
 }
 
-/* Panel card. */
+/* Panel card. min-width:0 so the table wrapper inside can shrink/scroll
+   instead of stretching the panel beyond the content area. */
 .panel {
     background: var(--surface-gradient);
     border: 1px solid var(--accent-border);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
     box-shadow: var(--shadow-md);
+    min-width: 0;
 }
+
+/* Horizontal cell padding, dialed down on smaller screens (see media queries). */
+:root { --ptable-cell-x: var(--space-4); }
 
 /* ── Controls row (year segmented control + min-games filter) ─────────────── */
 .ptable-controls {
@@ -103,13 +108,30 @@
 
 /* ── Table ────────────────────────────────────────────────────────────────── */
 .ptable-wrap {
+    /* Never let the table push the panel wider than its box: the wrapper is
+       capped at the panel's content width and scrolls horizontally inside it
+       when the table is wider. min-width:0 lets this child actually shrink
+       instead of forcing overflow onto the panel. The fade gradients on the
+       edges hint that the content scrolls sideways (shown whenever it does). */
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
     border-radius: var(--radius-md);
+    -webkit-overflow-scrolling: touch;   /* momentum scroll on iOS */
+    overscroll-behavior-x: contain;
+    background:
+        linear-gradient(to right, var(--color-surface), transparent 24px),
+        linear-gradient(to left, var(--color-surface), transparent 24px) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 24px 100%, 24px 100%;
+    background-attachment: local, local;
 }
 .ptable {
-    /* Size the table (and each column) to its content instead of stretching
-       to the panel width, so there's no wide empty gap between the numbers.
-       The generous column padding keeps it from looking cramped. */
+    /* Size the table (and each column) to its content so there's no wide empty
+       gap between the numbers. All columns (including the removal ones) share
+       the same content-sizing + padding, so they are consistent. When the
+       content exceeds the wrapper, .ptable-wrap scrolls — the table never
+       overflows the panel itself. */
     width: auto;
     border-collapse: collapse;
     font-variant-numeric: tabular-nums;
@@ -120,12 +142,13 @@
     background-color: #000;
     color: var(--color-accent);
     text-align: right;
-    padding: var(--space-3) var(--space-5);
+    vertical-align: bottom;
+    padding: var(--space-3) var(--ptable-cell-x);
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
     letter-spacing: var(--letter-tracked);
     text-transform: uppercase;
-    white-space: nowrap;
+    line-height: 1.2;
     cursor: pointer;
     user-select: none;
     border-bottom: 2px solid var(--accent-border);
@@ -138,7 +161,7 @@
 .ptable th.sorted-desc::after { content: " \2193"; }
 
 .ptable tbody td {
-    padding: var(--space-3) var(--space-5);
+    padding: var(--space-3) var(--ptable-cell-x);
     text-align: right;
     color: var(--color-text);
     font-size: var(--fs-sm);
@@ -166,10 +189,23 @@
     text-decoration: underline;
 }
 
-/* ── Responsive ───────────────────────────────────────────────────────────── */
+/* ── Responsive ───────────────────────────────────────────────────────────
+   The table stays content-sized and scrolls horizontally inside its wrapper
+   on narrow screens (the wrapper is capped at the panel width). We only shrink
+   padding / font so more columns fit before scrolling kicks in, and make the
+   sticky header + touch scrolling comfortable on mobile. */
 @media (max-width: 720px) {
-    .ptable thead th,
-    .ptable tbody td { padding: var(--space-2); font-size: var(--fs-xs); }
+    .panel { padding: var(--space-4); }
+    :root { --ptable-cell-x: var(--space-3); }  /* 12px */
+    .ptable thead th { font-size: 10px; }
+    .ptable tbody td { font-size: var(--fs-xs); }
+
+    /* Controls stack: year control on its own row, filters beneath. */
     .ptable-controls { gap: var(--space-2); }
     .ptable-controls__spacer { flex-basis: 100%; height: 0; }
+    .seg { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+    :root { --ptable-cell-x: var(--space-2); }  /* 8px */
+    .ptable-controls__min { display: none; }     /* keep the input, drop the label */
 }

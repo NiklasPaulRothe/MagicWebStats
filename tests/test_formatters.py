@@ -36,6 +36,8 @@ class TestFormatPlayerStats:
             "winrate_pct": 40.0,
             "first": 2,
             "first_pct": 20.0,
+            "avg_removal_played": 2.5,
+            "avg_removal_targeted": 1.5,
         })
         assert result == {
             "name": "Alice",
@@ -46,7 +48,19 @@ class TestFormatPlayerStats:
             "winrate_pct": 40.0,
             "first": 2,
             "first_pct": 20.0,
+            "avg_removal_played": 2.5,
+            "avg_removal_targeted": 1.5,
         }
+
+    def test_removal_averages_none_preserved(self):
+        """When <5 tracked games, removal averages are None (JSON null)."""
+        result = format_player_stats({
+            "name": "Bob", "games": 3, "early_sol_ring": 0, "sol_ring_pct": 0.0,
+            "wins": 1, "winrate_pct": 33.3, "first": 1, "first_pct": 33.3,
+            "avg_removal_played": None, "avg_removal_targeted": None,
+        })
+        assert result["avg_removal_played"] is None
+        assert result["avg_removal_targeted"] is None
 
 
 class TestFormatDeckData:

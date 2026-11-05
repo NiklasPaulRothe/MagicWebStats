@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Optional, TypedDict
 
-from sqlalchemy import select, func, case, cast, exists, Numeric, Float, Integer
+from sqlalchemy import select, func, case, cast, exists, Numeric, Float, Integer, or_ as sa_or
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -46,6 +46,49 @@ def _get_color_imgs_for_deck(session: Session, color_identity_name: str) -> list
     return list(rows)
 
 
+def _removal_averages_by_player(
+    session: Session, year: int | None = None
+) -> dict[int, tuple[Optional[float], Optional[float]]]:
+    """Average removal played / targeted per player, keyed by player id.
+
+    Only games with recorded removal data count (``removal_played`` or
+    ``targeted_by_removal`` non-NULL). Each average is over the participations
+    where that specific column is non-NULL. When a player has fewer than 5
+    games with ANY tracked removal, both values are ``None`` so the UI can show
+    "-" (the sample is too small to be meaningful).
+
+    ``year`` optionally restricts to a single calendar year (matching the
+    year-filtered player-stats query).
+    """
+    tracked = sa_or(
+        Participant.removal_played.isnot(None),
+        Participant.targeted_by_removal.isnot(None),
+    )
+    stmt = (
+        select(
+            Participant.player_id,
+            func.count(func.distinct(Participant.game_id)).label("tracked_games"),
+            func.avg(Participant.removal_played).label("avg_played"),
+            func.avg(Participant.targeted_by_removal).label("avg_targeted"),
+        )
+        .join(Game, Game.id == Participant.game_id)
+        .where(tracked)
+        .group_by(Participant.player_id)
+    )
+    if year is not None:
+        stmt = stmt.where(func.extract("year", Game.date) == year)
+
+    result: dict[int, tuple[Optional[float], Optional[float]]] = {}
+    for row in session.execute(stmt).all():
+        if (row.tracked_games or 0) < 5:
+            result[row.player_id] = (None, None)
+        else:
+            played = round(float(row.avg_played), 1) if row.avg_played is not None else None
+            targeted = round(float(row.avg_targeted), 1) if row.avg_targeted is not None else None
+            result[row.player_id] = (played, targeted)
+    return result
+
+
 def _get_tags_for_deck(session: Session, deck_id: int) -> list[str]:
     """Query tags for a given deck, ordered alphabetically.
 
@@ -74,6 +117,11 @@ class PlayerStatsResult(TypedDict):
     winrate_pct: float  # rounded to 2 decimal places
     first: int
     first_pct: float  # rounded to 2 decimal places
+    # Average removal cast / received across games with tracked removal.
+    # None when the player has fewer than 5 games with removal data (the
+    # stat is not shown — rendered as "-").
+    avg_removal_played: Optional[float]
+    avg_removal_targeted: Optional[float]
 
 
 class ColorDataResult(TypedDict):
@@ -330,6 +378,7 @@ def get_player_stats_by_year(session: Session, year: int) -> list[PlayerStatsRes
     # Main query
     stmt = (
         select(
+            Player.id,
             Player.name,
             game_count.label("games"),
             early_sol_ring_count.label("early_sol_ring"),
@@ -344,6 +393,7 @@ def get_player_stats_by_year(session: Session, year: int) -> list[PlayerStatsRes
     )
 
     rows = session.execute(stmt).all()
+    removal = _removal_averages_by_player(session, year=year)
 
     return [
         PlayerStatsResult(
@@ -355,6 +405,8 @@ def get_player_stats_by_year(session: Session, year: int) -> list[PlayerStatsRes
             winrate_pct=float(row.winrate_pct),
             first=row.first,
             first_pct=float(row.first_pct),
+            avg_removal_played=removal.get(row.id, (None, None))[0],
+            avg_removal_targeted=removal.get(row.id, (None, None))[1],
         )
         for row in rows
     ]
@@ -635,6 +687,7 @@ def get_player_stats(session: Session) -> list[PlayerStatsResult]:
     # Main query
     stmt = (
         select(
+            Player.id,
             Player.name,
             game_count.label("games"),
             early_sol_ring_count.label("early_sol_ring"),
@@ -649,6 +702,7 @@ def get_player_stats(session: Session) -> list[PlayerStatsResult]:
     )
 
     rows = session.execute(stmt).all()
+    removal = _removal_averages_by_player(session)
 
     return [
         PlayerStatsResult(
@@ -660,6 +714,8 @@ def get_player_stats(session: Session) -> list[PlayerStatsResult]:
             winrate_pct=float(row.winrate_pct),
             first=row.first,
             first_pct=float(row.first_pct),
+            avg_removal_played=removal.get(row.id, (None, None))[0],
+            avg_removal_targeted=removal.get(row.id, (None, None))[1],
         )
         for row in rows
     ]
