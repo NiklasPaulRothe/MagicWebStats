@@ -469,9 +469,11 @@ def dearchive(deck_id):
 @role_required('admin')
 @login_required
 def calculate_elo():
-    # Fetch all data needed for Elo recalculation
+    # Fetch all data needed for the rating recalculation. Games must be
+    # processed chronologically so a deck's rating reflects the order it earned
+    # its results (the rating is path-dependent).
     decks = db.session.scalars(sa.select(Deck)).all()
-    games = db.session.scalars(sa.select(Game)).all()
+    games = db.session.scalars(sa.select(Game).order_by(Game.date, Game.id)).all()
 
     # Build participants_by_game lookup
     all_participants = db.session.scalars(sa.select(Participant)).all()
@@ -479,16 +481,23 @@ def calculate_elo():
     for p in all_participants:
         participants_by_game[p.game_id].append(p)
 
-    # Delegate to elo_service
+    # Delegate to elo_service (bounded 0-1000 strength rating with confidence).
     results = recalculate_all_elo(decks, games, dict(participants_by_game))
 
-    # Persist the results
+    # Persist the results. decks.elo_rating holds the mean strength estimate;
+    # decks.elo_rd holds the confidence/range; decks.elo_games holds the counted
+    # games. Decks with fewer than 5 counted games are left unrated (NULL) so
+    # they stay off the leaderboard: on the 0-1000 scale 0 is a legal rating, so
+    # NULL + the elo_games gate replaces the old `0` sentinel.
     for result in results:
         deck = db.session.get(Deck, result.deck_id)
+        deck.elo_games = result.games_played
         if result.games_played >= 5:
             deck.elo_rating = round(result.new_rating)
+            deck.elo_rd = round(result.rd)
         else:
-            deck.elo_rating = 0
+            deck.elo_rating = None
+            deck.elo_rd = None
         db.session.add(deck)
 
     db.session.commit()

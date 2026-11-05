@@ -59,7 +59,9 @@ class Color(db.Model):
 class Deck(db.Model):
     __tablename__ = 'decks'
     __table_args__ = (
-        sa.CheckConstraint('elo_rating >= 0', name='ck_deck_elo_rating'),
+        sa.CheckConstraint('elo_rating >= 0 AND elo_rating <= 1000', name='ck_deck_elo_rating'),
+        sa.CheckConstraint('elo_rd >= 0', name='ck_deck_elo_rd'),
+        sa.CheckConstraint('elo_games >= 0', name='ck_deck_elo_games'),
         sa.CheckConstraint('version >= 0', name='ck_deck_version'),
         sa.CheckConstraint('patch >= 0', name='ck_deck_patch'),
         sa.CheckConstraint('change >= 0', name='ck_deck_change'),
@@ -88,7 +90,17 @@ class Deck(db.Model):
         sa.ForeignKey(f'{DB_SCHEMA}.deck_folders.id', ondelete='SET NULL'),
     )
     partner: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
-    elo_rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, default=1500)
+    # Deck strength rating on a fixed 0-1000 scale (centre 500). This is the
+    # deck's mean strength estimate; NULL means "unrated" (fewer than 5 counted
+    # games -- see elo_games). On this scale 0 is a legal rating, so NULL, not
+    # 0, is the unrated sentinel. Computed by app/services/elo_service.py.
+    elo_rating: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, default=None)
+    # Rating deviation: the confidence / internal range of elo_rating. A new
+    # deck starts wide (heavy swings) and narrows as it plays. NULL when unrated.
+    elo_rd: so.Mapped[Optional[float]] = so.mapped_column(sa.Float, default=None)
+    # Number of valid games counted toward the rating. Drives the leaderboard
+    # gate (>= 5) and replaces the old elo_rating == 0 sentinel.
+    elo_games: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, default=0)
     decklist: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     decksite: so.Mapped[Optional[str]] = so.mapped_column(sa.String)
     archidekt_id: so.Mapped[Optional[str]] = so.mapped_column(sa.String)

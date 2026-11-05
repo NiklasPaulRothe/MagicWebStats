@@ -91,7 +91,7 @@ def seed_data(db_session):
         player_id=1,
         color_identity="Simic",
         partner=None,
-        elo_rating=1520.0,
+        elo_rating=620.0,
         decklist="https://example.com/aesi",
         cedh=False,
     )
@@ -103,7 +103,7 @@ def seed_data(db_session):
         player_id=1,
         color_identity="Simic",
         partner="Kydele, Chosen of Kruphix",
-        elo_rating=1480.0,
+        elo_rating=580.0,
         decklist=None,
         cedh=False,
     )
@@ -115,7 +115,7 @@ def seed_data(db_session):
         player_id=1,
         color_identity="Rakdos",
         partner=None,
-        elo_rating=1400.0,
+        elo_rating=500.0,
         decklist="https://example.com/rakdos",
         cedh=False,
     )
@@ -127,7 +127,7 @@ def seed_data(db_session):
         player_id=2,
         color_identity="Colorless",
         partner=None,
-        elo_rating=1500.0,
+        elo_rating=600.0,
         decklist=None,
         cedh=False,
     )
