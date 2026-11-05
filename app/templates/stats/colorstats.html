@@ -63,13 +63,20 @@
                         const cmp = ka < kb ? -1 : (ka > kb ? 1 : 0);
                         return currentSort.asc ? cmp : -cmp;
                     });
-                } else if (currentSort.type === 'number') {
-                    colorData.sort((a, b) => currentSort.asc
-                        ? (a[key] - b[key]) : (b[key] - a[key]));
                 } else {
-                    colorData.sort((a, b) => currentSort.asc
-                        ? String(a[key]).localeCompare(String(b[key]))
-                        : String(b[key]).localeCompare(String(a[key])));
+                    colorData.sort((a, b) => {
+                        let va = a[key], vb = b[key];
+                        // Empty values (null / undefined / "") always sort LAST.
+                        const ea = va === null || va === undefined || va === '';
+                        const eb = vb === null || vb === undefined || vb === '';
+                        if (ea || eb) return ea === eb ? 0 : (ea ? 1 : -1);
+                        if (currentSort.type === 'number') {
+                            return currentSort.asc ? (va - vb) : (vb - va);
+                        }
+                        return currentSort.asc
+                            ? String(va).localeCompare(String(vb))
+                            : String(vb).localeCompare(String(va));
+                    });
                 }
             }
             updateSortIndicators();

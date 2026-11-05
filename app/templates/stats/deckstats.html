@@ -1,41 +1,68 @@
 {% extends "base.html" %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playertable.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/deckstats.css') }}">
 {% endblock %}
 
 {% block content %}
-<section id="deck-stats">
-    <h2>Deck Stats</h2>
+<header class="dash-head">
+    <h1 class="dash-title">Deck statistics</h1>
+    <p class="dash-sub">Performance per deck across the playgroup</p>
+</header>
 
-    <div class="deck-stats-controls">
-        <label for="min-spiele-filter">Min. Spiele:</label>
-        <input type="number" id="min-spiele-filter" placeholder="0">
-        <button id="apply-min-spiele-filter">Apply</button>
-        <button id="reset-filters">Reset</button>
+<section class="panel" id="deck-stats">
+    <div class="ptable-controls">
+        <label class="ptable-controls__min" for="min-spiele-filter">Min games</label>
+        <input type="number" id="min-spiele-filter" min="0" placeholder="0" inputmode="numeric">
+        <button type="button" id="apply-min-spiele-filter" class="btn--ghost">Apply</button>
+        <button type="button" id="reset-filters" class="btn--ghost">Reset</button>
+        <div class="ptable-controls__spacer"></div>
+        <label class="ptable-controls__min" for="page-size">Show</label>
+        <div class="seg" id="page-size" role="group" aria-label="Rows to show">
+            <button type="button" class="seg__btn active" data-size="25">25</button>
+            <button type="button" class="seg__btn" data-size="50">50</button>
+            <button type="button" class="seg__btn" data-size="100">100</button>
+        </div>
     </div>
 
-    <div class="deck-stats-table-wrap">
-        <table id="deck-stats-table">
+    <nav class="ptable-pager" id="deck-pager-top" aria-label="Deck table pages (top)">
+        <button type="button" class="pager__btn" data-page="prev">‹ Prev</button>
+        <span class="pager__status" data-role="status"></span>
+        <button type="button" class="pager__btn" data-page="next">Next ›</button>
+    </nav>
+
+    <div class="ptable-wrap">
+        <table id="deck-stats-table" class="ptable">
             <thead>
-            <tr>
-                <th data-type="string" data-key="deck_name"><span>Deckname</span></th>
-                <th data-type="string" data-key="player_name">
-                    <span>Spieler</span>
-                    <button class="filter-btn" id="spieler-filter-btn">▾</button>
-                    <div class="filter-dropdown" id="spieler-filter-dropdown" style="display: none;"></div>
-                </th>
-                <th data-type="string" data-key="commander"><span>Commander</span></th>
-                <th data-type="string" data-key="color_identity"><span>Color Identity</span></th>
-                <th data-type="number" data-key="games"><span>Spiele</span></th>
-                <th data-type="number" data-key="wins"><span>Siege</span></th>
-                <th data-type="number" data-key="avg_win_turns"><span>Avg. Win Turn</span></th>
-                <th data-type="number" data-key="winrate_pct"><span>Winrate %</span></th>
-                <th data-type="number" data-key="elo"><span>Elo</span></th>
-            </tr>
+                <tr>
+                    <th data-type="string" data-key="deck_name">Deck</th>
+                    <th data-type="string" data-key="player_name">
+                        Player
+                        <button class="filter-btn" id="spieler-filter-btn" aria-label="Filter players">▾</button>
+                        <div class="filter-dropdown" id="spieler-filter-dropdown" style="display: none;"></div>
+                    </th>
+                    <th data-type="string" data-key="commander">Commander</th>
+                    <th data-type="string" data-key="color_identity">Colors</th>
+                    <th data-type="number" data-key="games">Games</th>
+                    <th data-type="number" data-key="wins">Wins</th>
+                    <th data-type="number" data-key="avg_win_turns">Avg win<br>turn</th>
+                    <th data-type="number" data-key="winrate_pct">Winrate<br>%</th>
+                    <th data-type="number" data-key="elo">Elo</th>
+                </tr>
             </thead>
             <tbody></tbody>
         </table>
+    </div>
+
+    <nav class="ptable-pager" id="deck-pager-bottom" aria-label="Deck table pages (bottom)">
+        <button type="button" class="pager__btn" data-page="prev">‹ Prev</button>
+        <span class="pager__status" data-role="status"></span>
+        <button type="button" class="pager__btn" data-page="next">Next ›</button>
+    </nav>
+
+    <div class="ptable-footer">
+        <span id="deck-count-note" class="ptable-footer__note"></span>
     </div>
 </section>
 

@@ -115,6 +115,11 @@
                 const key = headers[currentSort.idx].getAttribute('data-key');
                 rows.sort((a, b) => {
                     let valA = a[key], valB = b[key];
+                    // Empty values (null / undefined / "") always sort LAST,
+                    // regardless of sort direction.
+                    const ea = valA === null || valA === undefined || valA === '';
+                    const eb = valB === null || valB === undefined || valB === '';
+                    if (ea || eb) return ea === eb ? 0 : (ea ? 1 : -1);
                     if (currentSort.type === 'number') {
                         return currentSort.asc ? (valA - valB) : (valB - valA);
                     }
