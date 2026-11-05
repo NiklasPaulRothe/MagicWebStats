@@ -254,11 +254,19 @@ def confidence_interval(games_played: int) -> float:
 
 def _valid_pod(game, participants, deck_owners, known_ids):
     """Return the list of valid participants for a game, or [] if the pod is not
-    ratable (wrong size, too few valid decks).
+    ratable (cEDH game, wrong size, too few valid decks).
+
+    cEDH is excluded from the rating system entirely: a cEDH *game*
+    (``game.cedh``) is skipped wholesale, and cEDH *decks* are kept out of
+    ``known_ids`` by the caller so they never count as a participant or as an
+    opponent -- even in a non-cEDH pod.
 
     A participant is valid if the deck's owner matches the participant's player,
-    or the owner is the community-override player.
+    or the owner is the community-override player, and the deck is in
+    ``known_ids`` (i.e. not a cEDH deck).
     """
+    if getattr(game, "cedh", False):
+        return []
     if len(participants) < 3 or len(participants) > 5:
         return []
     valid = []
@@ -370,11 +378,20 @@ def recalculate_all_elo(
     player, or the owner is ``DECK_OWNER_OVERRIDE_PLAYER_ID``. Pods outside 3-5
     participants, or with fewer than 2 valid decks, are skipped.
 
+    cEDH is excluded from the rating system entirely: cEDH games (``game.cedh``)
+    are skipped, and cEDH decks (``deck.cedh``) never participate or count as
+    opponents -- even in a non-cEDH pod. A cEDH deck therefore ends with 0
+    counted games and is returned unrated (persisted as NULL).
+
     Returns one ``EloResult`` per deck (rating, games_played, confidence
     interval). The caller persists and applies the min-games gate.
     """
     deck_owners: dict[int, int] = {deck.id: deck.player_id for deck in decks}
-    known_ids = set(deck_owners)
+    # cEDH decks are excluded from the rating system entirely: they are never
+    # valid participants and never count as opponents (even in a non-cEDH pod).
+    # Keeping them out of known_ids achieves both via _valid_pod. They still get
+    # an EloResult with 0 games -> persisted as NULL (unrated), which is correct.
+    known_ids = {deck.id for deck in decks if not getattr(deck, "cedh", False)}
 
     # Total valid games per deck (used to know whether an unrated opponent could
     # still reach the 5-game gate; the same every pass). Computed once.
