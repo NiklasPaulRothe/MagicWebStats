@@ -1,106 +1,243 @@
 {% extends "base.html" %}
 
 {% block head %}
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/basic.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1/dist/chartjs-plugin-annotation.min.js"></script>
-    <script defer src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-</head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 {% endblock %}
 
 {% block content %}
-<main>
-    <h1>Game Statistics Dashboard</h1>
-    
-    <!-- Game Duration and First KO Section - Side by Side -->
-    <div class="dashboard-row">
-        <!-- Game Duration Section -->
-        <section class="dashboard-section dashboard-section-half">
-            <h2 class="section-title">Game Duration</h2>
-            <div class="chart-row">
-                <div class="chart-container-compact">
-                    <canvas id="turnsChart"></canvas>
-                </div>
-                <div class="stats-cards-compact">
-                    <div class="stat-card">
-                        <div class="stat-label">Avg Turns</div>
-                        <div class="stat-value">{{ avg_turns }}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Median</div>
-                        <div class="stat-value">{{ median_turns }}</div>
-                    </div>
-                </div>
-            </div>
-        </section>
+<header class="dash-head">
+    <h1 class="dash-title">Playgroup dashboard</h1>
+    <p class="dash-sub">Everything the pod has tracked &middot; all-time unless noted</p>
+</header>
 
-        <!-- First KO Section -->
-        <section class="dashboard-section dashboard-section-half">
-            <h2 class="section-title">First Knockout</h2>
-            <div class="chart-row">
-                <div class="chart-container-compact">
-                    <canvas id="koturnsChart"></canvas>
-                </div>
-                <div class="stats-cards-compact">
-                    <div class="stat-card">
-                        <div class="stat-label">Avg KO</div>
-                        <div class="stat-value">{{ avg_ko_turns }}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Median</div>
-                        <div class="stat-value">{{ median_ko_turns }}</div>
-                    </div>
-                </div>
-            </div>
-        </section>
+{# ── Row 1: KPI band ─────────────────────────────────────────────────────── #}
+<div class="kpi-band">
+    <div class="kpi">
+        <span class="kpi__label">Games logged</span>
+        <span class="kpi__value">{{ kpis.games }}</span>
     </div>
+    <div class="kpi">
+        <span class="kpi__label">This month</span>
+        <span class="kpi__value kpi__value--good">{{ kpis.games_this_month }}</span>
+    </div>
+    <div class="kpi">
+        <span class="kpi__label">This year</span>
+        <span class="kpi__value">{{ kpis.games_this_year }}</span>
+    </div>
+    <div class="kpi">
+        <span class="kpi__label">Avg pod</span>
+        <span class="kpi__value">{{ kpis.avg_pod }}</span>
+    </div>
+    <div class="kpi">
+        <span class="kpi__label">Players</span>
+        <span class="kpi__value">{{ kpis.players }}</span>
+    </div>
+    <div class="kpi">
+        <span class="kpi__label">Active decks</span>
+        <span class="kpi__value">{{ kpis.active_decks }}</span>
+    </div>
+</div>
 
-    <!-- Wincons Section -->
-    <section class="dashboard-section">
-        <h2 class="section-title">Wincons</h2>
-        <div class="chart-row chart-row-center">
-            <div class="chart-container-pie">
-                <canvas id="finalBlowChart"></canvas>
+{# ── Row 2: Game length + Finisher ───────────────────────────────────────── #}
+<div class="dash-grid dash-grid--2">
+    <section class="panel">
+        <h2 class="panel__title">Game length (turns)</h2>
+        <p class="panel__sub">median {{ game_length.median }} &middot; avg {{ game_length.avg }}</p>
+        {% if game_length.hist %}
+        <div class="chart">
+            <div class="chart__yaxis" aria-hidden="true">
+                {% for t in game_length.axis_ticks %}<span class="chart__ytick">{{ t }}</span>{% endfor %}
             </div>
-            <div class="chart-container-pie">
-                <canvas id="firstKoChart"></canvas>
+            <div class="chart__plot">
+                <div class="chart__grid" aria-hidden="true">
+                    {% for t in game_length.axis_ticks %}
+                    <div class="chart__gridline" style="bottom: {{ (loop.revindex0 / (game_length.axis_ticks|length - 1) * 100) if game_length.axis_ticks|length > 1 else 0 }}%"></div>
+                    {% endfor %}
+                </div>
+                <div class="histogram" role="img" aria-label="Distribution of game length in turns, count on the y-axis">
+                    <div class="histogram__bars">
+                        {% for b in game_length.hist %}
+                        <div class="histogram__col" tabindex="0"
+                             data-tip="{{ b.count }} game{{ '' if b.count == 1 else 's' }} ended on turn {{ b.value }}">
+                            <div class="histogram__bar"
+                                 style="height: {{ ((b.count / game_length.axis_max) * 100) if game_length.axis_max else 0 }}%"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="histogram__xaxis">
+                        {% for b in game_length.hist %}<span class="histogram__tick">{{ b.value }}</span>{% endfor %}
+                    </div>
+                </div>
             </div>
+        </div>
+        {% else %}
+        <p class="panel__empty">No game-length data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2 class="panel__title">How games end (final blow)</h2>
+        <div class="barlist">
+            {% for row in final_blow %}
+            <div class="barlist__row">
+                <span class="barlist__label">{{ row.label }}</span>
+                <span class="barlist__track">
+                    <span class="barlist__fill" style="width: {{ row.pct }}%"></span>
+                </span>
+                <span class="barlist__value">{{ row.pct }}%</span>
+            </div>
+            {% else %}
+            <p class="panel__empty">No finisher data recorded yet.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+{# ── Row 3: First kill + Color at the table ──────────────────────────────── #}
+<div class="dash-grid dash-grid--2">
+    <section class="panel">
+        <h2 class="panel__title">First kill (turn)</h2>
+        <p class="panel__sub">
+            median {{ first_kill.median }} &middot; avg {{ first_kill.avg }} &middot;
+            fastest T{{ first_kill.fastest }}
+        </p>
+        {% if first_kill.hist %}
+        <div class="chart">
+            <div class="chart__yaxis" aria-hidden="true">
+                {% for t in first_kill.axis_ticks %}<span class="chart__ytick">{{ t }}</span>{% endfor %}
+            </div>
+            <div class="chart__plot">
+                <div class="chart__grid" aria-hidden="true">
+                    {% for t in first_kill.axis_ticks %}
+                    <div class="chart__gridline" style="bottom: {{ (loop.revindex0 / (first_kill.axis_ticks|length - 1) * 100) if first_kill.axis_ticks|length > 1 else 0 }}%"></div>
+                    {% endfor %}
+                </div>
+                <div class="histogram histogram--danger" role="img" aria-label="Distribution of the first-kill turn, count on the y-axis">
+                    <div class="histogram__bars">
+                        {% for b in first_kill.hist %}
+                        <div class="histogram__col" tabindex="0"
+                             data-tip="first kill on turn {{ b.value }} in {{ b.count }} game{{ '' if b.count == 1 else 's' }}">
+                            <div class="histogram__bar"
+                                 style="height: {{ ((b.count / first_kill.axis_max) * 100) if first_kill.axis_max else 0 }}%"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="histogram__xaxis">
+                        {% for b in first_kill.hist %}<span class="histogram__tick">{{ b.value }}</span>{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p class="panel__empty">No first-kill data yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2 class="panel__title">Color at the table</h2>
+        <div class="colortable">
+            <div class="colortable__head">
+                <span class="colortable__name"></span>
+                <span class="colortable__likelihood-label">Appears in % of games</span>
+                <span class="colortable__avg-label">Avg decks / table</span>
+            </div>
+            {% for c in colors %}
+            <div class="colortable__row">
+                <span class="colortable__name">{{ c.name }}</span>
+                <span class="colortable__bar-cell">
+                    <span class="colortable__track">
+                        <span class="colortable__fill colortable__fill--{{ c.key }}"
+                              style="width: {{ c.likelihood }}%"></span>
+                    </span>
+                    <span class="colortable__pct">{{ c.likelihood }}%</span>
+                </span>
+                <span class="colortable__avg">{{ c.avg_decks }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+{# ── Row 4: Pod size split + Turn-order win bias + Removal ────────────────── #}
+<div class="dash-grid dash-grid--3">
+    <section class="panel">
+        <h2 class="panel__title">Pod size split</h2>
+        <div class="barlist">
+            {% for p in pod_split %}
+            <div class="barlist__row">
+                <span class="barlist__label">{{ p.size }} players</span>
+                <span class="barlist__track">
+                    <span class="barlist__fill" style="width: {{ p.pct }}%"></span>
+                </span>
+                <span class="barlist__value">{{ p.pct }}%</span>
+            </div>
+            {% else %}
+            <p class="panel__empty">No pod data yet.</p>
+            {% endfor %}
         </div>
     </section>
 
-    <!-- Color Statistics Section -->
-    <section class="dashboard-section">
-        <h2 class="section-title">Color Statistics</h2>
-        <div class="chart-row">
-            <div class="chart-container-medium">
-                <canvas id="likelihoodChart"></canvas>
+    <section class="panel">
+        <h2 class="panel__title">Turn-order win bias</h2>
+        {% set fair = (100 / seat_pod_size) if seat_pod_size else 0 %}
+        {% if seat_pod_size %}
+        <p class="panel__sub">
+            win % by seat &middot; {{ seat_pod_size }}-player pods &middot;
+            fair line = {{ fair | round(1) }}% &middot;
+            {{ seat_games }} game{{ '' if seat_games == 1 else 's' }}
+        </p>
+        {% else %}
+        <p class="panel__sub">win % by seat</p>
+        {% endif %}
+        {# Scale bars against the larger of the max winrate and the fair line so
+           the reference line always sits on-chart. #}
+        {% set seat_max = ([ (seat_bias | map(attribute='winrate') | max), fair ] | max) if seat_bias else 0 %}
+        {% if seat_bias %}
+        <div class="seatbias">
+            <div class="seatbias__plot">
+                {% if seat_max %}
+                <div class="seatbias__fair" style="bottom: {{ (fair / seat_max * 100) }}%"></div>
+                {% endif %}
+                {% for s in seat_bias %}
+                <div class="seatbias__col">
+                    <span class="seatbias__pct">{{ s.winrate }}%</span>
+                    <div class="seatbias__bar"
+                         style="height: {{ (s.winrate / seat_max * 100) if seat_max else 0 }}%"
+                         title="seat {{ s.seat }}: {{ s.winrate }}% over {{ s.games }} games"></div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="chart-container-medium">
-                <canvas id="averageChart"></canvas>
+            <div class="seatbias__axis">
+                {% for s in seat_bias %}
+                <span class="seatbias__tick">S{{ s.seat }}</span>
+                {% endfor %}
             </div>
-            <div class="chart-container-medium">
-                <canvas id="deckPercentageChart"></canvas>
+        </div>
+        {% else %}
+        <p class="panel__empty">No fully-seated pods tracked yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2 class="panel__title">Removal <span class="panel__title-note">(avg per game)</span></h2>
+        <p class="panel__sub">based on {{ removal.games }} game{{ '' if removal.games == 1 else 's' }} with removal data</p>
+        <div class="removal">
+            <div class="removal__head">
+                <span class="removal__metric-label"></span>
+                <span class="removal__col">All</span>
+                <span class="removal__col">Winner</span>
+            </div>
+            <div class="removal__row">
+                <span class="removal__metric">Removal played</span>
+                <span class="removal__val">{{ removal.played_all }}</span>
+                <span class="removal__val removal__val--win">{{ removal.played_win }}</span>
+            </div>
+            <div class="removal__row">
+                <span class="removal__metric">Targeted by removal</span>
+                <span class="removal__val">{{ removal.targeted_all }}</span>
+                <span class="removal__val removal__val--win">{{ removal.targeted_win }}</span>
             </div>
         </div>
     </section>
-
-    <!-- Hidden data elements -->
-    <script type="application/json" id="color-usage-data">
-        {{ color_usage | tojson }}
-    </script>
-    <script type="application/json" id="turn-data">
-        {{ turn_data | tojson }}
-    </script>
-    <script type="application/json" id="ko-turn-data">
-        {{ ko_turn_data | tojson }}
-    </script>
-    <script type="application/json" id="final-blow-data">
-        {{ final_blow_data | tojson }}
-    </script>
-    <script type="application/json" id="first-ko-data">
-        {{ first_ko_data | tojson }}
-    </script>
-</main>
+</div>
 {% endblock %}

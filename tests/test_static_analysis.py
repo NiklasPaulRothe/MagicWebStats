@@ -35,6 +35,9 @@ TEMPLATE_FILES = [
 VIEW_BACKED_FILES = [
     os.path.join(BASE_DIR, 'app', 'main', 'routes.py'),
     os.path.join(BASE_DIR, 'app', 'stats', 'routes.py'),
+    # The playgroup dashboard moved the view-backed ColorUsage query into the
+    # stats service (compute_playgroup_dashboard), so scan it here too.
+    os.path.join(BASE_DIR, 'app', 'services', 'stats_service.py'),
 ]
 
 

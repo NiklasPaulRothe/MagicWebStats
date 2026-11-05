@@ -1408,3 +1408,287 @@ def get_color_identity_detail(name: str) -> dict | None:
         'games_share_pct': games_share_pct,
         'decks': decks,
     }
+
+
+def _histogram(counter: Counter) -> list[dict]:
+    """Turn a {value: count} Counter into a sorted list of {value, count}."""
+    return [{"value": v, "count": c} for v, c in sorted(counter.items())]
+
+
+def _nice_axis_step(peak: int, target_ticks: int = 4) -> int:
+    """Pick a human-friendly tick STEP for a y-axis up to ``peak``.
+
+    The step is chosen from the 1/2/5 x 10^k family so labels read 0, 5, 10,...
+    and is sized to give roughly ``target_ticks`` intervals. Always >= 1.
+    """
+    import math
+    if peak <= target_ticks:
+        return 1  # small counts: one tick per integer level
+    rough = peak / target_ticks
+    mag = 10 ** math.floor(math.log10(rough))
+    for mult in (1, 2, 5, 10):
+        step = mult * mag
+        if rough <= step:
+            break
+    return int(step)
+
+
+def _nice_axis_max(peak: int) -> int:
+    """Round ``peak`` up to a multiple of the nice step (>= 1)."""
+    if peak <= 0:
+        return 1
+    import math
+    step = _nice_axis_step(peak)
+    return int(math.ceil(peak / step) * step)
+
+
+def _axis_ticks(axis_max: int) -> list[int]:
+    """Descending integer tick values from ``axis_max`` to 0, stepped by the
+    nice step so every tick is a clean, evenly-spaced integer.
+
+    e.g. axis_max=20 -> [20, 15, 10, 5, 0]; axis_max=30 -> [30, 22... ]? No:
+    the step divides axis_max exactly, so 30 with step 10 -> [30, 20, 10, 0].
+    """
+    if axis_max <= 0:
+        return [0]
+    step = _nice_axis_step(axis_max)
+    ticks = list(range(axis_max, -1, -step))
+    if ticks[-1] != 0:
+        ticks.append(0)
+    return ticks
+
+
+def compute_playgroup_dashboard() -> dict:
+    """Aggregate every metric the Playgroup dashboard (landing page) shows.
+
+    All figures are playgroup-wide aggregates (no individual player/deck is
+    named). cEDH games are INCLUDED in the volume/shape stats here (the
+    dashboard reports on the whole pod); the cEDH *share* is reported as its
+    own KPI. Color metrics come from the v_color_usage view, which itself
+    excludes cEDH by definition.
+
+    Returns a dict with keys:
+      kpis: {games, games_this_month, games_this_year, active_decks, players,
+             avg_pod, cedh_share}
+      game_length: {hist:[{value,count}], avg, median, max, axis_max, axis_ticks}
+      first_kill:  {hist:[{value,count}], avg, median, fastest, axis_max, axis_ticks}
+      final_blow:  [{label, count, pct}]  (desc by count)
+      colors:      [{key, name, likelihood, avg_decks}]  (WUBRG order)
+      pod_split:   [{size, count, pct}]
+      seat_bias:   [{seat, games, wins, winrate}]  (single pod size, see below)
+      seat_pod_size: int — the pod size seat_bias is computed over (the most
+                     common fully-seated size); 0 when no eligible games. The
+                     fair baseline is 100 / seat_pod_size percent.
+      seat_games:  int — number of games the seat_bias is based on.
+      removal:     {played_all, played_win, targeted_all, targeted_win, games}
+                   where ``games`` is the number of games with removal data.
+    """
+    from datetime import date
+    from app.viewmodels import ColorUsage
+
+    # ── KPIs ────────────────────────────────────────────────────────────────
+    total_games = db.session.scalar(sa.select(func.count()).select_from(Game)) or 0
+
+    today = date.today()
+    first_of_month = today.replace(day=1)
+    games_this_month = db.session.scalar(
+        sa.select(func.count()).select_from(Game).where(Game.date >= first_of_month)
+    ) or 0
+
+    first_of_year = today.replace(month=1, day=1)
+    games_this_year = db.session.scalar(
+        sa.select(func.count()).select_from(Game).where(Game.date >= first_of_year)
+    ) or 0
+
+    active_decks = db.session.scalar(
+        sa.select(func.count()).select_from(Deck).where(Deck.active.is_(True))
+    ) or 0
+
+    players = db.session.scalar(sa.select(func.count()).select_from(Player)) or 0
+
+    # Average pod size = avg participants per game.
+    total_participants = db.session.scalar(
+        sa.select(func.count()).select_from(Participant)
+    ) or 0
+    avg_pod = round(total_participants / total_games, 1) if total_games else 0.0
+
+    cedh_games = db.session.scalar(
+        sa.select(func.count()).select_from(Game).where(Game.cedh.is_(True))
+    ) or 0
+    cedh_share = round(cedh_games / total_games * 100) if total_games else 0
+
+    kpis = {
+        'games': total_games,
+        'games_this_month': games_this_month,
+        'games_this_year': games_this_year,
+        'active_decks': active_decks,
+        'players': players,
+        'avg_pod': avg_pod,
+        'cedh_share': cedh_share,
+    }
+
+    # ── Game length (turns) histogram ───────────────────────────────────────
+    turns_list = list(db.session.scalars(
+        sa.select(Game.turns).where(Game.turns.isnot(None))
+    ).all())
+    gl_hist = _histogram(Counter(turns_list))
+    gl_axis_max = _nice_axis_max(max((b['count'] for b in gl_hist), default=0))
+    game_length = {
+        'hist': gl_hist,
+        'avg': round(statistics.mean(turns_list), 1) if turns_list else 0,
+        'median': round(statistics.median(turns_list), 1) if turns_list else 0,
+        'max': max(turns_list) if turns_list else 0,
+        'axis_max': gl_axis_max,
+        'axis_ticks': _axis_ticks(gl_axis_max),
+    }
+
+    # ── First kill (first_ko_turn) histogram ────────────────────────────────
+    ko_list = list(db.session.scalars(
+        sa.select(Game.first_ko_turn).where(Game.first_ko_turn.isnot(None))
+    ).all())
+    fk_hist = _histogram(Counter(ko_list))
+    fk_axis_max = _nice_axis_max(max((b['count'] for b in fk_hist), default=0))
+    first_kill = {
+        'hist': fk_hist,
+        'avg': round(statistics.mean(ko_list), 1) if ko_list else 0,
+        'median': round(statistics.median(ko_list), 1) if ko_list else 0,
+        'fastest': min(ko_list) if ko_list else 0,
+        'axis_max': fk_axis_max,
+        'axis_ticks': _axis_ticks(fk_axis_max),
+    }
+
+    # ── Final blow breakdown (as % of games with a recorded final blow) ──────
+    fb_list = list(db.session.scalars(
+        sa.select(Game.final_blow).where(Game.final_blow.isnot(None))
+    ).all())
+    fb_total = len(fb_list)
+    final_blow = [
+        {'label': label, 'count': count,
+         'pct': round(count / fb_total * 100) if fb_total else 0}
+        for label, count in Counter(fb_list).most_common()
+    ]
+
+    # ── Color at the table (v_color_usage: likelihood %, avg decks/table) ────
+    # Fixed WUBRG order with display names; the view is keyed by color name.
+    _color_order = [
+        ('white', 'White'), ('blue', 'Blue'), ('black', 'Black'),
+        ('red', 'Red'), ('green', 'Green'),
+    ]
+    rows = {r.color.lower(): r for r in ColorUsage.query.all()}
+    colors = []
+    for key, name in _color_order:
+        row = rows.get(key) or rows.get(name.lower())
+        colors.append({
+            'key': key,
+            'name': name,
+            'likelihood': round(row.likelihood, 1) if row and row.likelihood is not None else 0.0,
+            'avg_decks': round(row.average, 1) if row and row.average is not None else 0.0,
+        })
+
+    # ── Pod size split ──────────────────────────────────────────────────────
+    # Count participants per game, then tally how many games had each pod size.
+    size_rows = db.session.execute(
+        sa.select(Participant.game_id, func.count().label('n'))
+        .group_by(Participant.game_id)
+    ).all()
+    # Only real multiplayer pods (3+). 1- and 2-player games are excluded as
+    # they are not representative Commander tables.
+    size_counter = Counter(r.n for r in size_rows if r.n >= 3)
+    pod_games = sum(size_counter.values())
+    pod_split = [
+        {'size': size, 'count': size_counter.get(size, 0),
+         'pct': round(size_counter.get(size, 0) / pod_games * 100) if pod_games else 0}
+        for size in sorted(size_counter)
+    ]
+
+    # ── Turn-order win bias (win% by seat, across all games) ─────────────────
+    # Turn-order win bias is only meaningful within a SINGLE pod size: only
+    # then does every seat share the same denominator, do the per-seat win
+    # rates sum to 100%, and is the "fair = 1/N" baseline actually correct.
+    # Mixing pod sizes would give each seat a different denominator (seat 4
+    # exists only in 4-player games) and a meaningless single fair line.
+    #
+    # We report the bias for the playgroup's MOST COMMON pod size, restricted
+    # to fully-seated games of that size (every participant has a distinct
+    # seat 1..N). ``seat_pod_size`` tells the template which size this is so it
+    # can label the panel and draw the correct fair line (100/N %).
+    _row_count = func.count(Participant.player_id)        # participants in game
+    _seat_count = func.count(Participant.seat)            # non-NULL seats
+    _distinct_seats = func.count(func.distinct(Participant.seat))
+    fully_seated_stmt = (
+        sa.select(Participant.game_id, _row_count.label('size'))
+        .group_by(Participant.game_id)
+        .having(sa.and_(
+            _row_count >= 3,                 # real multiplayer pods only
+            _seat_count == _row_count,       # every participant has a seat
+            _distinct_seats == _row_count,   # seats are unique and complete 1..N
+        ))
+    )
+    fully_seated = db.session.execute(fully_seated_stmt).all()
+
+    # Pick the most common fully-seated pod size.
+    size_tally = Counter(r.size for r in fully_seated)
+    seat_pod_size = size_tally.most_common(1)[0][0] if size_tally else 0
+    eligible_ids = {r.game_id for r in fully_seated if r.size == seat_pod_size}
+    seat_games = len(eligible_ids)
+
+    seat_bias = []
+    if eligible_ids:
+        seat_rows = db.session.execute(
+            sa.select(
+                Participant.seat,
+                func.count().label('games'),
+                func.sum(sa.case((Game.winner_id == Participant.player_id, 1), else_=0)).label('wins'),
+            )
+            .join(Game, Game.id == Participant.game_id)
+            .where(Participant.game_id.in_(eligible_ids))
+            .group_by(Participant.seat)
+            .order_by(Participant.seat)
+        ).all()
+        seat_bias = [
+            {'seat': r.seat, 'games': r.games, 'wins': int(r.wins or 0),
+             'winrate': round((r.wins or 0) / r.games * 100, 1) if r.games else 0.0}
+            for r in seat_rows
+        ]
+
+    # ── Removal matrix: avg removal_played & targeted_by_removal, all vs winner
+    def _avg(col, winners_only: bool):
+        stmt = sa.select(func.avg(col)).select_from(Participant)
+        if winners_only:
+            stmt = stmt.join(Game, Game.id == Participant.game_id).where(
+                Game.winner_id == Participant.player_id
+            )
+        stmt = stmt.where(col.isnot(None))
+        val = db.session.scalar(stmt)
+        return round(float(val), 1) if val is not None else 0.0
+
+    # Number of distinct games that have ANY removal data recorded — the games
+    # the removal averages are based on (removal is tracked irregularly).
+    removal_games = db.session.scalar(
+        sa.select(func.count(func.distinct(Participant.game_id)))
+        .where(sa.or_(
+            Participant.removal_played.isnot(None),
+            Participant.targeted_by_removal.isnot(None),
+        ))
+    ) or 0
+
+    removal = {
+        'played_all': _avg(Participant.removal_played, False),
+        'played_win': _avg(Participant.removal_played, True),
+        'targeted_all': _avg(Participant.targeted_by_removal, False),
+        'targeted_win': _avg(Participant.targeted_by_removal, True),
+        'games': removal_games,
+    }
+
+    return {
+        'kpis': kpis,
+        'game_length': game_length,
+        'first_kill': first_kill,
+        'final_blow': final_blow,
+        'colors': colors,
+        'pod_split': pod_split,
+        'seat_bias': seat_bias,
+        'seat_pod_size': seat_pod_size,
+        'seat_games': seat_games,
+        'removal': removal,
+    }

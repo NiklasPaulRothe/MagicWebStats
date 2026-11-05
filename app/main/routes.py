@@ -1,5 +1,4 @@
 import logging
-from datetime import date, timedelta
 
 from app import db
 from app.main import bp
@@ -9,13 +8,12 @@ import sqlalchemy as sa
 
 logger = logging.getLogger(__name__)
 
-from app.models import User, Player, Game, Participant
+from app.models import User, Player
 from app.services.stats_service import (
-    compute_chart_data,
     compute_player_overview,
     build_player_profile,
+    compute_playgroup_dashboard,
 )
-from app.viewmodels import ColorUsage, ColorUsagePlayer
 
 
 def resolve_player(identifier):
@@ -50,62 +48,37 @@ def healthz():
 @bp.route('/index')
 @login_required
 def index():
-    color_usage = ColorUsage.query.all()
+    """Playgroup dashboard — the landing page.
 
-    # Only include players who have played at least one game in the last year
-    one_year_ago = date.today() - timedelta(days=365)
-    active_player_stmt = (
-        sa.select(Player.name)
-        .join(Participant, Participant.player_id == Player.id)
-        .join(Game, Game.id == Participant.game_id)
-        .where(Game.date >= one_year_ago)
-        .distinct()
-    )
-    active_player_names = set(db.session.scalars(active_player_stmt).all())
-    color_usage_player = [
-        cup for cup in ColorUsagePlayer.query.all()
-        if cup.Player in active_player_names
-    ]
-
-    color_usage_data = [
-        {
-            'color': cu.color,
-            'likelihood': cu.likelihood,
-            'average': cu.average,
-            'deck_percentage': cu.deck_percentage
-        } for cu in color_usage
-    ]
-
-    # Chart data computed via service layer
+    Renders aggregate, playgroup-wide metadata (see
+    stats_service.compute_playgroup_dashboard): KPI band, game-length and
+    first-kill histograms, finisher breakdown, color-at-the-table, pod-size
+    split, turn-order win bias and the removal matrix. On any computation
+    error it falls back to an empty structure so the page still renders.
+    """
     try:
-        chart_data = compute_chart_data(exclude_cedh=True)
+        data = compute_playgroup_dashboard()
     except Exception:
-        logger.exception("Failed to compute chart data")
+        logger.exception("Failed to compute playgroup dashboard")
         db.session.rollback()
-        chart_data = {
-            "turn_data": [],
-            "ko_turn_data": [],
-            "avg_turns": 0,
-            "median_turns": 0,
-            "avg_ko_turns": 0,
-            "median_ko_turns": 0,
-            "final_blow_data": {},
-            "first_ko_data": {},
+        data = {
+            'kpis': {'games': 0, 'games_this_month': 0, 'games_this_year': 0,
+                     'active_decks': 0, 'players': 0, 'avg_pod': 0.0, 'cedh_share': 0},
+            'game_length': {'hist': [], 'avg': 0, 'median': 0, 'max': 0,
+                            'axis_max': 1, 'axis_ticks': [1, 0]},
+            'first_kill': {'hist': [], 'avg': 0, 'median': 0, 'fastest': 0,
+                           'axis_max': 1, 'axis_ticks': [1, 0]},
+            'final_blow': [],
+            'colors': [],
+            'pod_split': [],
+            'seat_bias': [],
+            'seat_pod_size': 0,
+            'seat_games': 0,
+            'removal': {'played_all': 0.0, 'played_win': 0.0,
+                        'targeted_all': 0.0, 'targeted_win': 0.0, 'games': 0},
         }
 
-    return render_template(
-        'index.html',
-        color_usage=color_usage_data,
-        color_usage_player=color_usage_player,
-        turn_data=chart_data["turn_data"],
-        final_blow_data=chart_data["final_blow_data"],
-        first_ko_data=chart_data["first_ko_data"],
-        ko_turn_data=chart_data["ko_turn_data"],
-        avg_turns=chart_data["avg_turns"],
-        median_turns=chart_data["median_turns"],
-        avg_ko_turns=chart_data["avg_ko_turns"],
-        median_ko_turns=chart_data["median_ko_turns"]
-    )
+    return render_template('index.html', **data)
 
 
 @bp.route('/user/<identifier>')
