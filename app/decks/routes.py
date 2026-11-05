@@ -18,7 +18,7 @@ from app.services.deck_service import (
     archive_deck, dearchive_deck, update_decklist,
     build_game_history,
 )
-from app.services.elo_service import recalculate_all_elo
+from app.services.elo_service import recalculate_all_elo, DECK_OWNER_OVERRIDE_PLAYER_ID
 from app.services.stats_service import compute_participant_averages, compute_deck_performance
 
 # --- CSRF Audit (Requirement 16.1) ---
@@ -177,9 +177,19 @@ def deck_show(deckname):
     user = db.session.execute(sa.select(models.User).where(models.User.username == current_user.username)).scalar_one()
     is_owner = (deck.player_id == user.player_id)
 
+    # Shared/community "precon" decks (owner == DECK_OWNER_OVERRIDE_PLAYER_ID) are
+    # played by many different people, so their stats count EVERY game the deck
+    # appears in, regardless of pilot. A normal deck still counts only the games
+    # its owner piloted. The pilot of each game is surfaced separately (see
+    # build_game_history / compute_deck_performance) via the deck_id match.
+    is_shared_deck = (deck.player_id == DECK_OWNER_OVERRIDE_PLAYER_ID)
+    participant_filter = [models.Participant.deck_id == deck.id]
+    if not is_shared_deck:
+        participant_filter.append(models.Participant.player_id == deck.player_id)
+
     participants = db.session.scalars(
         sa.select(models.Participant)
-        .where(models.Participant.player_id == deck.player_id, models.Participant.deck_id == deck.id)
+        .where(*participant_filter)
         .order_by(models.Participant.game_id.desc())
     ).all()
 
@@ -287,6 +297,24 @@ def deck_show(deckname):
         # Sort newest first
         private_comments.sort(key=lambda x: x["date"], reverse=True)
 
+    # For a shared "precon" deck, summarise who piloted it (name -> game count),
+    # most-played first, so the overview shows the pilots at a glance.
+    pilot_summary = []
+    if is_shared_deck and participants:
+        pilot_counts = defaultdict(int)
+        for p in participants:
+            pilot_counts[p.player_id] += 1
+        pilot_players = {
+            pl.id: pl.name for pl in db.session.scalars(
+                sa.select(models.Player).where(models.Player.id.in_(pilot_counts.keys()))
+            ).all()
+        }
+        pilot_summary = sorted(
+            ({"name": pilot_players.get(pid, "Unknown"), "games": cnt}
+             for pid, cnt in pilot_counts.items()),
+            key=lambda x: (-x["games"], x["name"]),
+        )
+
     return render_template(
         'decks/show.html',
         deckname=deck.name,
@@ -296,6 +324,8 @@ def deck_show(deckname):
         deck_stats=deck_stats,
         deck_stats_by_size=deck_stats_by_size,
         is_owner=is_owner,
+        is_shared_deck=is_shared_deck,
+        pilot_summary=pilot_summary,
         achievements=achievements,
         show_private_avgs=show_private_avgs,
         participant_avgs=participant_avgs,

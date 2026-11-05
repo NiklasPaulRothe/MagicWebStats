@@ -268,6 +268,17 @@ def compute_deck_performance(
     """
     game_ids = [p.game_id for p in participants]
 
+    # The pilot of this deck in each game is the player_id on that game's
+    # participant row for this deck. For a normal deck that is always the owner;
+    # for a shared "precon" deck it varies. A game counts as a win for the deck
+    # when the game's winner is whoever piloted THIS deck that game -- not
+    # necessarily deck.player_id. ``pilot_in_game`` maps game_id -> pilot
+    # player_id so wins are attributed to the deck regardless of who played it.
+    pilot_in_game = {p.game_id: p.player_id for p in participants}
+
+    def _deck_won(game) -> bool:
+        return game.winner_id == pilot_in_game.get(game.id)
+
     if not game_ids:
         return {
             'games': 0,
@@ -288,13 +299,13 @@ def compute_deck_performance(
 
     # Overall stats
     total_games = len(game_ids)
-    wins = sum(1 for gid in game_ids if games.get(gid) and games[gid].winner_id == deck.player_id)
+    wins = sum(1 for gid in game_ids if games.get(gid) and _deck_won(games[gid]))
     winrate = round((wins / total_games) * 100, 1) if total_games else 0
 
     # Win turn stats
     win_turns = [
         games[gid].turns for gid in game_ids
-        if games.get(gid) and games[gid].winner_id == deck.player_id and games[gid].turns
+        if games.get(gid) and _deck_won(games[gid]) and games[gid].turns
     ]
 
     # Pod size breakdown
@@ -309,7 +320,7 @@ def compute_deck_performance(
         num_players = len(participants_by_game.get(gid, []))
         if num_players in (3, 4, 5):
             total_by_size[num_players] += 1
-            if game.winner_id == deck.player_id:
+            if _deck_won(game):
                 wins_by_size[num_players] += 1
                 if game.turns:
                     win_turns_by_size[num_players].append(game.turns)

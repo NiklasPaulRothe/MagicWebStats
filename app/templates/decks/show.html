@@ -94,6 +94,21 @@
                     </div>
                 </div>
 
+                {% if is_shared_deck and pilot_summary %}
+                <!-- Pilots (shared/precon deck: who played it, how often) -->
+                <div class="stats-section">
+                    <h4 class="stats-section-title">Pilots</h4>
+                    <div class="stats-grid">
+                        {% for pilot in pilot_summary %}
+                        <div class="stat-item">
+                            <span class="stat-label">{{ pilot.name }}</span>
+                            <span class="stat-value">{{ pilot.games }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Win Turn Stats -->
                 <div class="stats-section">
                     <h4 class="stats-section-title">Win Turn Statistics</h4>
@@ -527,6 +542,7 @@
             <thead>
                 <tr>
                     <th>Datum</th>
+                    {% if is_shared_deck %}<th>Pilot</th>{% endif %}
                     <th>Gegner</th>
                     <th>Sieger</th>
                     <th>Turns</th>
@@ -537,6 +553,7 @@
             {% for game in games %}
                 <tr class="{{ 'game-win' if game.is_win else '' }}">
                     <td>{{ game.datum }}</td>
+                    {% if is_shared_deck %}<td><strong>{{ game.pilot }}</strong></td>{% endif %}
                     <td>
                         <div class="opponent-row">
                             {% for opponent in game.gegner %}
@@ -556,7 +573,7 @@
                 </tr>
                 {% if show_private_avgs and game.participant_data %}
                 <tr class="participant-detail-row">
-                    <td colspan="5" style="padding: 16px; background-color: #252525;">
+                    <td colspan="{{ 6 if is_shared_deck else 5 }}" style="padding: 16px; background-color: #252525;">
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px;">
                             {% set pd = game.participant_data %}
                             
