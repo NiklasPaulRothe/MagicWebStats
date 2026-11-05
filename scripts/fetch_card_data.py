@@ -681,13 +681,14 @@ if __name__ == '__main__':
             cur.execute("DELETE FROM magic_stats_owner.card_legalities WHERE card_id IN %s", (id_tuple,))
 
             execute_values(cur, """
-                INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at)
+                INSERT INTO magic_stats_owner.cards (id, oracle_id, name, mana_cost, cmc, type_line, oracle_text, layout, set_code, set_name, rarity, released_at, price_eur, price_eur_foil)
                 VALUES %s
                 ON CONFLICT (id) DO UPDATE SET
                     oracle_id = EXCLUDED.oracle_id, name = EXCLUDED.name, mana_cost = EXCLUDED.mana_cost,
                     cmc = EXCLUDED.cmc, type_line = EXCLUDED.type_line, oracle_text = EXCLUDED.oracle_text,
                     layout = EXCLUDED.layout, set_code = EXCLUDED.set_code, set_name = EXCLUDED.set_name,
-                    rarity = EXCLUDED.rarity, released_at = EXCLUDED.released_at
+                    rarity = EXCLUDED.rarity, released_at = EXCLUDED.released_at,
+                    price_eur = EXCLUDED.price_eur, price_eur_foil = EXCLUDED.price_eur_foil
             """, cards_batch)
 
             if faces_batch:
