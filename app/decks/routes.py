@@ -473,6 +473,12 @@ def dearchive(deck_id):
         abort(403)
     dearchive_deck(deck)
     db.session.commit()
+    # Reactivating from My Deck Stats returns there (archived view), so the
+    # user sees the remaining archived decks. Fixed whitelist value — never a
+    # caller-supplied URL (no open redirect).
+    if request.form.get('return_to') == 'mydeckstats':
+        flash(f'"{deck.name}" is active again.')
+        return redirect(url_for('main.user', identifier=deck.player_id, view='archived'))
     return redirect(url_for('decks.deck_archive', player_name=player_name))
 
 

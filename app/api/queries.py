@@ -152,6 +152,7 @@ class DeckDataResult(TypedDict):
 
 
 class UserDeckResult(TypedDict):
+    deck_id: int
     name: str
     commander: str
     color_identity: str
@@ -159,7 +160,10 @@ class UserDeckResult(TypedDict):
     last_played: Optional[date]  # None if never played
     wins: int
     winrate_pct: Optional[float]  # None when games == 0
+    avg_win_turns: Optional[float]  # None when this player has no counted wins
+    win_turns_count: int
     decklist: Optional[str]
+    image_uri: Optional[str]
     color_imgs: list[str]
     tags: list[str]
 
@@ -170,10 +174,45 @@ class UserDeckArchiveResult(TypedDict):
     commander: str
     color_identity: str
     games: int
+    last_played: Optional[date]
     wins: int
     winrate_pct: Optional[float]
+    avg_win_turns: Optional[float]
+    win_turns_count: int
     decklist: Optional[str]
+    image_uri: Optional[str]
     color_imgs: list[str]
+    tags: list[str]
+
+
+def _player_win_turn_subqueries(player_id: int):
+    """Correlated (avg win turn, counted wins) for ``player_id`` piloting ``Deck``.
+
+    Mirrors get_deck_data's avg_win_turns / win_turns_count but restricted to
+    the given player's own wins with the deck (the My Deck Stats view counts
+    only that player's games, like its games/wins columns). Games without a
+    recorded turn count are ignored by AVG and excluded from the count.
+    """
+    base = (
+        select()
+        .select_from(Game)
+        .join(Participant, Participant.game_id == Game.id)
+        .where(Game.winner_id == Participant.player_id)
+        .where(Participant.deck_id == Deck.id)
+        .where(Participant.player_id == player_id)
+    )
+    avg_win_turns = (
+        base.add_columns(func.round(func.avg(Game.turns), 2))
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    win_turns_count = (
+        base.add_columns(func.count())
+        .where(Game.turns.isnot(None))
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    return avg_win_turns, win_turns_count
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +258,18 @@ def get_user_decks_archive(session: Session, player_id: int) -> list[UserDeckArc
         Numeric(10, 2),
     )
 
+    # Last played: most recent game this player piloted the deck in.
+    last_played = (
+        select(func.max(Game.date))
+        .select_from(Game)
+        .join(Participant, Participant.game_id == Game.id)
+        .where(Participant.deck_id == Deck.id)
+        .where(Participant.player_id == player_id)
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    avg_win_turns, win_turns_count = _player_win_turn_subqueries(player_id)
+
     # Main query: inactive decks for the specified player
     stmt = (
         select(
@@ -227,9 +278,13 @@ def get_user_decks_archive(session: Session, player_id: int) -> list[UserDeckArc
             Deck.commander,
             Deck.color_identity,
             game_count.label("games"),
+            last_played.label("last_played"),
             win_count.label("wins"),
             winrate.label("winrate_pct"),
+            avg_win_turns.label("avg_win_turns"),
+            win_turns_count.label("win_turns_count"),
             Deck.decklist,
+            Deck.image_uri,
         )
         .where(Deck.player_id == player_id)
         .where(Deck.active == False)  # noqa: E712
@@ -259,10 +314,15 @@ def get_user_decks_archive(session: Session, player_id: int) -> list[UserDeckArc
                 commander=row.commander,
                 color_identity=row.color_identity,
                 games=row.games,
+                last_played=row.last_played,
                 wins=row.wins,
                 winrate_pct=float(row.winrate_pct) if row.winrate_pct is not None else None,
+                avg_win_turns=float(row.avg_win_turns) if row.avg_win_turns is not None else None,
+                win_turns_count=row.win_turns_count or 0,
                 decklist=row.decklist,
+                image_uri=row.image_uri,
                 color_imgs=color_imgs,
+                tags=_get_tags_for_deck(session, row.id),
             )
         )
 
@@ -811,6 +871,8 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
         Numeric(10, 2),
     )
 
+    avg_win_turns, win_turns_count = _player_win_turn_subqueries(player_id)
+
     # Main query: active decks belonging to the specified player
     stmt = (
         select(
@@ -822,7 +884,10 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
             last_played.label("last_played"),
             win_count.label("wins"),
             winrate.label("winrate_pct"),
+            avg_win_turns.label("avg_win_turns"),
+            win_turns_count.label("win_turns_count"),
             Deck.decklist,
+            Deck.image_uri,
         )
         .where(Deck.player_id == player_id)
         .where(Deck.active == True)  # noqa: E712
@@ -839,6 +904,7 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
 
         results.append(
             UserDeckResult(
+                deck_id=row.deck_id,
                 name=row.name,
                 commander=row.commander,
                 color_identity=row.color_identity,
@@ -846,7 +912,10 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
                 last_played=row.last_played,
                 wins=row.wins,
                 winrate_pct=float(row.winrate_pct) if row.winrate_pct is not None else None,
+                avg_win_turns=float(row.avg_win_turns) if row.avg_win_turns is not None else None,
+                win_turns_count=row.win_turns_count or 0,
                 decklist=row.decklist,
+                image_uri=row.image_uri,
                 color_imgs=color_imgs,
                 tags=tags,
             )

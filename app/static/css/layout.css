@@ -331,6 +331,9 @@ body {
     max-width: var(--content-max);
     margin: 0 auto;
 }
+/* Opt-in wider content for grid pages (e.g. My Deck Stats: up to 5 cards per
+   row on large monitors). Set via {% block main_inner_class %} in a template. */
+.app-main__inner--wide { max-width: 1760px; }
 
 /* ── Flash messages ──────────────────────────────────────────────────────── */
 .flash-stack {

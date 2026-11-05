@@ -190,7 +190,7 @@
 
         <!-- ── Main content ────────────────────────────────────────────── -->
         <main class="app-main" id="main-content">
-            <div class="app-main__inner">
+            <div class="app-main__inner {% block main_inner_class %}{% endblock %}">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                 <ul class="flash-stack">

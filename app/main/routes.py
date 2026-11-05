@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 from app.models import User, Player
 from app.services.stats_service import (
-    compute_player_overview,
     build_player_profile,
     compute_playgroup_dashboard,
 )
@@ -111,13 +110,13 @@ def user(identifier):
         owner = False
         username = None
 
-    player_stats = compute_player_overview(spieler.id)
+    # The deck cards and the summary line are built client-side from
+    # /api/userdecks (mydeckstats.js), so no server-side aggregates are needed.
     return render_template(
         'decks.html',
         spieler=spieler,
         owner=owner,
-        username=username,
-        player_stats=player_stats)
+        username=username)
 
 @bp.route('/player/<identifier>')
 @login_required
