@@ -319,6 +319,13 @@ def deck_show(deckname):
         'decks/show.html',
         deckname=deck.name,
         deck_version=f"{deck.version}.{deck.patch}.{deck.change}",
+        owner_name=deck.player_rel.name if deck.player_rel else "",
+        color_identity=deck.color_identity,
+        updated_on=deck.last_change.strftime("%b %d") if deck.last_change else None,
+        decklist_url=deck.decklist or deck.decksite,
+        # Rating is only shown once the deck has >= 5 counted games (else unrated).
+        elo=(round(deck.elo_rating) if deck.elo_rating is not None and (deck.elo_games or 0) >= 5 else None),
+        elo_rd=(round(deck.elo_rd) if deck.elo_rd is not None else None),
         commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
         deck_stats=deck_stats,

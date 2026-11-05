@@ -213,6 +213,41 @@
     display: block;
 }
 
+/* ── Prev / Next pager (deck stats table, deck detail game history) ───────── */
+.ptable-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+}
+.pager__status {
+    color: var(--color-faint);
+    font-size: var(--fs-sm);
+    font-variant-numeric: tabular-nums;
+}
+.pager__btn {
+    background: none;
+    border: 1px solid var(--color-accent);
+    color: var(--color-accent);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--fs-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+}
+.pager__btn:hover:not(:disabled) {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+}
+.pager__btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    border-color: var(--accent-border);
+    color: var(--color-faint);
+}
+
 /* ── Responsive ───────────────────────────────────────────────────────────
    The table stays content-sized and scrolls horizontally inside its wrapper
    on narrow screens (the wrapper is capped at the panel width). We only shrink
