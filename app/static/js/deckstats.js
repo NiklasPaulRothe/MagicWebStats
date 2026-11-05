@@ -80,19 +80,43 @@ document.addEventListener('DOMContentLoaded', function () {
     const filterBtn = document.getElementById('spieler-filter-btn');
     const filterDropdown = document.getElementById('spieler-filter-dropdown');
 
+    // The dropdown is position:fixed (outside the clipping table), placed in
+    // viewport coordinates right under the ▾ button.
+    function closeFilter() {
+        filterDropdown.style.display = 'none';
+        filterBtn.setAttribute('aria-expanded', 'false');
+    }
+
     filterBtn.addEventListener('click', function (event) {
         event.stopPropagation(); // prevent table header sort
-        filterDropdown.style.display = filterDropdown.style.display === 'block' ? 'none' : 'block';
+        if (filterDropdown.style.display === 'block') {
+            closeFilter();
+            return;
+        }
         const rect = filterBtn.getBoundingClientRect();
-        filterDropdown.style.left = `${rect.left}px`;
-        filterDropdown.style.top = `${rect.bottom}px`;
+        filterDropdown.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 200))}px`;
+        filterDropdown.style.top = `${rect.bottom + 4}px`;
+        filterDropdown.style.display = 'block';
+        filterBtn.setAttribute('aria-expanded', 'true');
     });
 
     document.addEventListener('click', function (event) {
-        if (!filterDropdown.contains(event.target) && event.target !== filterBtn) {
-            filterDropdown.style.display = 'none';
+        if (!filterDropdown.contains(event.target) && event.target !== filterBtn) closeFilter();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && filterDropdown.style.display === 'block') {
+            closeFilter();
+            filterBtn.focus();
         }
     });
+    // A fixed dropdown would drift away from its button: close on scroll/resize
+    // (but not when scrolling the dropdown's own list).
+    // Capture phase catches scrolling of ANY container (window, app shell,
+    // table wrapper), since scroll events don't bubble.
+    document.addEventListener('scroll', function (event) {
+        if (filterDropdown.style.display === 'block' && !filterDropdown.contains(event.target)) closeFilter();
+    }, { capture: true, passive: true });
+    window.addEventListener('resize', closeFilter);
 
     function populateSpielerFilter(filterId, data) {
         const dropdown = document.getElementById(filterId);

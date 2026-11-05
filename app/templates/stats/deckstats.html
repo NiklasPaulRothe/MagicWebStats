@@ -39,8 +39,13 @@
                     <th data-type="string" data-key="deck_name">Deck</th>
                     <th data-type="string" data-key="player_name">
                         Player
-                        <button class="filter-btn" id="spieler-filter-btn" aria-label="Filter players">▾</button>
-                        <div class="filter-dropdown" id="spieler-filter-dropdown" style="display: none;"></div>
+                        <button type="button" class="filter-btn" id="spieler-filter-btn"
+                                aria-label="Filter players" aria-haspopup="true" aria-expanded="false"
+                                aria-controls="spieler-filter-dropdown" title="Filter players">
+                            <svg class="filter-btn__icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+                                <path d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4z" fill="currentColor"/>
+                            </svg>
+                        </button>
                     </th>
                     <th data-type="string" data-key="commander">Commander</th>
                     <th data-type="string" data-key="color_identity">Colors</th>
@@ -54,6 +59,12 @@
             <tbody></tbody>
         </table>
     </div>
+
+    {# Player filter dropdown lives OUTSIDE the table: the header cells clip
+       their content (fixed layout + overflow:hidden) and the wrapper scrolls,
+       so a dropdown inside the <th> would be cut off. It is position:fixed and
+       placed under the ▾ button by deckstats.js. #}
+    <div class="filter-dropdown" id="spieler-filter-dropdown" style="display: none;"></div>
 
     <nav class="ptable-pager" id="deck-pager-bottom" aria-label="Deck table pages (bottom)">
         <button type="button" class="pager__btn" data-page="prev">‹ Prev</button>
