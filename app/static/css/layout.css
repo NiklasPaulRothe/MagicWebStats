@@ -11,8 +11,8 @@
    Responsive model
    ----------------
      Desktop (>= 1024px): sidebar is a persistent fixed rail; content is
-       offset by its width. A ".is-collapsed" modifier (toggled by JS and
-       remembered in localStorage) shrinks it to an icon-only rail.
+       offset by its width. A ".is-collapsed" modifier (toggled by the collapse
+       button, remembered in localStorage) shrinks it to an icon-only rail.
      Mobile (< 1024px): sidebar becomes an off-canvas drawer, hidden by
        default and slid in over a backdrop. Works with no JS via the
        #nav-toggle checkbox; JS layers on Esc / backdrop / close-on-navigate.
@@ -119,16 +119,6 @@ body {
     text-decoration: none;
     white-space: nowrap;
     overflow: hidden;
-}
-.sidebar__brand-mark {
-    flex: 0 0 auto;
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--color-accent);
-    border-radius: var(--radius-sm);
-    font-size: var(--fs-md);
 }
 .sidebar__brand-text { font-size: var(--fs-lg); }
 
@@ -384,14 +374,14 @@ body {
     .sidebar__collapse { display: inline-grid; place-items: center; }
 
     .app-shell.is-collapsed .sidebar { width: var(--sidebar-width-collapsed); }
+    .app-shell.is-collapsed .app-main,
+    .app-shell.is-collapsed .app-footer { margin-left: var(--sidebar-width-collapsed); }
 
     /* Point the chevron the other way + recenter it when collapsed. */
     .app-shell.is-collapsed .sidebar__collapse { transform: rotate(180deg); margin-right: 0; }
     .app-shell.is-collapsed .sidebar__header { justify-content: center; }
-    .app-shell.is-collapsed .app-main,
-    .app-shell.is-collapsed .app-footer { margin-left: var(--sidebar-width-collapsed); }
 
-    /* Hide text, center icons, hide section labels + account meta. */
+    /* Hide text, section labels + account meta so only icons remain. */
     .app-shell.is-collapsed .sidebar__brand-text,
     .app-shell.is-collapsed .nav-link__text,
     .app-shell.is-collapsed .nav-group__label,

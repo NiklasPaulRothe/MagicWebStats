@@ -119,7 +119,7 @@
         }
     } catch (err) { /* localStorage may be blocked; ignore */ }
 
-    // Optional collapse control: any element with id="nav-collapse" toggles it.
+    // Collapse control: the #nav-collapse button toggles the icon-only rail.
     var collapseBtn = document.getElementById('nav-collapse');
     if (collapseBtn) {
         collapseBtn.addEventListener('click', function (e) {
