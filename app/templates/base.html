@@ -49,7 +49,6 @@
                             <a class="nav-link {% if request.endpoint == 'main.index' %}is-active{% endif %}"
                                href="{{ url_for('main.index') }}"
                                {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">▦</span>
                                 <span class="nav-link__text">Playgroup</span>
                             </a>
                         </li>
@@ -57,7 +56,6 @@
                             <a class="nav-link {% if request.endpoint == 'stats.playerstats' %}is-active{% endif %}"
                                href="{{ url_for('stats.playerstats') }}"
                                {% if request.endpoint == 'stats.playerstats' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">👥</span>
                                 <span class="nav-link__text">Players</span>
                             </a>
                         </li>
@@ -65,7 +63,6 @@
                             <a class="nav-link {% if request.endpoint == 'stats.colorstats' %}is-active{% endif %}"
                                href="{{ url_for('stats.colorstats') }}"
                                {% if request.endpoint == 'stats.colorstats' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">🎨</span>
                                 <span class="nav-link__text">Colors</span>
                             </a>
                         </li>
@@ -73,7 +70,6 @@
                             <a class="nav-link {% if request.endpoint == 'stats.deckstats' %}is-active{% endif %}"
                                href="{{ url_for('stats.deckstats') }}"
                                {% if request.endpoint == 'stats.deckstats' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">📈</span>
                                 <span class="nav-link__text">Decks</span>
                             </a>
                         </li>
@@ -89,7 +85,6 @@
                             <a class="nav-link {% if request.endpoint == 'main.player' %}is-active{% endif %}"
                                href="{{ url_for('main.player', identifier=current_user.player_id) }}"
                                {% if request.endpoint == 'main.player' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">🧙</span>
                                 <span class="nav-link__text">Profile</span>
                             </a>
                         </li>
@@ -97,7 +92,6 @@
                             <a class="nav-link {% if request.endpoint == 'main.user' %}is-active{% endif %}"
                                href="{{ url_for('main.user', identifier=current_user.player_id) }}"
                                {% if request.endpoint == 'main.user' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">📊</span>
                                 <span class="nav-link__text">My Deck Stats</span>
                             </a>
                         </li>
@@ -105,7 +99,6 @@
                             <a class="nav-link {% if request.endpoint == 'decks.my_decks' %}is-active{% endif %}"
                                href="{{ url_for('decks.my_decks') }}"
                                {% if request.endpoint == 'decks.my_decks' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">🂠</span>
                                 <span class="nav-link__text">My Decks</span>
                             </a>
                         </li>
@@ -113,7 +106,6 @@
                             <a class="nav-link {% if request.endpoint == 'collection.collection' %}is-active{% endif %}"
                                href="{{ url_for('collection.collection') }}"
                                {% if request.endpoint == 'collection.collection' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">📦</span>
                                 <span class="nav-link__text">Collection</span>
                             </a>
                         </li>
@@ -130,7 +122,6 @@
                             <a class="nav-link {% if request.endpoint == 'stats.game_hub' %}is-active{% endif %}"
                                href="{{ url_for('stats.game_hub') }}"
                                {% if request.endpoint == 'stats.game_hub' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">♟</span>
                                 <span class="nav-link__text">Games</span>
                             </a>
                         </li>
@@ -138,7 +129,6 @@
                             <a class="nav-link {% if request.endpoint == 'stats.game_add' %}is-active{% endif %}"
                                href="{{ url_for('stats.game_add') }}"
                                {% if request.endpoint == 'stats.game_add' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">＋</span>
                                 <span class="nav-link__text">Add Game</span>
                             </a>
                         </li>
@@ -155,7 +145,6 @@
                             <a class="nav-link {% if request.endpoint == 'auth.manage_roles' %}is-active{% endif %}"
                                href="{{ url_for('auth.manage_roles') }}"
                                {% if request.endpoint == 'auth.manage_roles' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">👤</span>
                                 <span class="nav-link__text">Roles</span>
                             </a>
                         </li>
@@ -163,14 +152,12 @@
                             <a class="nav-link {% if request.endpoint == 'stats.audit_log' %}is-active{% endif %}"
                                href="{{ url_for('stats.audit_log') }}"
                                {% if request.endpoint == 'stats.audit_log' %}aria-current="page"{% endif %}>
-                                <span class="nav-link__icon" aria-hidden="true">📜</span>
                                 <span class="nav-link__text">Audit Log</span>
                             </a>
                         </li>
                         <li>
                             <a class="nav-link nav-link--muted"
                                href="{{ url_for('decks.calculate_elo') }}">
-                                <span class="nav-link__icon" aria-hidden="true">↻</span>
                                 <span class="nav-link__text">Recalc Elo</span>
                             </a>
                         </li>
