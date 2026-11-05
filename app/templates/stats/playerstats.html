@@ -1,308 +1,168 @@
 {% extends "base.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/playerstats.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playertable.css') }}">
 {% endblock %}
 
 {% block content %}
-    <main>
-        <h2 class="page-title">Player Statistics</h2>
-        
-        <div class="stats-container">
-            <!-- Game Performance Stats -->
-            <div class="stats-section">
-                <h3 class="section-title">Game Performance</h3>
-                
-                <!-- Year Filter Buttons -->
-                <div class="filter-controls" id="year-filter-buttons">
-                    <button class="active" data-year="all">Overall</button>
-                </div>
+<header class="dash-head">
+    <h1 class="dash-title">Player statistics</h1>
+    <p class="dash-sub">Game performance across the playgroup</p>
+</header>
 
-                <!-- Filter Controls -->
-                <div class="filter-controls">
-                    <label for="min-games-filter">Min. Games:</label>
-                    <input type="number" id="min-games-filter" placeholder="0" min="0">
-                    <button id="apply-games-filter">Apply</button>
-                    <button id="reset-games-filter">Reset</button>
-                </div>
-                
-                <div class="table-wrapper">
-                    <table id="player-stats-table" class="modern-table">
-                        <thead>
-                            <tr>
-                                <th data-type="string" data-key="name">Player</th>
-                                <th data-type="number" data-key="games">Games</th>
-                                <th data-type="number" data-key="early_sol_ring">Early<br>Fast Mana</th>
-                                <th data-type="number" data-key="sol_ring_pct">Fast Mana<br>%</th>
-                                <th data-type="number" data-key="wins">Wins</th>
-                                <th data-type="number" data-key="winrate_pct">Winrate<br>%</th>
-                                <th data-type="number" data-key="first">First</th>
-                                <th data-type="number" data-key="first_pct">First<br>%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Player stats data will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Color Usage Stats -->
-            <div class="stats-section">
-                <h3 class="section-title">Color Usage</h3>
-                <div class="table-wrapper">
-                    <table id="color_usage_player" class="modern-table">
-                        <thead>
-                            <tr>
-                                <th data-type="string" data-key="player">Player</th>
-                                <th data-type="integer" data-key="decks">Decks</th>
-                                <th data-type="float" data-key="white">White</th>
-                                <th data-type="float" data-key="blue">Blue</th>
-                                <th data-type="float" data-key="black">Black</th>
-                                <th data-type="float" data-key="red">Red</th>
-                                <th data-type="float" data-key="green">Green</th>
-                                <th data-type="float" data-key="avg_colors">Avg Colors</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% for color in color_usage_player %}
-                            <tr>
-                                <td><a href="/player/{{ color.Player }}" class="player-link">{{ color.Player }}</a></td>
-                                <td>{{ color.Decks }}</td>
-                                <td>{{ color.white }}</td>
-                                <td>{{ color.blue }}</td>
-                                <td>{{ color.black }}</td>
-                                <td>{{ color.red }}</td>
-                                <td>{{ color.green }}</td>
-                                <td>{{ color.avg_number_of_colors }}</td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+<section class="panel">
+    <!-- Controls: year segmented control + min-games filter -->
+    <div class="ptable-controls">
+        <div class="seg" id="year-filter-buttons" role="group" aria-label="Filter by year">
+            <button type="button" class="seg__btn active" data-year="all">Overall</button>
         </div>
-    </main>
-    
-    <script>
-        let originalPlayerData = [];
-        let currentSort = { idx: null, asc: true, type: null };
-        let activeYear = 'all';
-        
-        function encode(value) {
-            return encodeURIComponent(value);
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            const yearContainer = document.getElementById('year-filter-buttons');
+        <div class="ptable-controls__spacer"></div>
+        <label class="ptable-controls__min" for="min-games-filter">Min games</label>
+        <input type="number" id="min-games-filter" min="0" placeholder="0" inputmode="numeric">
+        <button type="button" id="apply-games-filter" class="btn btn--ghost">Apply</button>
+        <button type="button" id="reset-games-filter" class="btn btn--ghost">Reset</button>
+    </div>
 
-            // Fetch available years and create buttons
-            fetch('/api/data/years')
-                .then(response => {
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return response.json();
-                })
-                .then(years => {
-                    years.forEach(year => {
-                        const btn = document.createElement('button');
-                        btn.setAttribute('data-year', year);
-                        btn.textContent = year;
-                        yearContainer.appendChild(btn);
-                    });
-                    attachYearListeners();
-                })
-                .catch(err => {
-                    console.error('Failed to load years:', err);
-                });
+    <div class="ptable-wrap">
+        <table id="player-stats-table" class="ptable">
+            <thead>
+                <tr>
+                    <th data-type="string" data-key="name">Player</th>
+                    <th data-type="number" data-key="games">Games</th>
+                    <th data-type="number" data-key="wins">Wins</th>
+                    <th data-type="number" data-key="winrate_pct">Winrate %</th>
+                    <th data-type="number" data-key="first">First</th>
+                    <th data-type="number" data-key="first_pct">First %</th>
+                    <th data-type="number" data-key="early_sol_ring">Fast Mana</th>
+                    <th data-type="number" data-key="sol_ring_pct">Fast Mana %</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</section>
 
-            // Fetch overall data initially
-            fetch('/api/data')
-                .then(response => {
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    originalPlayerData = data;
-                    renderFilteredTable();
-                })
+<script>
+    let originalPlayerData = [];
+    // Default order: most games played (descending). idx 1 = Games column.
+    let currentSort = { idx: 1, asc: false, type: 'number' };
+    let activeYear = 'all';
+
+    function encode(value) { return encodeURIComponent(value); }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const yearContainer = document.getElementById('year-filter-buttons');
+
+        function loadData(url) {
+            return fetch(url)
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(data => { originalPlayerData = data; renderTable(); })
                 .catch(err => {
                     console.error('Failed to load player data:', err);
                     const tbody = document.querySelector('#player-stats-table tbody');
                     if (tbody) {
-                        const colCount = document.querySelectorAll('#player-stats-table thead th').length;
-                        tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
+                        const cols = document.querySelectorAll('#player-stats-table thead th').length;
+                        tbody.innerHTML = `<tr><td colspan="${cols}" class="ptable__empty">Daten konnten nicht geladen werden.</td></tr>`;
                     }
                 });
+        }
 
-            function attachYearListeners() {
-                yearContainer.querySelectorAll('button').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const year = this.getAttribute('data-year');
-                        yearContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                        this.classList.add('active');
-                        activeYear = year;
-
-                        const url = year === 'all' ? '/api/data' : `/api/data/${year}`;
-                        fetch(url)
-                            .then(response => {
-                                if (!response.ok) throw new Error('HTTP ' + response.status);
-                                return response.json();
-                            })
-                            .then(data => {
-                                originalPlayerData = data;
-                                renderFilteredTable();
-                            })
-                            .catch(err => {
-                                console.error('Failed to load player data:', err);
-                                const tbody = document.querySelector('#player-stats-table tbody');
-                                if (tbody) {
-                                    const colCount = document.querySelectorAll('#player-stats-table thead th').length;
-                                    tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
-                                }
-                            });
-                    });
+        // Year filter buttons.
+        fetch('/api/data/years')
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(years => {
+                years.forEach(year => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'seg__btn';
+                    btn.setAttribute('data-year', year);
+                    btn.textContent = year;
+                    yearContainer.appendChild(btn);
                 });
-            }
+                attachYearListeners();
+            })
+            .catch(err => console.error('Failed to load years:', err));
 
-            // Apply filter button
-            document.getElementById('apply-games-filter').addEventListener('click', renderFilteredTable);
-            
-            // Reset filter button
-            document.getElementById('reset-games-filter').addEventListener('click', () => {
-                document.getElementById('min-games-filter').value = '';
-                currentSort = { idx: null, asc: true, type: null };
-                renderFilteredTable();
+        loadData('/api/data');
+
+        function attachYearListeners() {
+            yearContainer.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const year = this.getAttribute('data-year');
+                    yearContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    activeYear = year;
+                    loadData(year === 'all' ? '/api/data' : `/api/data/${year}`);
+                });
             });
+        }
 
-            // Function to render filtered and sorted table
-            function renderFilteredTable() {
-                const minGames = parseInt(document.getElementById('min-games-filter').value, 10) || 0;
-                
-                // Filter data
-                let filtered = originalPlayerData.filter(item => {
-                    const games = item.games || 0;
-                    return games >= minGames;
-                });
-                
-                // Apply sorting if active
-                if (currentSort.idx !== null) {
-                    const headers = document.querySelectorAll('#player-stats-table thead th');
-                    const key = headers[currentSort.idx].getAttribute('data-key');
-                    
-                    filtered.sort((a, b) => {
-                        let valA = a[key];
-                        let valB = b[key];
-                        
-                        if (currentSort.type === 'number') {
-                            return currentSort.asc ? valA - valB : valB - valA;
-                        } else {
-                            return currentSort.asc
-                                ? valA.toString().localeCompare(valB)
-                                : valB.toString().localeCompare(valA);
-                        }
-                    });
-                }
-                
-                updateSortIndicators();
-                populateTable('player-stats-table', filtered);
-            }
+        document.getElementById('apply-games-filter').addEventListener('click', renderTable);
+        document.getElementById('reset-games-filter').addEventListener('click', () => {
+            document.getElementById('min-games-filter').value = '';
+            currentSort = { idx: 1, asc: false, type: 'number' };
+            renderTable();
+        });
 
-            // Function to update sort indicators
-            function updateSortIndicators() {
-                document.querySelectorAll('#player-stats-table th').forEach((th, idx) => {
-                    th.classList.remove('sorted-asc', 'sorted-desc');
-                    if (idx === currentSort.idx) {
-                        th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
+        function renderTable() {
+            const minGames = parseInt(document.getElementById('min-games-filter').value, 10) || 0;
+            let rows = originalPlayerData.filter(item => (item.games || 0) >= minGames);
+
+            if (currentSort.idx !== null) {
+                const headers = document.querySelectorAll('#player-stats-table thead th');
+                const key = headers[currentSort.idx].getAttribute('data-key');
+                rows.sort((a, b) => {
+                    let valA = a[key], valB = b[key];
+                    if (currentSort.type === 'number') {
+                        return currentSort.asc ? (valA - valB) : (valB - valA);
                     }
+                    return currentSort.asc
+                        ? String(valA).localeCompare(String(valB))
+                        : String(valB).localeCompare(String(valA));
                 });
             }
+            updateSortIndicators();
+            populate(rows);
+        }
 
-            // Function to populate tables
-            function populateTable(tableId, data) {
-                const tbody = document.querySelector(`#${tableId} tbody`);
-                const headers = document.querySelectorAll(`#${tableId} thead th`);
-                tbody.innerHTML = ''; // Clear existing table data
-                
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = Array.from(headers).map(header => {
-                        const key = header.getAttribute('data-key');
-                        
-                        // Handle Player column with link
-                        if (key === 'name') {
-                            const playerName = item[key] || '';
-                            return `<td><a href="/player/${encode(playerName)}" class="player-link">${playerName}</a></td>`;
-                        }
-                        
-                        // Get value from item using the data-key
-                        const value = item[key];
-                        
-                        return `<td>${value !== null && value !== undefined ? value : ''}</td>`;
-                    }).join('');
-                    tbody.appendChild(row);
-                });
-            }
-
-            // Sort table functionality
-            const getCellValue = (tr, idx) => {
-                const cell = tr.children[idx];
-                return cell.innerText || cell.textContent;
-            };
-
-            // Add sort functionality to player stats table headers
+        function updateSortIndicators() {
             document.querySelectorAll('#player-stats-table th').forEach((th, idx) => {
-                th.addEventListener('click', function() {
-                    const dataType = th.getAttribute('data-type');
-                    
-                    if (currentSort.idx === idx) {
-                        currentSort.asc = !currentSort.asc;
-                    } else {
-                        currentSort = {
-                            idx,
-                            asc: true,
-                            type: dataType
-                        };
-                    }
-                    
-                    renderFilteredTable();
-                });
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                if (idx === currentSort.idx) th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
             });
+        }
 
-            // Add sort functionality to color usage table (no filtering)
-            document.querySelectorAll('#color_usage_player th').forEach(th => {
-                th.addEventListener('click', function() {
-                    const table = th.closest('table');
-                    const tbody = table.querySelector('tbody');
-                    const idx = Array.from(th.parentNode.children).indexOf(th);
-                    const type = th.getAttribute('data-type');
-                    
-                    // Remove sort indicators from all headers in this table
-                    table.querySelectorAll('th').forEach(header => {
-                        header.classList.remove('sorted-asc', 'sorted-desc');
-                    });
-                    
-                    // Add sort indicator to clicked header
-                    this.asc = !this.asc;
-                    th.classList.add(this.asc ? 'sorted-asc' : 'sorted-desc');
-                    
-                    // Sort rows
-                    const comparer = (a, b) => {
-                        let v1 = getCellValue(this.asc ? a : b, idx);
-                        let v2 = getCellValue(this.asc ? b : a, idx);
-                        
-                        if (v1 === '' || v2 === '') return v1 === '' ? 1 : -1;
-                        
-                        if (type === 'number' || type === 'integer' || type === 'float') {
-                            return parseFloat(v1) - parseFloat(v2);
-                        }
-                        return v1.toString().localeCompare(v2);
-                    };
-                    
-                    Array.from(tbody.querySelectorAll('tr'))
-                        .sort(comparer)
-                        .forEach(tr => tbody.appendChild(tr));
-                });
+        function populate(data) {
+            const tbody = document.querySelector('#player-stats-table tbody');
+            const headers = document.querySelectorAll('#player-stats-table thead th');
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = Array.from(headers).map(h => {
+                    const key = h.getAttribute('data-key');
+                    if (key === 'name') {
+                        const n = item[key] || '';
+                        return `<td><a href="/player/${encode(n)}" class="player-link">${n}</a></td>`;
+                    }
+                    const v = item[key];
+                    return `<td>${v !== null && v !== undefined ? v : ''}</td>`;
+                }).join('');
+                tbody.appendChild(row);
+            });
+        }
+
+        document.querySelectorAll('#player-stats-table th').forEach((th, idx) => {
+            th.addEventListener('click', function () {
+                const type = th.getAttribute('data-type');
+                if (currentSort.idx === idx) {
+                    currentSort.asc = !currentSort.asc;
+                } else {
+                    // New column: numbers default to descending, text to ascending.
+                    currentSort = { idx, asc: type !== 'number', type };
+                }
+                renderTable();
             });
         });
-    </script>
-{%  endblock %}
+    });
+</script>
+{% endblock %}

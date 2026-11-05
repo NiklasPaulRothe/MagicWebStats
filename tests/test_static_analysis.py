@@ -149,20 +149,23 @@ def test_color_usage_query_preserved():
 
 
 def test_color_usage_player_query_preserved():
-    """Verify ColorUsagePlayer.query remains in the codebase (view-backed model).
+    """Verify the ColorUsagePlayer view-backed model is still queried.
+
+    Accepts either the legacy ``ColorUsagePlayer.query`` form or the modern
+    ``sa.select(ColorUsagePlayer)`` form — the player overview queries it via
+    SQLAlchemy 2.0 select() in the stats service. The point is that the
+    view-backed model stays in use, not the exact call style.
 
     Requirement: 1.7
     """
-    found = False
-    for filepath in VIEW_BACKED_FILES:
-        content = _read_file(filepath)
-        if 'ColorUsagePlayer.query' in content:
-            found = True
-            break
-
+    needles = ('ColorUsagePlayer.query', 'select(ColorUsagePlayer')
+    found = any(
+        any(n in _read_file(fp) for n in needles)
+        for fp in VIEW_BACKED_FILES
+    )
     assert found, (
-        "ColorUsagePlayer.query not found in any expected file. "
-        "View-backed model queries must remain unchanged."
+        "No ColorUsagePlayer query found in any expected file. "
+        "The view-backed model must remain in use."
     )
 
 

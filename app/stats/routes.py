@@ -12,7 +12,6 @@ import sqlalchemy as sa
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm, GameEditForm, ParticipantEditSubForm
 from app.models import Player, Deck, Game, Participant, Card, User, AuditLog
-from app.viewmodels import ColorUsage, ColorUsagePlayer
 from app.services.audit import write_audit_log
 from app.services.game_service import resolve_player_id, resolve_deck_id
 from app.services.stats_service import get_players, get_active_decks, get_color_identities, get_color_identity_detail
@@ -566,23 +565,10 @@ def game_add():
 @bp.route('/PlayerStats')
 @login_required
 def playerstats():
-    from datetime import date, timedelta
-    from app.models import Player, Game, Participant
-    one_year_ago = date.today() - timedelta(days=365)
-    active_player_names = set(
-        row[0] for row in db.session.execute(
-            sa.select(Player.name)
-            .join(Participant, Participant.player_id == Player.id)
-            .join(Game, Game.id == Participant.game_id)
-            .where(Game.date >= one_year_ago)
-            .distinct()
-        ).all()
-    )
-    color_usage_player = [
-        cup for cup in ColorUsagePlayer.query.all()
-        if cup.Player in active_player_names
-    ]
-    return render_template('stats/playerstats.html', color_usage_player=color_usage_player)
+    # The player-performance table is populated client-side from /api/data (with
+    # year + min-games filtering and client sorting). The page itself needs no
+    # server-side context. The color-usage table was removed from this page.
+    return render_template('stats/playerstats.html')
 
 @bp.route('/ColorStats')
 @login_required
