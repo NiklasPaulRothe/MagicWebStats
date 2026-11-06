@@ -205,16 +205,26 @@ def game_edit(game_id):
                 )
 
                 if participant:
-                    # Determine deck owner name (use lender if borrowed, otherwise use player)
-                    deck_owner_name = pf.player_name.data
+                    # Deck owner: the lender if borrowed, otherwise the player.
+                    # The player's name comes from the DB via the hidden
+                    # player_id — player_name is display-only in the template
+                    # and is NOT submitted (relying on it silently dropped
+                    # every deck change).
+                    player = db.session.get(Player, participant.player_id)
+                    deck_owner_name = player.name if player else None
                     if pf.borrowed.data and pf.lender.data:
                         deck_owner_name = pf.lender.data
 
-                    # Resolve deck via game_service helper
+                    # Resolve the chosen deck. A failure aborts the whole save
+                    # (caught below: rollback + error message) instead of
+                    # silently keeping the old deck while reporting success.
                     try:
                         participant.deck_id = resolve_deck_id(pf.deck.data, deck_owner_name)
-                    except ValueError:
-                        pass  # Keep existing deck_id if resolution fails
+                    except ValueError as exc:
+                        raise ValueError(
+                            f"Deck \u201c{pf.deck.data}\u201d of "
+                            f"{deck_owner_name or 'unknown player'} not found."
+                        ) from exc
 
                     # Update other participant fields
                     participant.seat = pf.seat.data
@@ -265,7 +275,7 @@ def game_edit(game_id):
         except ValueError as e:
             db.session.rollback()
             logger.error("Validation error in game_edit: %s", e)
-            flash("Spieler oder Deck nicht gefunden.")
+            flash(f"Spieler oder Deck nicht gefunden: {e} Nichts wurde gespeichert.")
         except Exception:
             db.session.rollback()
             logger.exception("Failed to update game %d", game_id)

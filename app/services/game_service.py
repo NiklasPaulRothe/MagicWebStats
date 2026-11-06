@@ -86,18 +86,25 @@ def resolve_deck_id(deck_display_name: str, owner_name: str) -> int:
     """
     owner_id = resolve_player_id(owner_name)
 
-    deck = db.session.scalar(
+    candidates = db.session.scalars(
         sa.select(Deck).where(
             literal(deck_display_name).contains(Deck.name),
             Deck.player_id == owner_id,
         )
-    )
-    if deck is None:
+    ).all()
+    if not candidates:
         raise ValueError(
             f"Deck not found for display name '{deck_display_name}' "
             f"with owner '{owner_name}'"
         )
-    return deck.id
+    # The forms submit "Name (Commander)". Prefer that exact match; otherwise
+    # take the LONGEST contained name, so a deck whose name is part of another
+    # deck's name (e.g. "Odric" vs "Odric Voltron") can't win by accident.
+    display = (deck_display_name or "").strip()
+    for d in candidates:
+        if display in (f"{d.name} ({d.commander})", d.name):
+            return d.id
+    return max(candidates, key=lambda d: len(d.name or "")).id
 
 
 def create_game(
