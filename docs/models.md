@@ -142,7 +142,29 @@ Cards in a deck (deck_id, card_id, count, name).
 
 ### `deck_tags`
 
-Freeform tags on decks (unique per deck_id + tag). Used for filtering in the UI.
+Freeform tags on decks (unique per deck_id + tag). Used for filtering in the UI
+and shown in full on the deck page (top box, under "Last played").
+
+### `deck_folders`
+
+Owner-defined folders for the My Decks page (player_id, name, parent_id for
+nesting; NULL = top level). `decks.folder_id` points into it (`SET NULL` when a
+folder is deleted, so decks return to the top level). Decks move via drag &
+drop or the ⋮ menu (`POST /decks/<id>/folder`); folders move via the ⋮ menu
+(`POST /decks/folders/<id>/parent`, which rejects moving a folder into itself
+or its own subfolders).
+
+## Collection
+
+### `player_collection`
+
+A player's owned cards, collapsed to one row per distinct physical card. Unique
+key: (player_id, scryfall_id, finish, condition, language); `count > 0`.
+`card_id` links the exact printing in `cards` (never a substitute printing).
+Stored tokens: finish `Normal`/`Foil`/`Etched`, condition `NM`/`LP`/`MP`/`HP`/`D`,
+language `EN`/`DE`/`JP`/`SP`/… . Written by the CSV import (Archidekt or ManaBox,
+replace or add mode), the "Add card" dialog (merges into a matching row) and
+the popup's remove action (one copy or the whole stack).
 
 ## Tracking
 
@@ -159,6 +181,14 @@ Tracks version bumps (change_type, previous/new version numbers, comment, timest
 ### `users`
 
 Application users with role-based access (username, email, password_hash, role, player_id link).
+
+`role` is one of `user` < `maintainer` < `admin` (see [Architecture → Role-Based
+Access](architecture.md#role-based-access)). Production enforces the set with
+the `ck_users_role` CHECK constraint (added by
+`scripts/migrate_ui_redesign_branch.sql`, mirrored in `scripts/schema.sql`);
+the ORM column is intentionally unconstrained so unknown roles fail closed in
+the auth helpers. Admins can change a user's role and linked player at
+`/auth/manage/roles`.
 
 ### `audit_log`
 
