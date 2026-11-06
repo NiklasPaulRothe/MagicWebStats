@@ -137,6 +137,10 @@
             </div>
         </div>
 
+        {# Below the KPI row: facts/filters on the left (3 KPI columns wide),
+           all deck tags on the right, aligned under "Last played". #}
+        <div class="dd-hero__lower">
+        <div class="dd-hero__left">
         <dl class="dd-facts">
             <div><dt>Wins</dt><dd data-perf="wins">{{ deck_stats.wins }}</dd></div>
             <div><dt>Avg pod</dt><dd>{{ deck_stats.avg_participants }}</dd></div>
@@ -161,6 +165,17 @@
             {% endfor %}
         </dl>
         {% endif %}
+        </div>
+
+        {% if deck_tags %}
+        <div class="dd-tags" aria-label="Deck tags">
+            <span class="dd-tags__label">Tags</span>
+            <ul class="dd-tags__list">
+                {% for tag in deck_tags %}<li class="dd-tag">{{ tag }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        </div>
     </div>
 </section>
 

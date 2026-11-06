@@ -316,9 +316,17 @@ def deck_show(deckname):
             key=lambda x: (-x["games"], x["name"]),
         )
 
+    # All deck tags, alphabetical (shown in full under "Last played").
+    deck_tags = db.session.scalars(
+        sa.select(models.DeckTag.tag)
+        .where(models.DeckTag.deck_id == deck.id)
+        .order_by(models.DeckTag.tag)
+    ).all()
+
     return render_template(
         'decks/show.html',
         deckname=deck.name,
+        deck_tags=list(deck_tags),
         deck_version=f"{deck.version}.{deck.patch}.{deck.change}",
         owner_name=deck.player_rel.name if deck.player_rel else "",
         color_identity=deck.color_identity,
