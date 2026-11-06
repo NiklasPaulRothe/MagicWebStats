@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 
+{# Full-width page: lift the shell's default content cap for the card grid. #}
+{% block main_inner_class %}app-main__inner--full{% endblock %}
+
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/collection.css') }}">
 {% endblock %}

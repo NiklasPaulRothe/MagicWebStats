@@ -191,7 +191,7 @@
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 1.25rem;
 }
 
@@ -428,7 +428,7 @@
 
 @media (max-width: 640px) {
     .collection-grid {
-        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 0.9rem;
     }
 }
