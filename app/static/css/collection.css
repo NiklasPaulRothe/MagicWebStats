@@ -1010,3 +1010,39 @@ body.ca-open { overflow: hidden; }
 .cc-remove-btn:focus-visible { outline: 2px solid #f4c430; outline-offset: 2px; }
 .cc-remove-btn[hidden] { display: none; }
 .cc-remove-error { margin: 0.6rem 0 0; font-size: 0.84rem; color: #e5686c; }
+
+/* ── Pager (50 / 100 / 150 per page; top + bottom of the grid) ───────────── */
+.collection-pager[hidden] { display: none; }
+.collection-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+}
+.collection-grid + .collection-empty + .collection-pager,
+.collection-grid ~ .collection-pager { margin: 1.25rem 0 0; }
+.collection-pager-status {
+    color: #a8a8b0;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+}
+/* All properties explicit to override basic.css `button`. */
+.collection-pager-btn {
+    margin: 0;
+    padding: 0.4rem 0.85rem;
+    border: 1px solid #f4c430;
+    border-radius: 6px;
+    background: transparent;
+    color: #f4c430;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+.collection-pager-btn:hover:not(:disabled) { background: #f4c430; color: #1b1b1f; }
+.collection-pager-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #9aa0a6;
+}
+.collection-pager-btn:focus-visible { outline: 2px solid #f4c430; outline-offset: 2px; }

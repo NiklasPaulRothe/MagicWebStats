@@ -113,14 +113,28 @@
             <label for="search-name" class="collection-sort-label">Search</label>
             <input type="search" id="search-name" class="collection-search-input"
                    placeholder="Card name" autocomplete="off">
+
+            <label for="page-size" class="collection-sort-label">Show</label>
+            <select id="page-size" class="collection-sort-select">
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="150">150</option>
+            </select>
         </div>
         {% endif %}
     </div>
 
     {% if cards %}
+    {# Paging is client-side (after sort + search over ALL cards). Cards past
+       the first page start hidden so the initial render isn't the whole list. #}
+    <nav class="collection-pager" data-pager aria-label="Collection pages (top)">
+        <button type="button" class="collection-pager-btn" data-page="prev">&lsaquo; Previous</button>
+        <span class="collection-pager-status" data-role="status" aria-live="polite"></span>
+        <button type="button" class="collection-pager-btn" data-page="next">Next &rsaquo;</button>
+    </nav>
     <ul class="collection-grid" role="list" id="collection-grid">
         {% for card in cards %}
-        <li class="collection-card"
+        <li class="collection-card"{% if loop.index > 50 %} hidden{% endif %}
             {% if card.card_id %}data-card-id="{{ card.card_id }}"{% endif %}
             data-entry-id="{{ card.id }}"
             data-count="{{ card.count }}"
@@ -169,6 +183,12 @@
         </li>
         {% endfor %}
     </ul>
+    <p class="collection-empty" id="collection-no-match" hidden>No cards match your search.</p>
+    <nav class="collection-pager" data-pager aria-label="Collection pages (bottom)">
+        <button type="button" class="collection-pager-btn" data-page="prev">&lsaquo; Previous</button>
+        <span class="collection-pager-status" data-role="status"></span>
+        <button type="button" class="collection-pager-btn" data-page="next">Next &rsaquo;</button>
+    </nav>
     {% else %}
     <p class="collection-empty">
         Your collection is empty. Use "Import CSV" above to get started.
@@ -219,19 +239,77 @@
         });
 
         cards.forEach(function (c) { grid.appendChild(c); });
+        page = 1;   // a new order starts at the first page
+        renderPage();
     }
 
     // Live name search: match the query as a substring anywhere in the card
     // name (case-insensitive; data-name is already lower-cased). Filtering only
-    // starts at 3+ characters; below that, every card is shown.
+    // starts at 3+ characters; below that, every card is shown. The match is
+    // stored on the card; renderPage() decides what's visible on this page.
     function applySearch() {
         if (!searchInput) { return; }
         var q = searchInput.value.trim().toLowerCase();
         var active = q.length >= 3;
         grid.querySelectorAll('.collection-card').forEach(function (c) {
             var name = c.getAttribute('data-name') || '';
-            c.hidden = active && name.indexOf(q) === -1;
+            c.setAttribute('data-match', (active && name.indexOf(q) === -1) ? '0' : '1');
         });
+        page = 1;
+        renderPage();
+    }
+
+    // ── Paging (50 / 100 / 150 per page) over the sorted + searched list ──
+    var pageSizeSel = document.getElementById('page-size');
+    var pagers = Array.prototype.slice.call(document.querySelectorAll('[data-pager]'));
+    var noMatch = document.getElementById('collection-no-match');
+    var page = 1;
+
+    function pageSize() {
+        return parseInt(pageSizeSel && pageSizeSel.value, 10) || 50;
+    }
+
+    function renderPage() {
+        var size = pageSize();
+        var matching = Array.prototype.filter.call(
+            grid.querySelectorAll('.collection-card'),
+            function (c) { return c.getAttribute('data-match') !== '0'; });
+        var total = matching.length;
+        var pages = Math.max(1, Math.ceil(total / size));
+        if (page > pages) { page = pages; }
+        var start = (page - 1) * size;
+        var end = start + size;
+
+        grid.querySelectorAll('.collection-card').forEach(function (c) { c.hidden = true; });
+        matching.forEach(function (c, i) { c.hidden = i < start || i >= end; });
+
+        var status = total
+            ? (start + 1) + '\u2013' + Math.min(end, total) + ' of ' + total +
+              (pages > 1 ? ' \u00b7 page ' + page + ' / ' + pages : '')
+            : '';
+        pagers.forEach(function (p) {
+            p.hidden = pages <= 1;
+            p.querySelector('[data-role="status"]').textContent = status;
+            p.querySelector('[data-page="prev"]').disabled = page <= 1;
+            p.querySelector('[data-page="next"]').disabled = page >= pages;
+        });
+        if (noMatch) { noMatch.hidden = total > 0; }
+    }
+
+    pagers.forEach(function (p) {
+        p.addEventListener('click', function (e) {
+            var btn = e.target.closest ? e.target.closest('[data-page]') : null;
+            if (!btn || btn.disabled) { return; }
+            page += btn.getAttribute('data-page') === 'next' ? 1 : -1;
+            renderPage();
+            // From the bottom pager, jump back to the top of the grid.
+            if (p !== pagers[0] && pagers[0]) {
+                pagers[0].scrollIntoView({ block: 'start' });
+            }
+        });
+    });
+    if (pageSizeSel) {
+        pageSizeSel.addEventListener('change', function () { page = 1; renderPage(); });
     }
 
     field.addEventListener('change', sortCards);
@@ -245,6 +323,8 @@
     if (searchInput) {
         searchInput.addEventListener('input', applySearch);
     }
+
+    renderPage();
 })();
 </script>
 
