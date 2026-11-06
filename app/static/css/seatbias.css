@@ -1,0 +1,111 @@
+/* ════════════════════════════════════════════════════════════════════════
+   seatbias.css — turn-order win bias chart (win % by seat + fair line)
+   ------------------------------------------------------------------------
+   Shared by the Playgroup dashboard (index.html) and the player profile
+   (profile.html). Depends on theme.css tokens.
+
+   Two parts that must NOT share vertical space with the bars:
+     .seatbias__plot — a fixed-height plotting area. Bars (height %) and the
+       dashed fair line (bottom %) are measured against THIS same box, so a
+       value below the fair % renders below the line and equal values render
+       at equal height. The % label sits on top of each bar, outside the
+       measured region, so it never changes the bar's proportion.
+     .seatbias__axis — the seat ticks in a row beneath the plot.
+   ════════════════════════════════════════════════════════════════════════ */
+.seatbias { display: flex; flex-direction: column; }
+
+.seatbias__plot {
+    position: relative;
+    display: flex;
+    align-items: flex-end;        /* bars grow from the baseline */
+    gap: var(--space-4);
+    height: 150px;
+    /* No vertical padding: bars (height %) and the fair line (bottom %) must
+       share this exact box so they stay on one coordinate system. The value
+       label overflows upward into the panel's own padding (not clipped). */
+    padding: 0 var(--space-2);
+    /* Headroom above the plot for the floating value labels. */
+    margin-top: var(--space-5);
+}
+.seatbias__fair {
+    position: absolute;
+    left: var(--space-2);
+    right: var(--space-2);
+    height: 0;
+    border-top: 1px dashed var(--color-loss);
+    pointer-events: none;
+    z-index: 1;
+}
+.seatbias__col {
+    position: relative;
+    flex: 1 1 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;    /* bar anchored to the baseline */
+    align-items: center;
+}
+.seatbias__bar {
+    width: 100%;
+    max-width: 52px;
+    background-color: var(--color-accent);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    min-height: 2px;
+    transition: height var(--dur) var(--ease);
+}
+/* Value label floats just above the bar top without affecting its height. */
+.seatbias__pct {
+    position: absolute;
+    bottom: 100%;
+    margin-bottom: 2px;
+    color: var(--color-text);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+}
+.seatbias__axis {
+    display: flex;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-2) 0;
+}
+.seatbias__axis .seatbias__tick {
+    flex: 1 1 0;
+    text-align: center;
+    color: var(--color-faint);
+    font-size: 10px;
+}
+/* Optional second axis line (e.g. games per seat on the profile). */
+.seatbias__axis--sub { padding-top: 0; }
+.seatbias__axis--sub .seatbias__tick { font-size: 9px; }
+
+/* ── Variant: fixed 0-100% y-axis with labelled gridlines (profile) ────────
+   Bars use height = winrate %, so they share the plot box with the gridlines
+   (bottom = value %). The left gutter holds the gridline labels; the axis
+   rows below are indented by the same amount so ticks stay under their bars. */
+.seatbias--yaxis { --seatbias-gutter: 34px; }
+.seatbias--yaxis .seatbias__plot { margin-left: var(--seatbias-gutter); border-bottom: 1px solid var(--accent-border); }
+.seatbias--yaxis .seatbias__axis { margin-left: var(--seatbias-gutter); }
+.seatbias__gridline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+    pointer-events: none;
+    z-index: 0;
+}
+.seatbias__gridlabel {
+    position: absolute;
+    right: 100%;
+    top: 0;
+    transform: translateY(-50%);
+    padding-right: 6px;
+    color: var(--color-faint);
+    font-size: 10px;
+    white-space: nowrap;
+}
+/* Bars and their value labels draw above the gridlines. */
+.seatbias--yaxis .seatbias__col { z-index: 1; }
+/* In this variant the value label sits right above the bar top. Its bottom is
+   set inline to the bar's height, so it isn't placed above the full column. */
+.seatbias--yaxis .seatbias__pct { bottom: auto; }

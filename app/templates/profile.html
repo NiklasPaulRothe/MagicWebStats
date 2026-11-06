@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/seatbias.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
@@ -166,6 +167,12 @@
     padding-bottom: 5px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+}
+
+.pf-seat-sub {
+    margin: 0 0 4px 0;
+    color: #9a8f70;
+    font-size: 0.75em;
 }
 
 .pf-empty {
@@ -365,22 +372,24 @@
 
     {# ── 2. Headline tiles (Req 3.1–3.4) ──────────────────────────────────── #}
     {% if overview and overview.games > 0 %}
-    {# Best seat (Req 3.1): the seat with the highest winrate.
-       Gate: seats 1-4 must EACH have >= 10 games, else "Not enough Data".
-       Seat 5 is only eligible when it also has >= 10 games (but a thin seat 5
-       never blocks the tile). Seat keys may be int or str, so look up both. #}
+    {# Best seat (Req 3.1): the seat with the highest winrate (casual games).
+       Gate: seats 1-4 must EACH have >= min_seat_games games, else "Not enough
+       Data". Seat 5 is only eligible when it also has >= min_seat_games games
+       (but a thin seat 5 never blocks the tile). Seat keys may be int or str,
+       so look up both. #}
+    {% set min_seat_games = 5 %}
     {% set wbs = overview.winrate_by_seat or {} %}
     {% set seat_ns = namespace(seat=none, wr=-1, enough=true) %}
     {% for s in [1, 2, 3, 4] %}
         {% set d = wbs.get(s) or wbs.get(s|string) %}
-        {% if not d or (d.games or 0) < 10 %}
+        {% if not d or (d.games or 0) < min_seat_games %}
             {% set seat_ns.enough = false %}
         {% endif %}
     {% endfor %}
     {% if seat_ns.enough %}
         {% for s in [1, 2, 3, 4, 5] %}
             {% set d = wbs.get(s) or wbs.get(s|string) %}
-            {% if d and (d.games or 0) >= 10 and d.winrate > seat_ns.wr %}
+            {% if d and (d.games or 0) >= min_seat_games and d.winrate > seat_ns.wr %}
                 {% set seat_ns.wr = d.winrate %}
                 {% set seat_ns.seat = s %}
             {% endif %}
@@ -592,17 +601,47 @@
             </div>
     </div>{# ── end .pf-overview ──────────────────────────────────────────── #}
 
-    {# ── Charts row: Formkurve + Farbnutzung side by side ──────────────────── #}
+    {# ── Charts row: Winrate by seat + Farbnutzung side by side ────────────── #}
+    {# Same chart style as the dashboard's turn-order win bias, for this
+       player: every casual game where the player has a seat (any pod size).
+       Fixed 0-100% scale with reference gridlines at 25 / 33 / 50 / 75 %, so a
+       bar's height IS its winrate (no fair line).
+       Data: seat_bias from stats_service.get_player_seat_bias. #}
+    {% set sb = seat_bias or {} %}
+    {% set sb_seats = sb.seats or [] %}
     <div class="pf-charts">
-        {# Win trend (Req 7.1–7.3) #}
-        <div class="pf-card" aria-label="Win trend">
-            <h2 class="pf-card-title">Formkurve</h2>
-            {% if win_trend and win_trend|length >= 2 %}
-            <div class="pf-chart">
-                <canvas id="winTrendChart"></canvas>
+        <div class="pf-card" aria-label="Winrate by seat">
+            <h2 class="pf-card-title">Winrate by seat</h2>
+            {% if sb.games %}
+            <p class="pf-seat-sub">
+                casual games with a seat &middot;
+                {{ sb.games }} game{{ '' if sb.games == 1 else 's' }}
+            </p>
+            <div class="seatbias seatbias--yaxis">
+                <div class="seatbias__plot">
+                    {% for label, pos in [('25%', 25), ('33%', 100 / 3), ('50%', 50), ('75%', 75)] %}
+                    <div class="seatbias__gridline" style="bottom: {{ pos }}%" aria-hidden="true">
+                        <span class="seatbias__gridlabel">{{ label }}</span>
+                    </div>
+                    {% endfor %}
+                    {% for s in sb_seats %}
+                    <div class="seatbias__col">
+                        <span class="seatbias__pct" style="bottom: {{ s.winrate or 0 }}%">{{ (s.winrate ~ '%') if s.winrate is not none else '–' }}</span>
+                        <div class="seatbias__bar"
+                             style="height: {{ s.winrate or 0 }}%"
+                             title="Seat {{ s.seat }}: {{ s.wins }} / {{ s.games }} Spiele"></div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="seatbias__axis">
+                    {% for s in sb_seats %}<span class="seatbias__tick">S{{ s.seat }}</span>{% endfor %}
+                </div>
+                <div class="seatbias__axis seatbias__axis--sub">
+                    {% for s in sb_seats %}<span class="seatbias__tick">{{ s.games }} Sp.</span>{% endfor %}
+                </div>
             </div>
             {% else %}
-            <p class="pf-empty">Nicht genügend Daten für eine Formkurve.</p>
+            <p class="pf-empty">Noch keine Spiele mit erfasstem Sitzplatz.</p>
             {% endif %}
         </div>
 
@@ -632,7 +671,6 @@
     </div>
 
     {# ── Chart data (passed as JSON, read by the script below) ────────────── #}
-    <script type="application/json" id="win-trend-data">{{ (win_trend or []) | tojson }}</script>
     <script type="application/json" id="color-usage-data">{{ (color_usage or {}) | tojson }}</script>
 </div>
 
@@ -681,55 +719,6 @@
             });
         })();
 
-        // ── Win trend line chart (Req 7) ──────────────────────────────────
-        const trend = readJSON('win-trend-data') || [];
-        const trendCanvas = document.getElementById('winTrendChart');
-        if (trendCanvas && trend.length >= 2) {
-            new Chart(trendCanvas.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: trend.map(t => t.period),
-                    datasets: [
-                        {
-                            label: 'Winrate (%)',
-                            data: trend.map(t => t.winrate),
-                            borderColor: '#f4c430',
-                            backgroundColor: 'rgba(244, 196, 48, 0.15)',
-                            yAxisID: 'yWinrate',
-                            tension: 0.25,
-                            fill: true,
-                        },
-                        {
-                            label: 'Spiele',
-                            data: trend.map(t => t.games),
-                            borderColor: '#0e68ab',
-                            backgroundColor: 'rgba(14, 104, 171, 0.15)',
-                            yAxisID: 'yGames',
-                            tension: 0.25,
-                        },
-                    ],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { datalabels: { display: false } },
-                    scales: {
-                        yWinrate: {
-                            type: 'linear', position: 'left',
-                            min: 0, max: 100,
-                            title: { display: true, text: 'Winrate (%)' },
-                        },
-                        yGames: {
-                            type: 'linear', position: 'right',
-                            min: 0,
-                            grid: { drawOnChartArea: false },
-                            title: { display: true, text: 'Spiele' },
-                            ticks: { precision: 0 },
-                        },
-                    },
-                },
-            });
-        }
 
         // ── Color usage polar area chart (Req 10) ─────────────────────────
         const cu = readJSON('color-usage-data') || {};

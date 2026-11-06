@@ -344,75 +344,8 @@
 .colortable__fill--green { background-color: var(--mtg-green); }
 
 /* ── Seat bias (turn-order win %) ─────────────────────────────────────────
-   Two parts that must NOT share vertical space with the bars:
-     .seatbias__plot — a fixed-height plotting area. Bars (height %) and the
-       dashed fair line (bottom %) are measured against THIS same box, so a
-       value below the fair % renders below the line and equal values render
-       at equal height. The % label sits on top of each bar, outside the
-       measured region, so it never changes the bar's proportion.
-     .seatbias__axis — the seat ticks in a row beneath the plot. */
-.seatbias { display: flex; flex-direction: column; }
-
-.seatbias__plot {
-    position: relative;
-    display: flex;
-    align-items: flex-end;        /* bars grow from the baseline */
-    gap: var(--space-4);
-    height: 150px;
-    /* No vertical padding: bars (height %) and the fair line (bottom %) must
-       share this exact box so they stay on one coordinate system. The value
-       label overflows upward into the panel's own padding (not clipped). */
-    padding: 0 var(--space-2);
-    /* Headroom above the plot for the floating value labels. */
-    margin-top: var(--space-5);
-}
-.seatbias__fair {
-    position: absolute;
-    left: var(--space-2);
-    right: var(--space-2);
-    height: 0;
-    border-top: 1px dashed var(--color-loss);
-    pointer-events: none;
-    z-index: 1;
-}
-.seatbias__col {
-    position: relative;
-    flex: 1 1 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;    /* bar anchored to the baseline */
-    align-items: center;
-}
-.seatbias__bar {
-    width: 100%;
-    max-width: 52px;
-    background-color: var(--color-accent);
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    min-height: 2px;
-    transition: height var(--dur) var(--ease);
-}
-/* Value label floats just above the bar top without affecting its height. */
-.seatbias__pct {
-    position: absolute;
-    bottom: 100%;
-    margin-bottom: 2px;
-    color: var(--color-text);
-    font-size: var(--fs-xs);
-    font-weight: var(--fw-semibold);
-    white-space: nowrap;
-}
-.seatbias__axis {
-    display: flex;
-    gap: var(--space-4);
-    padding: var(--space-2) var(--space-2) 0;
-}
-.seatbias__axis .seatbias__tick {
-    flex: 1 1 0;
-    text-align: center;
-    color: var(--color-faint);
-    font-size: 10px;
-}
+   The chart styles (.seatbias*) live in seatbias.css, shared with the player
+   profile; index.html loads it alongside this file. */
 
 /* ── Removal matrix ──────────────────────────────────────────────────────────
    A 3-column grid: metric name | All value | Winner value. The header row

@@ -861,6 +861,54 @@ def get_deck_highlights(player_id: int, min_games_best: int = 5) -> dict:
     return {'most_played': most_played, 'best': best, 'highest_rated': highest_rated}
 
 
+PROFILE_SEAT_POD_SIZE = 4
+
+
+def get_player_seat_bias(player_id: int, min_seats: int = PROFILE_SEAT_POD_SIZE) -> dict:
+    """Win rate by seat for one player (profile chart).
+
+    Counts every casual (non-cEDH) game in which THIS player has a seat
+    recorded — regardless of pod size or whether the other players' seats are
+    tracked.
+
+    Returns {'games', 'seats': [{seat, games, wins, winrate}]}. Seats
+    1..``min_seats`` are always listed (games 0 / winrate None when never
+    played); higher seats (e.g. 5) appear when the player has sat there.
+    """
+    rows = db.session.execute(
+        sa.select(Participant.seat, Game.winner_id)
+        .join(Game, Game.id == Participant.game_id)
+        .where(
+            Participant.player_id == player_id,
+            Participant.seat.isnot(None),
+            Game.cedh.is_(False),
+        )
+    ).all()
+
+    tally: dict[int, list[int]] = defaultdict(lambda: [0, 0])  # seat -> [games, wins]
+    for seat, winner_id in rows:
+        t = tally[seat]
+        t[0] += 1
+        if winner_id == player_id:
+            t[1] += 1
+
+    total = len(rows)
+    last_seat = max([min_seats, *tally.keys()])
+    seats = []
+    for seat in range(1, last_seat + 1):
+        games, wins = tally.get(seat, (0, 0))
+        seats.append({
+            'seat': seat,
+            'games': games,
+            'wins': wins,
+            'winrate': round(wins / games * 100, 1) if games else None,
+        })
+    return {
+        'games': total,
+        'seats': seats,
+    }
+
+
 def get_win_trend(player_id: int, granularity: str = 'month') -> list[dict]:
     """Return the player's performance bucketed over time for charting.
 
@@ -1156,6 +1204,7 @@ def build_player_profile(player_id: int) -> dict:
           'highlights':    {...},   # from get_deck_highlights
           'head_to_head':  [...],
           'win_trend':     [...],
+          'seat_bias':     {...},   # from get_player_seat_bias (casual games with a seat)
           'aggregate_elo': int | None,
           'finishers':     {...},   # from get_finisher_stats
           'interaction':   {...},   # from get_interaction_stats
@@ -1231,6 +1280,10 @@ def build_player_profile(player_id: int) -> dict:
         ),
         'win_trend': _section(
             'win_trend', lambda: get_win_trend(player_id), []
+        ),
+        'seat_bias': _section(
+            'seat_bias', lambda: get_player_seat_bias(player_id),
+            {'games': 0, 'seats': []},
         ),
         'aggregate_elo': _section(
             'aggregate_elo', lambda: get_aggregate_elo(player_id), None

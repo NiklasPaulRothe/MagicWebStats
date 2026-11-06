@@ -108,6 +108,7 @@ EXPECTED_SECTION_KEYS = {
     "highlights",
     "head_to_head",
     "win_trend",
+    "seat_bias",
     "aggregate_elo",
     "finishers",
     "interaction",
