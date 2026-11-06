@@ -177,3 +177,114 @@ def test_my_decks_foreign_folder_404(app, folders_setup):
     alice = _client(app, 1)
     resp = alice.get(f"/decks/mine/folder/{bob_folder_id}")
     assert resp.status_code == 404
+
+
+# --- move_folder (re-parent) ---------------------------------------------
+
+def _mk(client, name, parent_id=None):
+    body = {"name": name}
+    if parent_id is not None:
+        body["parent_id"] = parent_id
+    return client.post("/decks/folders", json=body).get_json()["folder"]["id"]
+
+
+def test_move_folder_into_sibling(app, folders_setup):
+    client = _client(app, 1)
+    a, b = _mk(client, "A"), _mk(client, "B")
+    resp = client.post(f"/decks/folders/{a}/parent", json={"parent_id": b})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    with app.app_context():
+        assert _db.session.get(DeckFolder, a).parent_id == b
+
+
+def test_move_folder_to_root(app, folders_setup):
+    client = _client(app, 1)
+    parent = _mk(client, "P")
+    child = _mk(client, "C", parent)
+    resp = client.post(f"/decks/folders/{child}/parent", json={"parent_id": None})
+    assert resp.status_code == 200
+    with app.app_context():
+        assert _db.session.get(DeckFolder, child).parent_id is None
+
+
+def test_move_folder_keeps_its_decks(app, folders_setup):
+    client = _client(app, 1)
+    a, b = _mk(client, "A"), _mk(client, "B")
+    client.post("/decks/1/folder", json={"folder_id": a})
+    client.post(f"/decks/folders/{a}/parent", json={"parent_id": b})
+    with app.app_context():
+        assert _db.session.get(Deck, 1).folder_id == a
+
+
+def test_move_folder_into_itself_rejected(app, folders_setup):
+    client = _client(app, 1)
+    a = _mk(client, "A")
+    resp = client.post(f"/decks/folders/{a}/parent", json={"parent_id": a})
+    assert resp.status_code == 400
+    with app.app_context():
+        assert _db.session.get(DeckFolder, a).parent_id is None
+
+
+def test_move_folder_into_descendant_rejected(app, folders_setup):
+    client = _client(app, 1)
+    top = _mk(client, "Top")
+    mid = _mk(client, "Mid", top)
+    leaf = _mk(client, "Leaf", mid)
+    resp = client.post(f"/decks/folders/{top}/parent", json={"parent_id": leaf})
+    assert resp.status_code == 400
+    with app.app_context():
+        assert _db.session.get(DeckFolder, top).parent_id is None
+
+
+def test_move_folder_rejects_non_owner(app, folders_setup):
+    bob_folder_id = _seed_bob_folder(app)
+    alice = _client(app, 1)
+    resp = alice.post(f"/decks/folders/{bob_folder_id}/parent", json={"parent_id": None})
+    assert resp.status_code == 403
+
+
+def test_move_folder_rejects_foreign_target(app, folders_setup):
+    bob_folder_id = _seed_bob_folder(app)
+    alice = _client(app, 1)
+    a = _mk(alice, "A")
+    resp = alice.post(f"/decks/folders/{a}/parent", json={"parent_id": bob_folder_id})
+    assert resp.status_code == 404
+
+
+def test_move_folder_rejects_non_int_target(app, folders_setup):
+    client = _client(app, 1)
+    a = _mk(client, "A")
+    resp = client.post(f"/decks/folders/{a}/parent", json={"parent_id": "2"})
+    assert resp.status_code == 400
+
+
+def test_move_folder_unknown_folder_404(app, folders_setup):
+    client = _client(app, 1)
+    resp = client.post("/decks/folders/99999/parent", json={"parent_id": None})
+    assert resp.status_code == 404
+
+
+# --- ⋮ menu markup ----------------------------------------------------------
+
+def test_my_decks_renders_menu_buttons(app, folders_setup):
+    client = _client(app, 1)
+    _mk(client, "MyFolder")
+    body = client.get("/decks/mine").data.decode("utf-8")
+    # One ⋮ per deck (Alpha, Beta) and per real folder; plus the shared menu.
+    assert body.count('data-menu-kind="deck"') == 2
+    assert body.count('data-menu-kind="folder"') == 1
+    assert 'id="item-menu"' in body
+    assert 'data-folder-name="MyFolder"' in body
+
+
+def test_up_tile_names_parent_for_move_menu(app, folders_setup):
+    client = _client(app, 1)
+    parent = _mk(client, "Parent")
+    child = _mk(client, "Child", parent)
+    # Inside a top-level folder the "up" target is the root.
+    body = client.get(f"/decks/mine/folder/{parent}").data.decode("utf-8")
+    assert 'data-folder-name="All Decks"' in body
+    # One level deeper it names the parent folder.
+    body = client.get(f"/decks/mine/folder/{child}").data.decode("utf-8")
+    assert 'data-folder-name="Parent"' in body

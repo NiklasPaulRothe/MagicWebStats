@@ -29,6 +29,7 @@ from app.services.stats_service import compute_participant_averages, compute_dec
 # - delete_achievement: JSON API (CSRF via X-CSRFToken header from JS)
 # - add_achievement: JSON/form (CSRF via X-CSRFToken header or form hidden token)
 # - dearchive: HTML form POST (CSRFProtect validates hidden token)
+# - move_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - create_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - move_deck_to_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - set_component_collection: JSON API (CSRF via X-CSRFToken header from JS)
@@ -1413,6 +1414,51 @@ def move_deck_to_folder(deck_id):
 
     deck.folder_id = target_folder_id
     write_audit_log('deck_move_folder', 'Deck', deck.id, f'Moved deck {deck.name} to folder {target_folder_id}')
+    db.session.commit()
+
+    return jsonify({'ok': True})
+
+
+@bp.route('/folders/<int:folder_id>/parent', methods=['POST'], strict_slashes=False)
+@login_required
+def move_folder(folder_id):
+    """Move a folder (with its contents) under another folder, or to the root.
+
+    JSON body: {parent_id: int|null}. null makes it a top-level folder. Both the
+    folder and the target must belong to the current player. A folder can't be
+    moved into itself or into one of its own subfolders (that would detach the
+    subtree into a cycle). CSRF via the X-CSRFToken header (CSRFProtect).
+    Returns {ok: true}.
+    """
+    player_id = getattr(current_user, 'player_id', None)
+    folder = db.session.get(DeckFolder, folder_id)
+    if folder is None:
+        return jsonify({'ok': False, 'message': 'Folder not found.'}), 404
+    if folder.player_id != player_id:
+        return jsonify({'ok': False, 'message': 'Nicht berechtigt.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    target_id = data.get('parent_id')
+
+    if target_id is not None:
+        if isinstance(target_id, bool) or not isinstance(target_id, int):
+            return jsonify({'ok': False, 'message': 'Invalid target folder.'}), 400
+        if target_id == folder.id:
+            return jsonify({'ok': False, 'message': 'A folder cannot be moved into itself.'}), 400
+        target = db.session.get(DeckFolder, target_id)
+        if target is None or target.player_id != player_id:
+            return jsonify({'ok': False, 'message': 'Target folder not found.'}), 404
+        # Cycle guard: walk up from the target; reaching the moved folder means
+        # the target is one of its descendants.
+        node, seen = target, set()
+        while node is not None and node.id not in seen:
+            if node.id == folder.id:
+                return jsonify({'ok': False, 'message': 'A folder cannot be moved into its own subfolder.'}), 400
+            seen.add(node.id)
+            node = db.session.get(DeckFolder, node.parent_id) if node.parent_id else None
+
+    folder.parent_id = target_id
+    write_audit_log('folder_move', 'DeckFolder', folder.id, f'Moved folder {folder.name} to parent {target_id}')
     db.session.commit()
 
     return jsonify({'ok': True})
