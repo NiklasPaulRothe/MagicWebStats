@@ -15,6 +15,7 @@ from app.services.collection_service import (
     get_decks_containing_card,
     get_card_printings,
     add_single_card,
+    remove_collection_entry,
     COLL_STATUS_SPARE,
     FINISH_CHOICES,
     LANGUAGE_CHOICES,
@@ -200,6 +201,45 @@ def collection_add_card():
         'success',
     )
     return jsonify({'ok': True, 'created': created, 'count': entry.count})
+
+
+@bp.route('/collection/entry/<int:entry_id>/remove', methods=['POST'])
+@login_required
+def collection_remove_entry(entry_id):
+    """Remove one copy or the whole stack: JSON {amount: 'one'|'all'}.
+
+    Owner-only (403 for another player's entry). Returns {ok, remaining}.
+    """
+    player_id = current_user.player_id
+    if player_id is None:
+        return jsonify({'ok': False, 'message': 'No player linked to this account.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    amount = data.get('amount')
+    entry = db.session.get(models.PlayerCollectionCard, entry_id)
+    label = f'{entry.name} ({entry.set_name or entry.set_code or "?"}, {entry.finish}, {entry.language})' if entry else ''
+    try:
+        remaining = remove_collection_entry(player_id, entry_id, amount)
+        db.session.commit()
+    except LookupError as exc:
+        db.session.rollback()
+        return jsonify({'ok': False, 'message': str(exc)}), 404
+    except PermissionError:
+        db.session.rollback()
+        return jsonify({'ok': False, 'message': 'Nicht berechtigt.'}), 403
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'ok': False, 'message': str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception('Collection remove failed for entry %s', entry_id)
+        return jsonify({'ok': False, 'message': 'The card could not be removed.'}), 500
+
+    if remaining:
+        flash(f'Removed 1\u00d7 {label} \u2014 {remaining} left.', 'success')
+    else:
+        flash(f'Removed {label} from your collection.', 'success')
+    return jsonify({'ok': True, 'remaining': remaining})
 
 
 def _front_image(card):

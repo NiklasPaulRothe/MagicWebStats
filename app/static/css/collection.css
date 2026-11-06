@@ -972,3 +972,41 @@ body.ca-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
     .ca-printing { transition: none; }
 }
+
+/* ── Card popup: remove from collection ──────────────────────────────────── */
+.cc-modal-remove[hidden] { display: none; }
+.cc-modal-remove {
+    margin-top: 1.1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.cc-remove-stack { margin: 0 0 0.6rem; font-size: 0.88rem; color: #cfcfd4; line-height: 1.4; }
+.cc-remove-warn {
+    margin: 0 0 0.7rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid rgba(224, 178, 74, 0.5);
+    border-radius: 6px;
+    background: rgba(224, 178, 74, 0.1);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: #e0b24a;
+}
+.cc-remove-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* All properties explicit to override basic.css `button`. */
+.cc-remove-btn {
+    margin: 0;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: transparent;
+    color: #cfcfd4;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.cc-remove-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.cc-remove-btn--all { border-color: rgba(229, 72, 77, 0.6); color: #ef8a8d; }
+.cc-remove-btn--all:hover { background: rgba(229, 72, 77, 0.15); color: #ffb3b5; }
+.cc-remove-btn:disabled { opacity: 0.6; cursor: default; }
+.cc-remove-btn:focus-visible { outline: 2px solid #f4c430; outline-offset: 2px; }
+.cc-remove-btn[hidden] { display: none; }
+.cc-remove-error { margin: 0.6rem 0 0; font-size: 0.84rem; color: #e5686c; }

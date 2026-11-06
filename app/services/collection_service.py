@@ -498,6 +498,35 @@ def add_single_card(
     return entry, True
 
 
+REMOVE_ONE = "one"
+REMOVE_ALL = "all"
+
+
+def remove_collection_entry(player_id: int, entry_id: int, amount: str) -> int:
+    """Remove one copy, or the whole stack, of a player's collection entry.
+
+    `amount` is REMOVE_ONE (count - 1; the entry is deleted when it reaches 0)
+    or REMOVE_ALL (the entry is deleted). Returns the remaining count (0 when
+    the entry is gone). Does NOT commit.
+
+    Raises LookupError when the entry doesn't exist, PermissionError when it
+    belongs to another player, and ValueError for an unknown amount.
+    """
+    if amount not in (REMOVE_ONE, REMOVE_ALL):
+        raise ValueError("Amount must be 'one' or 'all'.")
+    entry = db.session.get(PlayerCollectionCard, entry_id)
+    if entry is None:
+        raise LookupError("Collection entry not found.")
+    if entry.player_id != player_id:
+        raise PermissionError("Not your collection entry.")
+
+    if amount == REMOVE_ONE and entry.count > 1:
+        entry.count -= 1
+        return entry.count
+    db.session.delete(entry)
+    return 0
+
+
 # Finish values (from the CSV `Finish` column) that denote a foil printing.
 # Everything else (Normal, etc.) uses the non-foil EUR price.
 _FOIL_FINISHES = {"foil", "etched"}
@@ -516,7 +545,7 @@ def get_player_collection(player_id: int) -> list[dict]:
     face (face_index == 0) image_uri. Entries are sorted by card name, then set
     code, then finish for a stable gallery order.
 
-    Each dict has: name, set_code, set_name, collector_number, finish,
+    Each dict has: id (the entry id), name, set_code, set_name, collector_number, finish,
     condition, language, count, image (str|None), price (Decimal|None),
     scryfall_id, card_id.
     """
@@ -560,6 +589,7 @@ def get_player_collection(player_id: int) -> list[dict]:
             price = prices[e.card_id]["eur_foil" if foil else "eur"]
             type_line = prices[e.card_id]["type_line"]
         result.append({
+            "id": e.id,
             "name": e.name,
             "set_code": e.set_code,
             "set_name": e.set_name,

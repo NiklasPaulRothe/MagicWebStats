@@ -21,8 +21,16 @@
     var typeEl = document.getElementById('cc-modal-type');
     var textEl = document.getElementById('cc-modal-text');
     var decksBody = document.getElementById('cc-modal-decks-body');
+    var removeEl = document.getElementById('cc-modal-remove');
+    var removeStackEl = document.getElementById('cc-remove-stack');
+    var removeWarnEl = document.getElementById('cc-remove-warn');
+    var removeOneBtn = document.getElementById('cc-remove-one');
+    var removeAllBtn = document.getElementById('cc-remove-all');
+    var removeErrEl = document.getElementById('cc-remove-error');
 
     var lastFocused = null;
+    // The exact collection stack (tile) that opened the popup.
+    var stack = null;   // {entryId, count, finish, condition, language, setLabel, claimed}
     // Printing slider state for the currently open card.
     var printings = [];       // [{id, set_code, set_name, image, current}]
     var currentIndex = 0;     // index into printings being viewed
@@ -70,6 +78,7 @@
         typeEl.textContent = '';
         clearEl(textEl);
         clearEl(decksBody);
+        if (removeEl) { removeEl.hidden = true; }
         artEl.removeAttribute('src');
         artEl.alt = '';
         flagEl.hidden = true;
@@ -231,7 +240,73 @@
         }
 
         renderDecks(data.decks);
+        renderRemove(data.name);
     }
+
+    /* ── Remove from collection (one copy / whole stack) ─────────────────── */
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function renderRemove(name) {
+        if (!removeEl) { return; }
+        if (!stack || !stack.entryId) { removeEl.hidden = true; return; }
+        removeEl.hidden = false;
+        removeErrEl.hidden = true;
+        removeStackEl.textContent = stack.count + '\u00d7 ' + (name || '') + ' \u00b7 ' +
+            [stack.setLabel, stack.finish, stack.condition, stack.language].filter(Boolean).join(' \u00b7 ');
+        removeWarnEl.hidden = !stack.claimed;
+        removeAllBtn.textContent = stack.count > 1
+            ? 'Remove whole stack (\u00d7' + stack.count + ')'
+            : 'Remove whole stack';
+        // With a single copy both actions do the same; keep just one button.
+        removeOneBtn.hidden = stack.count <= 1;
+        removeOneBtn.disabled = false;
+        removeAllBtn.disabled = false;
+    }
+
+    function removeCopies(amount) {
+        if (!stack || !stack.entryId) { return; }
+        if (amount === 'all' && stack.count > 1 &&
+            !window.confirm('Remove all ' + stack.count + ' copies of this stack from your collection?')) {
+            return;
+        }
+        removeOneBtn.disabled = true;
+        removeAllBtn.disabled = true;
+        removeErrEl.hidden = true;
+        var url = removeEl.getAttribute('data-remove-url').replace(/0\/remove$/, stack.entryId + '/remove');
+        fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken()
+            },
+            body: JSON.stringify({ amount: amount })
+        })
+            .then(function (resp) {
+                return resp.json().then(function (data) {
+                    if (!resp.ok || !data.ok) {
+                        throw new Error((data && data.message) || ('HTTP ' + resp.status));
+                    }
+                    return data;
+                });
+            })
+            // Reload so the grid, counts, totals and statuses come from the
+            // server (the flash message confirms what was removed).
+            .then(function () { window.location.reload(); })
+            .catch(function (err) {
+                removeErrEl.textContent = String(err.message || err);
+                removeErrEl.hidden = false;
+                removeOneBtn.disabled = false;
+                removeAllBtn.disabled = false;
+            });
+    }
+
+    if (removeOneBtn) { removeOneBtn.addEventListener('click', function () { removeCopies('one'); }); }
+    if (removeAllBtn) { removeAllBtn.addEventListener('click', function () { removeCopies('all'); }); }
 
     function loadCard(cardId) {
         showLoading();
@@ -268,6 +343,17 @@
         var card = e.target.closest ? e.target.closest('.collection-card') : null;
         if (!card) { return; }
         var cardId = card.getAttribute('data-card-id');
+        var status = card.getAttribute('data-status') || '';
+        stack = {
+            entryId: card.getAttribute('data-entry-id'),
+            count: parseInt(card.getAttribute('data-count'), 10) || 1,
+            finish: card.getAttribute('data-finish') || '',
+            condition: card.getAttribute('data-condition') || '',
+            language: card.getAttribute('data-language') || '',
+            setLabel: card.getAttribute('data-set-label') || '',
+            // Some copies of this pool are claimed by a deck.
+            claimed: status === 'owned_in_deck' || status === 'owned_no_copy_available'
+        };
         if (cardId) {
             loadCard(cardId);
         }

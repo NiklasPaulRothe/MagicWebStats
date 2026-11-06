@@ -259,3 +259,79 @@ def test_collection_page_has_add_dialog(app, setup):
     assert 'id="ca-modal"' in body
     assert 'name="mode" value="add"' in body
     assert 'value="Etched"' in body and 'value="JP"' in body
+
+
+# --- Remove from collection (popup) ---------------------------------------------
+
+def _seed_entry(app, count=3, player_id=1, finish="Normal"):
+    with app.app_context():
+        e = PlayerCollectionCard(
+            player_id=player_id, card_id="jace-new", scryfall_id="jace-new",
+            finish=finish, condition="NM", language="EN",
+            name="Jace, Reality Sculptor", set_code="fra", set_name="Reality Fracture",
+            count=count,
+        )
+        _db.session.add(e)
+        _db.session.commit()
+        return e.id
+
+
+def _remove(client, entry_id, amount):
+    return client.post(f"/collection/entry/{entry_id}/remove", json={"amount": amount})
+
+
+def test_remove_one_decrements(app, setup):
+    eid = _seed_entry(app, count=3)
+    resp = _remove(_client(app), eid, "one")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True, "remaining": 2}
+    assert _entries(app) == [("jace-new", "Normal", "NM", "EN", 2)]
+
+
+def test_remove_one_last_copy_deletes_entry(app, setup):
+    eid = _seed_entry(app, count=1)
+    assert _remove(_client(app), eid, "one").get_json() == {"ok": True, "remaining": 0}
+    assert _entries(app) == []
+
+
+def test_remove_all_deletes_whole_stack(app, setup):
+    eid = _seed_entry(app, count=4)
+    assert _remove(_client(app), eid, "all").get_json() == {"ok": True, "remaining": 0}
+    assert _entries(app) == []
+
+
+def test_remove_only_touches_that_stack(app, setup):
+    keep = _seed_entry(app, count=2, finish="Foil")
+    eid = _seed_entry(app, count=2, finish="Normal")
+    _remove(_client(app), eid, "all")
+    assert _entries(app) == [("jace-new", "Foil", "NM", "EN", 2)]
+    assert keep
+
+
+def test_remove_rejects_other_players_entry(app, setup):
+    with app.app_context():
+        _db.session.add(Player(id=2, name="Bob"))
+        _db.session.commit()
+    eid = _seed_entry(app, count=2, player_id=2)
+    resp = _remove(_client(app), eid, "all")
+    assert resp.status_code == 403
+    with app.app_context():
+        assert _db.session.get(PlayerCollectionCard, eid).count == 2
+
+
+def test_remove_rejects_bad_amount(app, setup):
+    eid = _seed_entry(app, count=2)
+    assert _remove(_client(app), eid, "half").status_code == 400
+    assert _entries(app) == [("jace-new", "Normal", "NM", "EN", 2)]
+
+
+def test_remove_unknown_entry_404(app, setup):
+    assert _remove(_client(app), 99999, "one").status_code == 404
+
+
+def test_collection_tiles_carry_stack_data(app, setup):
+    eid = _seed_entry(app, count=2, finish="Foil")
+    body = _client(app).get("/collection").data.decode("utf-8")
+    assert f'data-entry-id="{eid}"' in body
+    assert 'data-count="2"' in body and 'data-finish="Foil"' in body
+    assert 'id="cc-modal-remove"' in body

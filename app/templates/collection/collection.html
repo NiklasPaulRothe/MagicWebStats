@@ -122,6 +122,12 @@
         {% for card in cards %}
         <li class="collection-card"
             {% if card.card_id %}data-card-id="{{ card.card_id }}"{% endif %}
+            data-entry-id="{{ card.id }}"
+            data-count="{{ card.count }}"
+            data-finish="{{ card.finish }}"
+            data-condition="{{ card.condition }}"
+            data-language="{{ card.language }}"
+            data-set-label="{{ card.set_name or card.set_code or '' }}"
             data-name="{{ card.name|lower }}"
             data-price="{{ '%.2f'|format(card.price) if card.price is not none else '' }}"
             data-edition="{{ (card.set_name or card.set_code or '')|lower }}"
@@ -275,6 +281,22 @@
                 <section class="cc-modal-decks">
                     <h3 class="cc-modal-decks-title">In your decks</h3>
                     <div class="cc-modal-decks-body" id="cc-modal-decks-body"></div>
+                </section>
+                {# Remove copies of the exact stack that was clicked (printing +
+                   finish + condition + language). Filled by collection_modal.js. #}
+                <section class="cc-modal-remove" id="cc-modal-remove" hidden
+                         data-remove-url="{{ url_for('collection.collection_remove_entry', entry_id=0) }}">
+                    <h3 class="cc-modal-decks-title">Remove from collection</h3>
+                    <p class="cc-remove-stack" id="cc-remove-stack"></p>
+                    <p class="cc-remove-warn" id="cc-remove-warn" hidden>
+                        Copies of this stack are marked as in a deck. After removing,
+                        that deck may show the card as missing a copy.
+                    </p>
+                    <div class="cc-remove-actions">
+                        <button type="button" class="cc-remove-btn" id="cc-remove-one">Remove 1 card</button>
+                        <button type="button" class="cc-remove-btn cc-remove-btn--all" id="cc-remove-all">Remove whole stack</button>
+                    </div>
+                    <p class="cc-remove-error" id="cc-remove-error" role="alert" hidden></p>
                 </section>
             </div>
         </div>
