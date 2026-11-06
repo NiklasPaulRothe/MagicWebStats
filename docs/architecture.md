@@ -54,7 +54,7 @@ Services in `app/services/` encapsulate cross-cutting logic:
 - `elo_service.py` — Elo rating calculations
 - `deck_service.py` — Deck versioning logic
 - `game_service.py` — Game creation and participant handling
-- `stats_service.py` — Complex stat aggregations, incl. `compute_playgroup_dashboard()` (playgroup-wide aggregates for the Playgroup page)
+- `stats_service.py` — Complex stat aggregations, incl. `compute_playgroup_dashboard()` (playgroup-wide, non-cEDH aggregates for the Playgroup page: every game metric filters `games.cedh = false`, active decks exclude cEDH decks)
 - `collection_service.py` — Collection import (standard/Archidekt + ManaBox formats, replace/add modes), single-card add, remove, availability statuses
 
 ### Role-Based Access

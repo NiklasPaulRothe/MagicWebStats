@@ -1462,14 +1462,15 @@ def compute_playgroup_dashboard() -> dict:
     """Aggregate every metric the Playgroup dashboard (landing page) shows.
 
     All figures are playgroup-wide aggregates (no individual player/deck is
-    named). cEDH games are INCLUDED in the volume/shape stats here (the
-    dashboard reports on the whole pod); the cEDH *share* is reported as its
-    own KPI. Color metrics come from the v_color_usage view, which itself
-    excludes cEDH by definition.
+    named) over NON-cEDH data only: every game-based metric filters
+    ``games.cedh = false`` (participant-based ones join their game for it), the
+    active-deck count excludes cEDH decks, and the color metrics come from the
+    v_color_usage view, which excludes cEDH games and decks by definition. The
+    player count is a plain count of players.
 
     Returns a dict with keys:
       kpis: {games, games_this_month, games_this_year, active_decks, players,
-             avg_pod, cedh_share}
+             avg_pod}
       game_length: {hist:[{value,count}], avg, median, max, axis_max, axis_ticks}
       first_kill:  {hist:[{value,count}], avg, median, fastest, axis_max, axis_ticks}
       final_blow:  [{label, count, pct}]  (desc by count)
@@ -1486,36 +1487,42 @@ def compute_playgroup_dashboard() -> dict:
     from datetime import date
     from app.viewmodels import ColorUsage
 
+    # The dashboard is a non-cEDH data hub: this filter applies to EVERY
+    # game-based metric below (same rule as the v_color_usage view).
+    non_cedh = Game.cedh.is_(False)
+
     # ── KPIs ────────────────────────────────────────────────────────────────
-    total_games = db.session.scalar(sa.select(func.count()).select_from(Game)) or 0
+    total_games = db.session.scalar(
+        sa.select(func.count()).select_from(Game).where(non_cedh)
+    ) or 0
 
     today = date.today()
     first_of_month = today.replace(day=1)
     games_this_month = db.session.scalar(
-        sa.select(func.count()).select_from(Game).where(Game.date >= first_of_month)
+        sa.select(func.count()).select_from(Game)
+        .where(non_cedh, Game.date >= first_of_month)
     ) or 0
 
     first_of_year = today.replace(month=1, day=1)
     games_this_year = db.session.scalar(
-        sa.select(func.count()).select_from(Game).where(Game.date >= first_of_year)
+        sa.select(func.count()).select_from(Game)
+        .where(non_cedh, Game.date >= first_of_year)
     ) or 0
 
     active_decks = db.session.scalar(
-        sa.select(func.count()).select_from(Deck).where(Deck.active.is_(True))
+        sa.select(func.count()).select_from(Deck)
+        .where(Deck.active.is_(True), Deck.cedh.is_(False))
     ) or 0
 
     players = db.session.scalar(sa.select(func.count()).select_from(Player)) or 0
 
-    # Average pod size = avg participants per game.
+    # Average pod size = avg participants per (non-cEDH) game.
     total_participants = db.session.scalar(
         sa.select(func.count()).select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .where(non_cedh)
     ) or 0
     avg_pod = round(total_participants / total_games, 1) if total_games else 0.0
-
-    cedh_games = db.session.scalar(
-        sa.select(func.count()).select_from(Game).where(Game.cedh.is_(True))
-    ) or 0
-    cedh_share = round(cedh_games / total_games * 100) if total_games else 0
 
     kpis = {
         'games': total_games,
@@ -1524,12 +1531,11 @@ def compute_playgroup_dashboard() -> dict:
         'active_decks': active_decks,
         'players': players,
         'avg_pod': avg_pod,
-        'cedh_share': cedh_share,
     }
 
     # ── Game length (turns) histogram ───────────────────────────────────────
     turns_list = list(db.session.scalars(
-        sa.select(Game.turns).where(Game.turns.isnot(None))
+        sa.select(Game.turns).where(non_cedh, Game.turns.isnot(None))
     ).all())
     gl_hist = _histogram(Counter(turns_list))
     gl_axis_max = _nice_axis_max(max((b['count'] for b in gl_hist), default=0))
@@ -1544,7 +1550,7 @@ def compute_playgroup_dashboard() -> dict:
 
     # ── First kill (first_ko_turn) histogram ────────────────────────────────
     ko_list = list(db.session.scalars(
-        sa.select(Game.first_ko_turn).where(Game.first_ko_turn.isnot(None))
+        sa.select(Game.first_ko_turn).where(non_cedh, Game.first_ko_turn.isnot(None))
     ).all())
     fk_hist = _histogram(Counter(ko_list))
     fk_axis_max = _nice_axis_max(max((b['count'] for b in fk_hist), default=0))
@@ -1559,7 +1565,7 @@ def compute_playgroup_dashboard() -> dict:
 
     # ── Final blow breakdown (as % of games with a recorded final blow) ──────
     fb_list = list(db.session.scalars(
-        sa.select(Game.final_blow).where(Game.final_blow.isnot(None))
+        sa.select(Game.final_blow).where(non_cedh, Game.final_blow.isnot(None))
     ).all())
     fb_total = len(fb_list)
     final_blow = [
@@ -1589,6 +1595,8 @@ def compute_playgroup_dashboard() -> dict:
     # Count participants per game, then tally how many games had each pod size.
     size_rows = db.session.execute(
         sa.select(Participant.game_id, func.count().label('n'))
+        .join(Game, Game.id == Participant.game_id)
+        .where(non_cedh)
         .group_by(Participant.game_id)
     ).all()
     # Only real multiplayer pods (3+). 1- and 2-player games are excluded as
@@ -1617,6 +1625,8 @@ def compute_playgroup_dashboard() -> dict:
     _distinct_seats = func.count(func.distinct(Participant.seat))
     fully_seated_stmt = (
         sa.select(Participant.game_id, _row_count.label('size'))
+        .join(Game, Game.id == Participant.game_id)
+        .where(non_cedh)
         .group_by(Participant.game_id)
         .having(sa.and_(
             _row_count >= 3,                 # real multiplayer pods only
@@ -1653,11 +1663,13 @@ def compute_playgroup_dashboard() -> dict:
 
     # ── Removal matrix: avg removal_played & targeted_by_removal, all vs winner
     def _avg(col, winners_only: bool):
-        stmt = sa.select(func.avg(col)).select_from(Participant)
+        stmt = (
+            sa.select(func.avg(col)).select_from(Participant)
+            .join(Game, Game.id == Participant.game_id)
+            .where(non_cedh)
+        )
         if winners_only:
-            stmt = stmt.join(Game, Game.id == Participant.game_id).where(
-                Game.winner_id == Participant.player_id
-            )
+            stmt = stmt.where(Game.winner_id == Participant.player_id)
         stmt = stmt.where(col.isnot(None))
         val = db.session.scalar(stmt)
         return round(float(val), 1) if val is not None else 0.0
@@ -1666,6 +1678,8 @@ def compute_playgroup_dashboard() -> dict:
     # the removal averages are based on (removal is tracked irregularly).
     removal_games = db.session.scalar(
         sa.select(func.count(func.distinct(Participant.game_id)))
+        .join(Game, Game.id == Participant.game_id)
+        .where(non_cedh)
         .where(sa.or_(
             Participant.removal_played.isnot(None),
             Participant.targeted_by_removal.isnot(None),

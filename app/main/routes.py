@@ -62,7 +62,7 @@ def index():
         db.session.rollback()
         data = {
             'kpis': {'games': 0, 'games_this_month': 0, 'games_this_year': 0,
-                     'active_decks': 0, 'players': 0, 'avg_pod': 0.0, 'cedh_share': 0},
+                     'active_decks': 0, 'players': 0, 'avg_pod': 0.0},
             'game_length': {'hist': [], 'avg': 0, 'median': 0, 'max': 0,
                             'axis_max': 1, 'axis_ticks': [1, 0]},
             'first_kill': {'hist': [], 'avg': 0, 'median': 0, 'fastest': 0,
