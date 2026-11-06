@@ -23,13 +23,18 @@ body {
    the markup in templates/base.html. The .skip-link is defined in layout.css. */
 
 /* ── Content links (inside the shell's main area) ─────────────────────────── */
-.app-main a:link,
-.app-main a:visited {
+/* Links styled as buttons (.btn, .dd-btn) are excluded: this rule is more
+   specific than their own class rules and would otherwise force light text
+   (unreadable on the gold .btn.primary fill) plus an underline/bold hover. */
+/* :where() adds no specificity, so this stays exactly as strong as before for
+   every other link (no change to what other pages' link rules win against). */
+.app-main a:link:where(:not(.btn, .dd-btn)),
+.app-main a:visited:where(:not(.btn, .dd-btn)) {
     color: antiquewhite;
     text-decoration: underline;
 }
 
-.app-main a:link:hover {
+.app-main a:link:where(:not(.btn, .dd-btn)):hover {
     color: white;
     font-weight: bold;
 }
