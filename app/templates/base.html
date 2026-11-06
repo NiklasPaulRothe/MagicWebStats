@@ -5,111 +5,210 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Magic: The Gathering Stats</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/basic.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body>
-        <a class="skip-link" href="#main-content">Skip to content</a>
-        <nav aria-label="Main navigation">
-            <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-hidden="true">
-            <div class="nav-bar">
-                <a class="nav-brand" href="{{ url_for('main.index') }}">MTG Stats</a>
-                <label for="nav-toggle" class="nav-toggle-label" aria-label="Toggle navigation menu">
-                    <span></span><span></span><span></span>
-                </label>
-            </div>
-            <ul class="nav-main">
-                <li>
-                    <a href="{{ url_for('main.index') }}"
-                       {% if request.endpoint == 'main.index' %}class="active" aria-current="page"{% endif %}>Home</a>
-                </li>
+    <a class="skip-link" href="#main-content">Skip to content</a>
 
-                {% set stats_endpoints = ['stats.playerstats', 'stats.colorstats', 'stats.deckstats'] %}
-                <li class="dropdown">
-                    <a href="{{ url_for('stats.playerstats') }}"
-                       class="dropdown-toggle{% if request.endpoint in stats_endpoints %} active{% endif %}"
-                       aria-haspopup="true">Stats <span class="caret" aria-hidden="true">▾</span></a>
-                    <ul class="dropdown-content">
+    <div class="app-shell" id="app-shell">
+        <!-- No-JS mobile drawer toggle. JS enhances this with Esc/backdrop/
+             close-on-navigate but the checkbox keeps it working without JS. -->
+        <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-hidden="true" tabindex="-1">
+
+        <!-- Mobile top bar (hidden on desktop via CSS) -->
+        <header class="app-topbar">
+            <label for="nav-toggle" class="app-topbar__toggle" id="nav-open"
+                   role="button" aria-label="Open navigation menu"
+                   aria-controls="sidebar" aria-expanded="false" tabindex="0">
+                <span></span><span></span><span></span>
+            </label>
+            <a class="app-topbar__brand" href="{{ url_for('main.index') }}">MTG Stats</a>
+        </header>
+
+        <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+        <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+            <div class="sidebar__header">
+                <a class="sidebar__brand" href="{{ url_for('main.index') }}">
+                    <span class="sidebar__brand-text">MTG Stats</span>
+                </a>
+                <button type="button" class="sidebar__collapse" id="nav-collapse"
+                        aria-label="Collapse navigation" aria-pressed="false">
+                    <span aria-hidden="true">«</span>
+                </button>
+            </div>
+
+            <div class="sidebar__nav">
+                {# ── MAIN ─────────────────────────────────────────────── #}
+                <div class="nav-group">
+                    <span class="nav-group__label">Main</span>
+                    <ul class="nav-list">
                         <li>
-                            <a href="{{ url_for('stats.playerstats') }}"
-                               {% if request.endpoint == 'stats.playerstats' %}aria-current="page"{% endif %}>Player</a>
+                            <a class="nav-link {% if request.endpoint == 'main.index' %}is-active{% endif %}"
+                               href="{{ url_for('main.index') }}"
+                               {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Playgroup</span>
+                            </a>
                         </li>
                         <li>
-                            <a href="{{ url_for('stats.colorstats') }}"
-                               {% if request.endpoint == 'stats.colorstats' %}aria-current="page"{% endif %}>Color</a>
+                            <a class="nav-link {% if request.endpoint == 'stats.playerstats' %}is-active{% endif %}"
+                               href="{{ url_for('stats.playerstats') }}"
+                               {% if request.endpoint == 'stats.playerstats' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Players</span>
+                            </a>
                         </li>
                         <li>
-                            <a href="{{ url_for('stats.deckstats') }}"
-                               {% if request.endpoint == 'stats.deckstats' %}aria-current="page"{% endif %}>Deck</a>
+                            <a class="nav-link {% if request.endpoint == 'stats.colorstats' %}is-active{% endif %}"
+                               href="{{ url_for('stats.colorstats') }}"
+                               {% if request.endpoint == 'stats.colorstats' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Colors</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'stats.deckstats' %}is-active{% endif %}"
+                               href="{{ url_for('stats.deckstats') }}"
+                               {% if request.endpoint == 'stats.deckstats' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Decks</span>
+                            </a>
                         </li>
                     </ul>
-                </li>
+                </div>
 
+                {# ── YOURS (authenticated only) ───────────────────────── #}
                 {% if not current_user.is_anonymous %}
-                <li>
-                    <a href="{{ url_for('decks.my_decks') }}"
-                       {% if request.endpoint == 'decks.my_decks' %}class="active" aria-current="page"{% endif %}>My Decks</a>
-                </li>
-                <li>
-                    <a href="{{ url_for('collection.collection') }}"
-                       {% if request.endpoint == 'collection.collection' %}class="active" aria-current="page"{% endif %}>Collection</a>
-                </li>
+                <div class="nav-group">
+                    <span class="nav-group__label">Yours</span>
+                    <ul class="nav-list">
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'main.player' %}is-active{% endif %}"
+                               href="{{ url_for('main.player', identifier=current_user.player_id) }}"
+                               {% if request.endpoint == 'main.player' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Profile</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'main.user' %}is-active{% endif %}"
+                               href="{{ url_for('main.user', identifier=current_user.player_id) }}"
+                               {% if request.endpoint == 'main.user' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">My Deck Stats</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'decks.my_decks' %}is-active{% endif %}"
+                               href="{{ url_for('decks.my_decks') }}"
+                               {% if request.endpoint == 'decks.my_decks' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">My Decks</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'collection.collection' %}is-active{% endif %}"
+                               href="{{ url_for('collection.collection') }}"
+                               {% if request.endpoint == 'collection.collection' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Collection</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 {% endif %}
 
-                {% if not current_user.is_anonymous and current_user.role == 'admin' %}
-                <li>
-                    <a href="{{ url_for('stats.game_hub') }}"
-                       {% if request.endpoint == 'stats.game_hub' %}class="active" aria-current="page"{% endif %}>Manage</a>
-                </li>
+                {# ── MANAGE (maintainers and admins) ──────────────────── #}
+                {% if is_maintainer %}
+                <div class="nav-group">
+                    <span class="nav-group__label">Manage</span>
+                    <ul class="nav-list">
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'stats.game_hub' %}is-active{% endif %}"
+                               href="{{ url_for('stats.game_hub') }}"
+                               {% if request.endpoint == 'stats.game_hub' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Games</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'stats.game_add' %}is-active{% endif %}"
+                               href="{{ url_for('stats.game_add') }}"
+                               {% if request.endpoint == 'stats.game_add' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Add Game</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 {% endif %}
-            </ul>
 
-            <ul class="nav-account">
+                {# ── ADMIN (admins only) ──────────────────────────────── #}
+                {% if is_admin %}
+                <div class="nav-group">
+                    <span class="nav-group__label">Admin</span>
+                    <ul class="nav-list">
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'auth.manage_roles' %}is-active{% endif %}"
+                               href="{{ url_for('auth.manage_roles') }}"
+                               {% if request.endpoint == 'auth.manage_roles' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Roles</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="nav-link {% if request.endpoint == 'stats.audit_log' %}is-active{% endif %}"
+                               href="{{ url_for('stats.audit_log') }}"
+                               {% if request.endpoint == 'stats.audit_log' %}aria-current="page"{% endif %}>
+                                <span class="nav-link__text">Audit Log</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="nav-link nav-link--muted"
+                               href="{{ url_for('decks.calculate_elo') }}">
+                                <span class="nav-link__text">Recalc Elo</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- ── Account (pinned bottom) ─────────────────────────────── -->
+            <div class="sidebar__account">
                 {% if current_user.is_anonymous %}
-                    <li>
-                        <a href="{{ url_for('auth.login') }}"
-                           {% if request.endpoint == 'auth.login' %}class="active" aria-current="page"{% endif %}>Login</a>
-                    </li>
+                    <a class="account__login {% if request.endpoint == 'auth.login' %}is-active{% endif %}"
+                       href="{{ url_for('auth.login') }}">Log in</a>
                 {% else %}
-                    {% set account_endpoints = ['main.player', 'main.user'] %}
-                    <li class="dropdown">
-                        <a href="{{ url_for('main.player', identifier=current_user.player_id) }}"
-                           class="dropdown-toggle{% if request.endpoint in account_endpoints %} active{% endif %}"
-                           aria-haspopup="true">
-                            Account <span class="caret" aria-hidden="true">▾</span>
-                        </a>
-                        <ul class="dropdown-content dropdown-content-right">
-                            <li>
-                                <a href="{{ url_for('main.player', identifier=current_user.player_id) }}"
-                                   {% if request.endpoint == 'main.player' %}aria-current="page"{% endif %}>Profile</a>
-                            </li>
-                            <li>
-                                <a href="{{ url_for('main.user', identifier=current_user.player_id) }}"
-                                   {% if request.endpoint == 'main.user' %}aria-current="page"{% endif %}>My Deck Stats</a>
-                            </li>
-                            <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
-                        </ul>
-                    </li>
+                    <span class="account__avatar" aria-hidden="true">🧙</span>
+                    <span class="account__meta">
+                        <span class="account__name">{{ current_user.username }}</span>
+                        <span class="account__role">{{ current_user.role }}</span>
+                    </span>
+                    <a class="account__action" href="{{ url_for('auth.logout') }}"
+                       aria-label="Log out" title="Log out">⎋</a>
                 {% endif %}
-            </ul>
+            </div>
         </nav>
 
-    <main id="main-content">
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <ul>
-            {% for message in messages %}
-            <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
-    </main>
+        <!-- Backdrop closes the mobile drawer when tapped (also resets the
+             no-JS checkbox because the <label> targets #nav-toggle). -->
+        <label class="sidebar-backdrop" for="nav-toggle" id="nav-close"
+               aria-label="Close navigation menu"></label>
 
-    <footer>
+        <!-- ── Main content ────────────────────────────────────────────── -->
+        <main class="app-main" id="main-content">
+            <div class="app-main__inner {% block main_inner_class %}{% endblock %}">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <ul class="flash-stack">
+                    {% for category, message in messages %}
+                    <li class="flash flash--{{ category|default('info', true) }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <footer class="app-footer">
         <p>&copy; 2024 Magic: The Gathering Stats. All rights reserved.</p>
     </footer>
 
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
 </body>
 </html>

@@ -36,6 +36,8 @@ class TestFormatPlayerStats:
             "winrate_pct": 40.0,
             "first": 2,
             "first_pct": 20.0,
+            "avg_removal_played": 2.5,
+            "avg_removal_targeted": 1.5,
         })
         assert result == {
             "name": "Alice",
@@ -46,7 +48,19 @@ class TestFormatPlayerStats:
             "winrate_pct": 40.0,
             "first": 2,
             "first_pct": 20.0,
+            "avg_removal_played": 2.5,
+            "avg_removal_targeted": 1.5,
         }
+
+    def test_removal_averages_none_preserved(self):
+        """When <5 tracked games, removal averages are None (JSON null)."""
+        result = format_player_stats({
+            "name": "Bob", "games": 3, "early_sol_ring": 0, "sol_ring_pct": 0.0,
+            "wins": 1, "winrate_pct": 33.3, "first": 1, "first_pct": 33.3,
+            "avg_removal_played": None, "avg_removal_targeted": None,
+        })
+        assert result["avg_removal_played"] is None
+        assert result["avg_removal_targeted"] is None
 
 
 class TestFormatDeckData:
@@ -105,9 +119,23 @@ class TestFormatUserDeck:
             "tags": ["tribal"],
         })
         assert result["last_played"] == "5.3.2024"
+        assert result["last_played_iso"] == "2024-03-05"
         assert result["winrate_pct"] == 37.5
         assert result["color_imgs"] == ["/img/B.svg", "/img/G.svg"]
         assert result["tags"] == ["tribal"]
+
+    def test_card_fields(self):
+        result = format_user_deck({
+            "deck_id": 3, "name": "Elves", "commander": "Lathril", "color_identity": "BG",
+            "games": 8, "last_played": None, "wins": 3, "winrate_pct": 37.5,
+            "avg_win_turns": 6.33, "win_turns_count": 3, "decklist": None,
+            "image_uri": "https://img/e.jpg", "color_imgs": [], "tags": [],
+        })
+        assert result["id"] == 3
+        assert result["image_uri"] == "https://img/e.jpg"
+        assert result["avg_win_turns"] == 6.33
+        assert result["win_turns_count"] == 3
+        assert result["last_played_iso"] is None
 
     def test_none_winrate_becomes_null(self):
         result = format_user_deck({
@@ -162,7 +190,26 @@ class TestFormatUserDeckArchive:
             "wins": 3,
             "winrate_pct": 30.0,
             "decklist": "https://example.com",
+            # Card fields default to null/0/[] when the result omits them.
+            "tags": [],
+            "image_uri": None,
+            "avg_win_turns": None,
+            "win_turns_count": 0,
+            "last_played_iso": None,
         }
+
+    def test_card_fields_passed_through(self):
+        result = format_user_deck_archive({
+            "id": 7, "name": "Old", "commander": "Cmd", "color_identity": "R",
+            "games": 4, "wins": 1, "winrate_pct": 25.0, "decklist": None,
+            "color_imgs": [], "tags": ["aggro"], "image_uri": "https://img/x.jpg",
+            "avg_win_turns": 7.5, "win_turns_count": 1, "last_played": date(2025, 2, 3),
+        })
+        assert result["tags"] == ["aggro"]
+        assert result["image_uri"] == "https://img/x.jpg"
+        assert result["avg_win_turns"] == 7.5
+        assert result["win_turns_count"] == 1
+        assert result["last_played_iso"] == "2025-02-03"
 
     def test_none_winrate_stays_none(self):
         """Archive endpoint passes None through (no dash substitution)."""

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Optional, TypedDict
 
-from sqlalchemy import select, func, case, cast, exists, Numeric, Float, Integer
+from sqlalchemy import select, func, case, cast, exists, Numeric, Float, Integer, or_ as sa_or
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -46,6 +46,49 @@ def _get_color_imgs_for_deck(session: Session, color_identity_name: str) -> list
     return list(rows)
 
 
+def _removal_averages_by_player(
+    session: Session, year: int | None = None
+) -> dict[int, tuple[Optional[float], Optional[float]]]:
+    """Average removal played / targeted per player, keyed by player id.
+
+    Only games with recorded removal data count (``removal_played`` or
+    ``targeted_by_removal`` non-NULL). Each average is over the participations
+    where that specific column is non-NULL. When a player has fewer than 5
+    games with ANY tracked removal, both values are ``None`` so the UI can show
+    "-" (the sample is too small to be meaningful).
+
+    ``year`` optionally restricts to a single calendar year (matching the
+    year-filtered player-stats query).
+    """
+    tracked = sa_or(
+        Participant.removal_played.isnot(None),
+        Participant.targeted_by_removal.isnot(None),
+    )
+    stmt = (
+        select(
+            Participant.player_id,
+            func.count(func.distinct(Participant.game_id)).label("tracked_games"),
+            func.avg(Participant.removal_played).label("avg_played"),
+            func.avg(Participant.targeted_by_removal).label("avg_targeted"),
+        )
+        .join(Game, Game.id == Participant.game_id)
+        .where(tracked)
+        .group_by(Participant.player_id)
+    )
+    if year is not None:
+        stmt = stmt.where(func.extract("year", Game.date) == year)
+
+    result: dict[int, tuple[Optional[float], Optional[float]]] = {}
+    for row in session.execute(stmt).all():
+        if (row.tracked_games or 0) < 5:
+            result[row.player_id] = (None, None)
+        else:
+            played = round(float(row.avg_played), 1) if row.avg_played is not None else None
+            targeted = round(float(row.avg_targeted), 1) if row.avg_targeted is not None else None
+            result[row.player_id] = (played, targeted)
+    return result
+
+
 def _get_tags_for_deck(session: Session, deck_id: int) -> list[str]:
     """Query tags for a given deck, ordered alphabetically.
 
@@ -74,6 +117,11 @@ class PlayerStatsResult(TypedDict):
     winrate_pct: float  # rounded to 2 decimal places
     first: int
     first_pct: float  # rounded to 2 decimal places
+    # Average removal cast / received across games with tracked removal.
+    # None when the player has fewer than 5 games with removal data (the
+    # stat is not shown — rendered as "-").
+    avg_removal_played: Optional[float]
+    avg_removal_targeted: Optional[float]
 
 
 class ColorDataResult(TypedDict):
@@ -81,6 +129,10 @@ class ColorDataResult(TypedDict):
     games: int
     wins: int
     winrate_pct: float  # rounded to 2 decimal places
+    # Sort key encoding colour-count then the WUBRG hierarchy, e.g.
+    # "0:" (colorless) < "1:0" (W) < "1:1" (U) < "2:01" (WU) < "2:02" (WB) ...
+    # The UI sorts the Color-Identity column lexicographically by this.
+    color_key: str
 
 
 class DeckDataResult(TypedDict):
@@ -100,6 +152,7 @@ class DeckDataResult(TypedDict):
 
 
 class UserDeckResult(TypedDict):
+    deck_id: int
     name: str
     commander: str
     color_identity: str
@@ -107,7 +160,10 @@ class UserDeckResult(TypedDict):
     last_played: Optional[date]  # None if never played
     wins: int
     winrate_pct: Optional[float]  # None when games == 0
+    avg_win_turns: Optional[float]  # None when this player has no counted wins
+    win_turns_count: int
     decklist: Optional[str]
+    image_uri: Optional[str]
     color_imgs: list[str]
     tags: list[str]
 
@@ -118,10 +174,45 @@ class UserDeckArchiveResult(TypedDict):
     commander: str
     color_identity: str
     games: int
+    last_played: Optional[date]
     wins: int
     winrate_pct: Optional[float]
+    avg_win_turns: Optional[float]
+    win_turns_count: int
     decklist: Optional[str]
+    image_uri: Optional[str]
     color_imgs: list[str]
+    tags: list[str]
+
+
+def _player_win_turn_subqueries(player_id: int):
+    """Correlated (avg win turn, counted wins) for ``player_id`` piloting ``Deck``.
+
+    Mirrors get_deck_data's avg_win_turns / win_turns_count but restricted to
+    the given player's own wins with the deck (the My Deck Stats view counts
+    only that player's games, like its games/wins columns). Games without a
+    recorded turn count are ignored by AVG and excluded from the count.
+    """
+    base = (
+        select()
+        .select_from(Game)
+        .join(Participant, Participant.game_id == Game.id)
+        .where(Game.winner_id == Participant.player_id)
+        .where(Participant.deck_id == Deck.id)
+        .where(Participant.player_id == player_id)
+    )
+    avg_win_turns = (
+        base.add_columns(func.round(func.avg(Game.turns), 2))
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    win_turns_count = (
+        base.add_columns(func.count())
+        .where(Game.turns.isnot(None))
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    return avg_win_turns, win_turns_count
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +258,18 @@ def get_user_decks_archive(session: Session, player_id: int) -> list[UserDeckArc
         Numeric(10, 2),
     )
 
+    # Last played: most recent game this player piloted the deck in.
+    last_played = (
+        select(func.max(Game.date))
+        .select_from(Game)
+        .join(Participant, Participant.game_id == Game.id)
+        .where(Participant.deck_id == Deck.id)
+        .where(Participant.player_id == player_id)
+        .correlate(Deck)
+        .scalar_subquery()
+    )
+    avg_win_turns, win_turns_count = _player_win_turn_subqueries(player_id)
+
     # Main query: inactive decks for the specified player
     stmt = (
         select(
@@ -175,9 +278,13 @@ def get_user_decks_archive(session: Session, player_id: int) -> list[UserDeckArc
             Deck.commander,
             Deck.color_identity,
             game_count.label("games"),
+            last_played.label("last_played"),
             win_count.label("wins"),
             winrate.label("winrate_pct"),
+            avg_win_turns.label("avg_win_turns"),
+            win_turns_count.label("win_turns_count"),
             Deck.decklist,
+            Deck.image_uri,
         )
         .where(Deck.player_id == player_id)
         .where(Deck.active == False)  # noqa: E712
@@ -207,10 +314,15 @@ def get_user_decks_archive(session: Session, player_id: int) -> list[UserDeckArc
                 commander=row.commander,
                 color_identity=row.color_identity,
                 games=row.games,
+                last_played=row.last_played,
                 wins=row.wins,
                 winrate_pct=float(row.winrate_pct) if row.winrate_pct is not None else None,
+                avg_win_turns=float(row.avg_win_turns) if row.avg_win_turns is not None else None,
+                win_turns_count=row.win_turns_count or 0,
                 decklist=row.decklist,
+                image_uri=row.image_uri,
                 color_imgs=color_imgs,
+                tags=_get_tags_for_deck(session, row.id),
             )
         )
 
@@ -330,6 +442,7 @@ def get_player_stats_by_year(session: Session, year: int) -> list[PlayerStatsRes
     # Main query
     stmt = (
         select(
+            Player.id,
             Player.name,
             game_count.label("games"),
             early_sol_ring_count.label("early_sol_ring"),
@@ -344,6 +457,7 @@ def get_player_stats_by_year(session: Session, year: int) -> list[PlayerStatsRes
     )
 
     rows = session.execute(stmt).all()
+    removal = _removal_averages_by_player(session, year=year)
 
     return [
         PlayerStatsResult(
@@ -355,6 +469,8 @@ def get_player_stats_by_year(session: Session, year: int) -> list[PlayerStatsRes
             winrate_pct=float(row.winrate_pct),
             first=row.first,
             first_pct=float(row.first_pct),
+            avg_removal_played=removal.get(row.id, (None, None))[0],
+            avg_removal_targeted=removal.get(row.id, (None, None))[1],
         )
         for row in rows
     ]
@@ -410,12 +526,30 @@ def get_color_data(session: Session) -> list[ColorDataResult]:
 
     rows = session.execute(stmt).all()
 
+    # Build the WUBRG sort key per identity. WUBRG rank: White<U<Black<Red<Green.
+    # key = "{count}:{sorted rank digits}" so a lexicographic compare orders by
+    # colour count first, then by the WUBRG hierarchy within a tier.
+    wubrg_rank = {"White": 0, "Blue": 1, "Black": 2, "Red": 3, "Green": 4}
+    comp_rows = session.execute(
+        select(ColorComponent.color_identity, ColorComponent.color)
+    ).all()
+    colors_by_identity: dict[str, list[int]] = {}
+    for ci_name, color_name in comp_rows:
+        rank = wubrg_rank.get(color_name)
+        if rank is not None:
+            colors_by_identity.setdefault(ci_name, []).append(rank)
+
+    def _color_key(identity_name: str) -> str:
+        ranks = sorted(colors_by_identity.get(identity_name, []))
+        return f"{len(ranks)}:{''.join(str(r) for r in ranks)}"
+
     return [
         ColorDataResult(
             name=row.name,
             games=row.games,
             wins=row.wins,
             winrate_pct=float(row.winrate_pct),
+            color_key=_color_key(row.name),
         )
         for row in rows
     ]
@@ -635,6 +769,7 @@ def get_player_stats(session: Session) -> list[PlayerStatsResult]:
     # Main query
     stmt = (
         select(
+            Player.id,
             Player.name,
             game_count.label("games"),
             early_sol_ring_count.label("early_sol_ring"),
@@ -649,6 +784,7 @@ def get_player_stats(session: Session) -> list[PlayerStatsResult]:
     )
 
     rows = session.execute(stmt).all()
+    removal = _removal_averages_by_player(session)
 
     return [
         PlayerStatsResult(
@@ -660,6 +796,8 @@ def get_player_stats(session: Session) -> list[PlayerStatsResult]:
             winrate_pct=float(row.winrate_pct),
             first=row.first,
             first_pct=float(row.first_pct),
+            avg_removal_played=removal.get(row.id, (None, None))[0],
+            avg_removal_targeted=removal.get(row.id, (None, None))[1],
         )
         for row in rows
     ]
@@ -733,6 +871,8 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
         Numeric(10, 2),
     )
 
+    avg_win_turns, win_turns_count = _player_win_turn_subqueries(player_id)
+
     # Main query: active decks belonging to the specified player
     stmt = (
         select(
@@ -744,7 +884,10 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
             last_played.label("last_played"),
             win_count.label("wins"),
             winrate.label("winrate_pct"),
+            avg_win_turns.label("avg_win_turns"),
+            win_turns_count.label("win_turns_count"),
             Deck.decklist,
+            Deck.image_uri,
         )
         .where(Deck.player_id == player_id)
         .where(Deck.active == True)  # noqa: E712
@@ -761,6 +904,7 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
 
         results.append(
             UserDeckResult(
+                deck_id=row.deck_id,
                 name=row.name,
                 commander=row.commander,
                 color_identity=row.color_identity,
@@ -768,7 +912,10 @@ def get_user_decks(session: Session, player_id: int) -> list[UserDeckResult]:
                 last_played=row.last_played,
                 wins=row.wins,
                 winrate_pct=float(row.winrate_pct) if row.winrate_pct is not None else None,
+                avg_win_turns=float(row.avg_win_turns) if row.avg_win_turns is not None else None,
+                win_turns_count=row.win_turns_count or 0,
                 decklist=row.decklist,
+                image_uri=row.image_uri,
                 color_imgs=color_imgs,
                 tags=tags,
             )

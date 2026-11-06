@@ -1,160 +1,55 @@
-﻿{# Deck overview page (migrated from user.html). Deck table + client-side fetch/sort. #}
+﻿{# My Deck Stats (route main.user): one card per deck, active or archived.
+   Data comes from /api/userdecks/<id> and /api/userdecks/archive/<id>; all
+   rendering, sorting and searching happens in static/js/mydeckstats.js. #}
 {% extends "base.html" %}
 
+{% block main_inner_class %}app-main__inner--wide{% endblock %}
+
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/gamead.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playertable.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mydeckstats.css') }}">
 {% endblock %}
 
 {% block content %}
-    <main>
-        <h1>{{ spieler.name }} Deckübersicht</h1>
+{% set initial_view = 'archived' if request.args.get('view') == 'archived' else 'active' %}
+<div id="my-deck-stats"
+     data-player-id="{{ spieler.id }}"
+     data-player-name="{{ spieler.name }}"
+     data-owner="{{ 'true' if owner else 'false' }}"
+     data-can-reactivate="{{ 'true' if (owner or is_maintainer) else 'false' }}"
+     data-view="{{ initial_view }}"
+     data-dearchive-url="{{ url_for('decks.dearchive', deck_id=0) }}">
 
-        <p class="deck-overview-crosslink">
-            <a href="{{ url_for('main.player', identifier=spieler.id) }}"><button type="button">Zum Profil</button></a>
-        </p>
+    <header class="dash-head mds-head">
+        <p class="mds-crumbs">{% if owner %}Yours /{% else %}Players / {{ spieler.name }} /{% endif %}</p>
+        <h1 class="dash-title">{% if owner %}My Deck Stats{% else %}{{ spieler.name }}&#39;s Deck Stats{% endif %}</h1>
+        <p class="dash-sub" id="mds-summary" aria-live="polite">Loading&#8230;</p>
+    </header>
 
-        <section id="deck-stats">
-            <h2>Deck Stats</h2>
-            <div class="deck-stats-controls">
-                <a href="/decks/archive/{{ spieler.name }}"><button type="button">Archiv</button></a>
-            </div>
-            <table id="user-deck-stats-table">
-                <thead>
-                    <tr>
-                        <th data-type="string" data-key="name">Name</th>
-                        <th data-type="string" data-key="commander">Commander</th>
-                        <th data-type="string" data-key="color_identity">Color Identity</th>
-                        <th data-type="date" data-key="last_played">Zuletzt gespielt</th>
-                        <th data-type="number" data-key="games">Spiele</th>
-                        <th data-type="number" data-key="wins">Siege</th>
-                        <th data-type="number" data-key="winrate_pct">Winrate (in %)</th>
-                        {% if owner %}
-                        <th data-type="string" data-key=""> </th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Deck stats data will be populated here -->
-                </tbody>
-            </table>
-        </section>
-    </main>
-    <script>
-        function encode(Deck) {
-            return encodeURIComponent(Deck);
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            // Fetch and populate User Deck Stats table
-            fetch('/api/userdecks/' + '{{ spieler.id }}')
-                .then(response => {
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return response.json();
-                })
-                .then(data => populateTable('user-deck-stats-table', data))
-                .catch(err => {
-                    console.error('Failed to load user deck data:', err);
-                    const tbody = document.querySelector('#user-deck-stats-table tbody');
-                    if (tbody) {
-                        const colCount = document.querySelectorAll('#user-deck-stats-table thead th').length;
-                        tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
-                    }
-                });
+    <div class="mds-controls">
+        <label class="mds-controls__label" for="mds-sort">Sort by</label>
+        <select id="mds-sort" class="mds-input">
+            <option value="games" selected>Most games</option>
+            <option value="last_played">Last played</option>
+            <option value="name">Name</option>
+            <option value="winrate">Winrate</option>
+            <option value="avg_win_turns">Avg win turn</option>
+        </select>
+        <label class="sr-only" for="mds-search">Search decks</label>
+        <input type="search" id="mds-search" class="mds-input mds-input--search"
+               placeholder="Search deck, commander or tag&#8230;" autocomplete="off">
+        <div class="mds-controls__spacer"></div>
+        <div class="seg" role="group" aria-label="Deck status">
+            <button type="button" class="seg__btn{% if initial_view == 'active' %} active{% endif %}"
+                    data-view="active" aria-pressed="{{ 'true' if initial_view == 'active' else 'false' }}">Active</button>
+            <button type="button" class="seg__btn{% if initial_view == 'archived' %} active{% endif %}"
+                    data-view="archived" aria-pressed="{{ 'true' if initial_view == 'archived' else 'false' }}">Archived</button>
+        </div>
+    </div>
 
+    <div class="mds-grid" id="mds-grid"></div>
+    <p class="mds-empty" id="mds-empty" hidden></p>
+</div>
 
-            // Function to populate tables
-            function populateTable(tableId, data) {
-                const tbody = document.querySelector(`#${tableId} tbody`);
-                const headers = document.querySelectorAll(`#${tableId} thead th`);
-                tbody.innerHTML = ''; // Clear existing table data
-                let Deck = 'Dummy';
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = Array.from(headers).map(header => {
-                        const key = header.getAttribute('data-key');
-                        if (key === ''){
-                            let URL= encode(Deck)
-                            return `<td><a id="${Deck}-link" href="/decks/edit/${URL}" class="btn">Bearbeiten</a></td>`
-                        }
-                        if (key == 'name') {
-                            Deck = item[key]
-                            let URL= encode(Deck)
-                            // Add tags below the deck name if they exist
-                            const tags = item['tags'] || [];
-                            let tagsHtml = '';
-                            if (tags.length > 0) {
-                                const visibleTags = tags.slice(0, 2);
-                                const hiddenTags = tags.slice(2);
-
-                                const visibleBadges = visibleTags.map(tag =>
-                                    `<span class="deck-tag">${tag}</span>`
-                                ).join('');
-
-                                let expanderHtml = '';
-                                if (hiddenTags.length > 0) {
-                                    const hiddenBadges = hiddenTags.map(tag =>
-                                        `<span class="deck-tag">${tag}</span>`
-                                    ).join('');
-                                    expanderHtml = `<span class="deck-tag-wrapper"><span class="deck-tag deck-tag-expander">...</span><div class="deck-tags-hidden">${hiddenBadges}</div></span>`;
-                                }
-
-                                tagsHtml = `<div class="deck-tags">${visibleBadges}${expanderHtml}</div>`;
-                            }
-                            return `<td><a id="${Deck}-show" href="/decks/show/${URL}">${item[key] || ''}</a>${tagsHtml}</td>`
-                        }
-                        if (key == 'commander') {
-                            return `<td><a id="${Deck}-list" href="dummy">${item[key] || ''}</a></td>`
-                        }
-                        if (key == 'color_identity') {
-                            const colorImgs = item['color_imgs'] || [];
-                            const imgTags = colorImgs.map(src => `<img src="${src}" alt="color" style="height:1.2em; vertical-align:middle;">`).join('');
-                            return `<td>${imgTags}</td>`;
-                        }
-                        return `<td>${item[key] != null ? item[key] : ''}</td>`
-                    }).join('');
-                    tbody.appendChild(row);
-                        decklist = document.getElementById(String(Deck).concat("-list"));
-                        let url = item["decklist"]
-                        if (url != null) {
-                            decklist.href = url;
-                        } else {
-                            decklist.removeAttribute("href")
-                        }
-                });
-            }
-
-            // Sort table functionality
-            const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
-
-            const parseDate = (str) => {
-                // Handles "dd.mm.yyyy" or "yyyy-mm-dd"
-                if (!str) return new Date(0);  // fallback for empty
-                if (str.includes('.')) {
-                    const [day, month, year] = str.split('.');
-                    return new Date(`${year}-${month}-${day}`);
-                }
-                return new Date(str); // fallback to ISO or standard parseable
-            };
-
-            const comparer = (idx, asc, type) => (a, b) => {
-                const v1 = getCellValue(asc ? a : b, idx);
-                const v2 = getCellValue(asc ? b : a, idx);
-
-                if (type === 'number') {
-                    return parseFloat(v1) - parseFloat(v2);
-                } else if (type === 'date') {
-                    return parseDate(v1) - parseDate(v2);
-                } else {
-                    return v1.toString().localeCompare(v2);
-                }
-            };
-
-            document.querySelectorAll('th').forEach(th => th.addEventListener('click', function() {
-                const table = th.closest('table');
-                const tbody = table.querySelector('tbody');
-                Array.from(tbody.querySelectorAll('tr'))
-                    .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc, th.getAttribute('data-type')))
-                    .forEach(tr => tbody.appendChild(tr));
-            }));
-        });
-    </script>
+<script src="{{ url_for('static', filename='js/mydeckstats.js') }}" defer></script>
 {% endblock %}

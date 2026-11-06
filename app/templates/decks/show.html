@@ -1,852 +1,358 @@
 {% extends "base.html" %}
 
 {% block head %}
-<head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/deckpage.css') }}">
-    {% if csrf_token %}
-      <meta name="csrf-token" content="{{ csrf_token() }}">
-    {% endif %}
-
-</head>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playertable.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/deckdetail.css') }}">
+{% if csrf_token %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endif %}
 {% endblock %}
 
+{% macro pct(v) %}{% if v is number %}{{ v }}%{% else %}–{% endif %}{% endmacro %}
+
 {% block content %}
-<main class="deck-container">
+{% set has_filters = last_rework_date or last_patch_date %}
+<div id="deck-detail"
+     data-deckname="{{ deckname }}"
+     data-rework="{{ last_rework_date or '' }}"
+     data-patch="{{ last_patch_date or '' }}"
+     data-url-add="{{ url_for('decks.add_achievement') }}"
+     data-url-progress="{{ url_for('decks.set_achievement_progress', achievement_id=0) }}"
+     data-url-delete="{{ url_for('decks.delete_achievement', achievement_id=0) }}">
 
-    <h1 style="margin-bottom: 5px;">{{ deckname }}</h1>
-    <p style="color: #f4c430; font-size: 0.9em; margin-top: 0; margin-bottom: 20px;">
-        Version {{ deck_version }}
-        <a href="{{ url_for('decks.version_history', deckname=deckname) }}" 
-           style="margin-left: 8px; text-decoration: none; color: #f4c430; font-size: 0.85em;"
-           title="Version History">
-            🔗
-        </a>
-    </p>
-    <!-- Non-intrusive controls above the header content -->
-    <div class="deck-header-controls">
-        <button type="button" id="btn-mode-stats" class="btn small primary">Stats</button>
-        <button type="button" id="btn-mode-achievements" class="btn small">Achievements</button>
+<header class="dd-head">
+    <div class="dd-head__main">
+        <nav class="dd-crumbs" aria-label="Breadcrumb">
+            <a href="{{ url_for('stats.deckstats') }}">Decks</a> / <span>{{ owner_name }}</span> /
+        </nav>
+        <h1 class="dd-title">{{ deckname }}</h1>
     </div>
+    <div class="dd-head__meta">
+        {% if color_identity %}<span class="dd-pill">{{ color_identity }}</span>{% endif %}
+        <span class="dd-muted">v{{ deck_version }}</span>
+        {% if updated_on %}<span class="dd-muted">· updated {{ updated_on }}</span>{% endif %}
+    </div>
+    <div class="dd-head__actions">
+        {% if decklist_url %}<a class="dd-btn" href="{{ decklist_url }}" target="_blank" rel="noopener noreferrer">Decklist</a>{% endif %}
+        <a class="dd-btn" href="{{ url_for('decks.version_history', deckname=deckname) }}">Versions</a>
+        <button type="button" class="dd-btn" id="btn-mode-achievements" aria-pressed="false">Achievements</button>
+    </div>
+</header>
 
-    {% if show_private_avgs %}
-    <div class="deck-header-controls" style="margin-top:8px;">
-        <button type="button" class="btn small primary" id="perf-filter-all">All Games</button>
-        {% if last_rework_date %}
-        <button type="button" class="btn small" id="perf-filter-rework">Since Rework</button>
-        {% endif %}
-        {% if last_patch_date %}
-        <button type="button" class="btn small" id="perf-filter-patch">Since Patch</button>
-        {% endif %}
-        <span id="perf-filter-info" style="font-size:0.8em; color:#aaa;"></span>
-    </div>
-    {% elif last_rework_date or last_patch_date %}
-    <div class="deck-header-controls" style="margin-top:8px;">
-        <button type="button" class="btn small primary" id="perf-filter-all">All Games</button>
-        {% if last_rework_date %}
-        <button type="button" class="btn small" id="perf-filter-rework">Since Rework</button>
-        {% endif %}
-        {% if last_patch_date %}
-        <button type="button" class="btn small" id="perf-filter-patch">Since Patch</button>
-        {% endif %}
-        <span id="perf-filter-info" style="font-size:0.8em; color:#aaa;"></span>
-    </div>
-    {% endif %}
-
-    <section class="deck-header">
-        <div class="commander-section">
-            {% if is_owner %}
-                <a href="{{ url_for('decks.choose_commander_image', deckname=deckname) }}">
-                    <img src="{{ commander }}" alt="Commander Image" class="commander-image" title="Bild ändern">
-                </a>
-            {% else %}
-                <img src="{{ commander }}" alt="Commander Image" class="commander-image">
-            {% endif %}
-            <div class="commander-meta">
-                <div class="stat-item">
-                    <span class="stat-label">Avg Pod Size</span>
-                    <span class="stat-value">{{ deck_stats.avg_participants }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Last Played</span>
-                    <span class="stat-value">{{ deck_stats.last_played }}</span>
-                </div>
+{% if show_private_avgs %}
+<details class="dd-private" id="dd-private">
+    <summary class="dd-private__bar">
+        <span class="dd-private__title">Private stats</span>
+        <span class="dd-private__hint">only visible to you</span>
+        <span class="dd-private__chev" aria-hidden="true"></span>
+    </summary>
+    <div class="dd-private__body">
+        <div class="dd-private__toolbar">
+            <div class="dd-chips" role="group" aria-label="Private stats range">
+                <button type="button" class="dd-chip active" id="avg-filter-all">All games</button>
+                {% if last_rework_date %}<button type="button" class="dd-chip" id="avg-filter-rework">Since rework</button>{% endif %}
+                {% if last_patch_date %}<button type="button" class="dd-chip" id="avg-filter-patch">Since patch</button>{% endif %}
             </div>
+            <span class="dd-muted" id="avg-filter-info"></span>
         </div>
-        
-        <div class="deck-header-text">
-            <div class="deck-stats-summary">
-                <!-- Overall Stats -->
-                <div class="stats-section">
-                    <h4 class="stats-section-title">Overall Performance</h4>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">Games Played</span>
-                            <span class="stat-value" data-perf="games">{{ deck_stats.games }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Wins</span>
-                            <span class="stat-value" data-perf="wins">{{ deck_stats.wins }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Winrate</span>
-                            <span class="stat-value stat-highlight" data-perf="winrate">{{ deck_stats.winrate }}%</span>
-                        </div>
-                    </div>
-                </div>
 
-                {% if is_shared_deck and pilot_summary %}
-                <!-- Pilots (shared/precon deck: who played it, how often) -->
-                <div class="stats-section">
-                    <h4 class="stats-section-title">Pilots</h4>
-                    <div class="stats-grid">
-                        {% for pilot in pilot_summary %}
-                        <div class="stat-item">
-                            <span class="stat-label">{{ pilot.name }}</span>
-                            <span class="stat-value">{{ pilot.games }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
+        <div class="dd-private__cols">
+            <div id="participant-avgs-content" class="dd-private__avgs">
+                <h3 class="dd-group-title">Game performance</h3>
+                <dl class="dd-kv">
+                    <div><dt>Enough mana</dt><dd data-avg="enough_mana">{{ participant_avgs.enough_mana }}</dd></div>
+                    <div><dt>Enough gas</dt><dd data-avg="enough_gas">{{ participant_avgs.enough_gas }}</dd></div>
+                    <div><dt>Deck plan</dt><dd data-avg="deckplan">{{ participant_avgs.deckplan }}</dd></div>
+                    <div><dt>Unanswered threats</dt><dd data-avg="unanswered_threats">{{ participant_avgs.unanswered_threats }}</dd></div>
+                </dl>
 
-                <!-- Win Turn Stats -->
-                <div class="stats-section">
-                    <h4 class="stats-section-title">Win Turn Statistics</h4>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">Average</span>
-                            <span class="stat-value" data-perf="avg_turns">{{ deck_stats.avg_turns }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Median</span>
-                            <span class="stat-value" data-perf="median_turns">{{ deck_stats.median_turns }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Range</span>
-                            <span class="stat-value" data-perf="range">{{ deck_stats.min_turns }} – {{ deck_stats.max_turns }}</span>
-                        </div>
-                    </div>
-                </div>
+                <h3 class="dd-group-title">Mulligans and land drops</h3>
+                <dl class="dd-kv">
+                    <div><dt>Mulligans</dt><dd data-avg="mulligans">{{ participant_avgs.mulligans }}</dd></div>
+                    <div><dt>Landdrops</dt><dd data-avg="landdrops">{{ participant_avgs.landdrops }}</dd></div>
+                    <div><dt>All landdrops</dt><dd data-avg="all_landdrops">{{ participant_avgs.all_landdrops }}</dd></div>
+                    <div><dt>Lands</dt><dd data-avg="lands">{{ participant_avgs.lands }}</dd></div>
+                </dl>
+
+                <h3 class="dd-group-title">Win and loss</h3>
+                <dl class="dd-kv">
+                    <div><dt>Lockout loss without answer</dt><dd data-avg="lockout_loss_without_answer">{{ participant_avgs.lockout_loss_without_answer }}</dd></div>
+                    <div><dt>Selbsterspielter Sieg</dt><dd data-avg="selbsterspielter_sieg">{{ participant_avgs.selbsterspielter_sieg }}</dd></div>
+                </dl>
+
+                <h3 class="dd-group-title">Fun</h3>
+                <dl class="dd-kv">
+                    <div><dt>Fun moments</dt><dd data-avg="fun_moments">{{ participant_avgs.fun_moments }}</dd></div>
+                </dl>
             </div>
-        </div>
-        
-        <div class="deck-stats-breakdown">
-            {% for size in [3, 4, 5] %}
-                <div class="stats-section stats-section-podsize">
-                    <h4 class="stats-section-title">{{ size }} Players</h4>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">Games</span>
-                            <span class="stat-value" data-perf="size_{{ size }}_games">{{ deck_stats_by_size[size].games }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Wins</span>
-                            <span class="stat-value" data-perf="size_{{ size }}_wins">{{ deck_stats_by_size[size].wins }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Winrate</span>
-                            <span class="stat-value stat-highlight" data-perf="size_{{ size }}_winrate">{{ deck_stats_by_size[size].winrate }}%</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Turns</span>
-                            <span class="stat-value" data-perf="size_{{ size }}_avg_turns">{{ deck_stats_by_size[size].avg_turns }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Median</span>
-                            <span class="stat-value" data-perf="size_{{ size }}_median_turns">{{ deck_stats_by_size[size].median_turns }}</span>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
 
-        <!-- Achievements mode content (hidden by default). Spans the two right columns. -->
-        <div id="deck-header-achievements" class="deck-header-achievements" style="display:none;">
-            {% if achievements|length > 0 %}
-                <div class="achievements-grid" id="achievements-grid">
-                    {% for a in achievements %}
-                        <div class="achievement-card" data-achievement-id="{{ a.id }}">
-                            <div class="achievement-header" style="display:flex; align-items:center; justify-content:space-between;">
-                                <h4 class="achievement-title" style="margin:0;">{{ a.title }}</h4>
-                                {% if is_owner %}
-                                <button type="button" class="btn small btn-ach-delete" title="Achievement löschen" aria-label="Achievement löschen">✕</button>
-                                {% endif %}
-                            </div>
-
-                            <p class="achievement-desc">{{ a.description }}</p>
-                            <div class="achievement-checks">
-                                {% set total = a.amount or 0 %}
-                                {% set done = a.achieved or 0 %}
-                                {% for i in range(total) %}
-                                    <label class="check" title="{{ i < done and 'erreicht' or 'offen' }}">
-                                        <input type="checkbox" class="achievement-check"
-                                               {% if i < done %}checked{% endif %}>
-                                        <span></span>
-                                    </label>
-                                {% endfor %}
-                            </div>
-                        </div>
+            {% if show_private_comments and private_comments %}
+            <aside class="dd-private__comments" aria-label="Recent comments">
+                <h3 class="dd-group-title">Recent comments</h3>
+                <ul class="dd-comments">
+                    {% for c in private_comments %}
+                    <li>
+                        <div class="dd-comments__meta">{{ c.date }} (Game #{{ c.game_id }})</div>
+                        <div class="dd-comments__text">{{ c.text }}</div>
+                    </li>
                     {% endfor %}
-                </div>
-            {% else %}
-                <p class="achievements-empty">Keine Achievements vorhanden.</p>
+                </ul>
+            </aside>
             {% endif %}
-            {% if is_owner %}
-            <div class="achievements-actions">
-                <button type="button" class="btn small primary" id="btn-add-achievement">Achievement hinzufügen</button>
+        </div>
+    </div>
+</details>
+{% endif %}
+
+<section class="dd-hero" aria-label="Deck overview">
+    {% if is_owner %}
+    <a class="dd-commander-wrap" href="{{ url_for('decks.choose_commander_image', deckname=deckname) }}" title="Bild ändern">
+        <img src="{{ commander }}" alt="Commander" class="dd-commander">
+    </a>
+    {% else %}
+    <div class="dd-commander-wrap">
+        <img src="{{ commander }}" alt="Commander" class="dd-commander">
+    </div>
+    {% endif %}
+
+    <div class="dd-hero__body">
+        <div class="dd-kpis">
+            <div class="dd-kpi">
+                <span class="dd-kpi__label">Games</span>
+                <span class="dd-kpi__value" data-perf="games">{{ deck_stats.games }}</span>
             </div>
+            <div class="dd-kpi">
+                <span class="dd-kpi__label">Winrate</span>
+                <span class="dd-kpi__value" data-perf="winrate">{{ pct(deck_stats.winrate) }}</span>
+            </div>
+            <div class="dd-kpi">
+                <span class="dd-kpi__label">Elo</span>
+                <span class="dd-kpi__value dd-kpi__value--accent">
+                    {% if elo is not none %}{{ elo }}{% if elo_rd is not none %} <small class="dd-kpi__sub">±{{ elo_rd }}</small>{% endif %}{% else %}–{% endif %}
+                </span>
+            </div>
+            <div class="dd-kpi">
+                <span class="dd-kpi__label">Last played</span>
+                <span class="dd-kpi__value dd-kpi__value--date">{{ deck_stats.last_played or '–' }}</span>
+            </div>
+        </div>
+
+        {# Below the KPI row: facts/filters on the left (3 KPI columns wide),
+           all deck tags on the right, aligned under "Last played". #}
+        <div class="dd-hero__lower">
+        <div class="dd-hero__left">
+        <dl class="dd-facts">
+            <div><dt>Wins</dt><dd data-perf="wins">{{ deck_stats.wins }}</dd></div>
+            <div><dt>Avg pod</dt><dd>{{ deck_stats.avg_participants }}</dd></div>
+            <div><dt>Avg win turn</dt><dd data-perf="avg_turns">{{ deck_stats.avg_turns }}</dd></div>
+            <div><dt>Median</dt><dd data-perf="median_turns">{{ deck_stats.median_turns }}</dd></div>
+            <div><dt>Range</dt><dd data-perf="range">{{ deck_stats.min_turns }} – {{ deck_stats.max_turns }}</dd></div>
+        </dl>
+
+        {% if has_filters %}
+        <div class="dd-chips" role="group" aria-label="Range">
+            <button type="button" class="dd-chip active" id="perf-filter-all">All games</button>
+            {% if last_rework_date %}<button type="button" class="dd-chip" id="perf-filter-rework">Since rework</button>{% endif %}
+            {% if last_patch_date %}<button type="button" class="dd-chip" id="perf-filter-patch">Since patch</button>{% endif %}
+            <span class="dd-muted" id="perf-filter-info"></span>
+        </div>
+        {% endif %}
+
+        {% if is_shared_deck and pilot_summary %}
+        <dl class="dd-facts dd-facts--pilots" aria-label="Pilots">
+            {% for pilot in pilot_summary %}
+            <div><dt>{{ pilot.name }}</dt><dd>{{ pilot.games }}</dd></div>
+            {% endfor %}
+        </dl>
+        {% endif %}
+        </div>
+
+        {% if deck_tags %}
+        <div class="dd-tags" aria-label="Deck tags">
+            <span class="dd-tags__label">Tags</span>
+            <ul class="dd-tags__list">
+                {% for tag in deck_tags %}<li class="dd-tag">{{ tag }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+</section>
+
+<section id="dd-achievements-view" class="dd-card" aria-label="Achievements" hidden>
+    <h2 class="dd-card__title">Achievements</h2>
+    {% if achievements|length > 0 %}
+    <div class="achievements-grid" id="achievements-grid">
+        {% for a in achievements %}
+        <div class="achievement-card" data-achievement-id="{{ a.id }}">
+            <div class="achievement-header">
+                <h4 class="achievement-title">{{ a.title }}</h4>
+                {% if is_owner %}
+                <button type="button" class="dd-btn btn-ach-delete" title="Achievement löschen" aria-label="Achievement löschen">✕</button>
+                {% endif %}
+            </div>
+            <p class="achievement-desc">{{ a.description }}</p>
+            <div class="achievement-checks">
+                {% set total = a.amount or 0 %}
+                {% set done = a.achieved or 0 %}
+                {% for i in range(total) %}
+                <label class="check" title="{{ i < done and 'erreicht' or 'offen' }}">
+                    <input type="checkbox" class="achievement-check" {% if i < done %}checked{% endif %}>
+                    <span></span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="achievements-empty dd-muted">Keine Achievements vorhanden.</p>
+    {% endif %}
+    {% if is_owner %}
+    <div class="achievements-actions">
+        <button type="button" class="dd-btn" id="btn-add-achievement">Achievement hinzufügen</button>
+    </div>
+    {% endif %}
+</section>
+
+{% if is_owner %}
+<div id="add-achievement-overlay" class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-achievement-title">
+        <h3 id="add-achievement-title">Neues Achievement</h3>
+        <form id="add-achievement-form">
+            <div class="form-row">
+                <label for="ach-title">Titel</label>
+                <input id="ach-title" name="titel" type="text" placeholder="z. B. First Blood" required>
+            </div>
+            <div class="form-row">
+                <label for="ach-desc">Beschreibung</label>
+                <textarea id="ach-desc" name="beschreibung" rows="3" placeholder="Kurze Beschreibung..."></textarea>
+            </div>
+            <div class="form-row">
+                <label for="ach-count">Anzahl</label>
+                <input id="ach-count" name="anzahl" type="number" min="1" value="1" required>
+            </div>
+            {% if csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% endif %}
-
-            <div id="add-achievement-overlay" class="modal-overlay" style="display:none;">
-              <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-achievement-title">
-                <h3 id="add-achievement-title">Neues Achievement</h3>
-                <form id="add-achievement-form">
-                  <div class="form-row">
-                    <label for="ach-title">Titel</label>
-                    <input id="ach-title" name="titel" type="text" placeholder="z. B. First Blood" required>
-                  </div>
-                  <div class="form-row">
-                    <label for="ach-desc">Beschreibung</label>
-                    <textarea id="ach-desc" name="beschreibung" rows="3" placeholder="Kurze Beschreibung..."></textarea>
-                  </div>
-                  <div class="form-row">
-                    <label for="ach-count">Anzahl</label>
-                    <input id="ach-count" name="anzahl" type="number" min="1" value="1" required>
-                  </div>
-                  {% if csrf_token %}
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  {% endif %}
-                  <input type="hidden" name="deckname" value="{{ deckname }}">
-                  <div class="modal-actions">
-                    <button type="button" class="btn" id="btn-cancel-add">Abbrechen</button>
-                    <button type="submit" class="btn primary">Speichern</button>
-                  </div>
-                </form>
-              </div>
+            <input type="hidden" name="deckname" value="{{ deckname }}">
+            <div class="modal-actions">
+                <button type="button" class="dd-btn" id="btn-cancel-add">Abbrechen</button>
+                <button type="submit" class="dd-btn dd-btn--primary">Speichern</button>
             </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 
+<div class="dd-section-label">Performance by pod size</div>
+<section class="dd-sizes" aria-label="Performance by pod size">
+    {% for size in [3, 4, 5] %}
+    <div class="dd-card dd-size">
+        <h2 class="dd-size__title">{{ size }} players</h2>
+        <dl class="dd-size__stats">
+            <div><dt>Games</dt><dd data-perf="size_{{ size }}_games">{{ deck_stats_by_size[size].games }}</dd></div>
+            <div><dt>Winrate</dt><dd data-perf="size_{{ size }}_winrate">{{ pct(deck_stats_by_size[size].winrate) }}</dd></div>
+            <div><dt>Avg T</dt><dd data-perf="size_{{ size }}_avg_turns">{{ deck_stats_by_size[size].avg_turns }}</dd></div>
+        </dl>
+        <p class="dd-size__median">median turn <span data-perf="size_{{ size }}_median_turns">{{ deck_stats_by_size[size].median_turns }}</span></p>
+    </div>
+    {% endfor %}
+</section>
 
-        </div>
-
-    </section>
-
-    {% if show_private_avgs %}
-    <!-- Unified filter script is after the participant averages section -->
-    {% endif %}
-
-    {% if show_private_avgs %}
-    <section class="deck-participant-averages" aria-label="Participant Averages" style="width:100%; margin-top:12px;">
-      <div class="deck-header">
-        <div class="deck-header-text">
-          <div class="deck-stats-summary">
-            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-              <h3 style="margin:0;">Participant Averages</h3>
-              <button type="button" class="btn small primary" id="avg-filter-all">All Games</button>
-              {% if last_rework_date %}
-              <button type="button" class="btn small" id="avg-filter-rework">Since Rework</button>
-              {% endif %}
-              {% if last_patch_date %}
-              <button type="button" class="btn small" id="avg-filter-patch">Since Patch</button>
-              {% endif %}
-              <span id="avg-filter-info" style="font-size:0.8em; color:#aaa;"></span>
-            </div>
-            
-            <div id="participant-avgs-content">
-            <!-- Group 1: Game Performance -->
-            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Game Performance</h4>
-            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
-              <div><strong>Enough Mana:</strong> <span data-avg="enough_mana">{{ participant_avgs.enough_mana }}</span></div>
-              <div><strong>Enough Gas:</strong> <span data-avg="enough_gas">{{ participant_avgs.enough_gas }}</span></div>
-              <div><strong>Deck Plan:</strong> <span data-avg="deckplan">{{ participant_avgs.deckplan }}</span></div>
-              <div><strong>Unanswered Threats:</strong> <span data-avg="unanswered_threats">{{ participant_avgs.unanswered_threats }}</span></div>
-            </div>
-            
-            <!-- Group 2: Mulligan & Landdrops -->
-            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Mulligan & Landdrops</h4>
-            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
-              <div><strong>Mulligans:</strong> <span data-avg="mulligans">{{ participant_avgs.mulligans }}</span></div>
-              <div><strong>Landdrops:</strong> <span data-avg="landdrops">{{ participant_avgs.landdrops }}</span></div>
-              <div><strong>All Landdrops:</strong> <span data-avg="all_landdrops">{{ participant_avgs.all_landdrops }}</span></div>
-              <div><strong>Lands:</strong> <span data-avg="lands">{{ participant_avgs.lands }}</span></div>
-            </div>
-            
-            <!-- Group 3: Win/Loss Analysis -->
-            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Win/Loss Analysis</h4>
-            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start; margin-bottom:16px;">
-              <div><strong>Lockout Loss Without Answer:</strong> <span data-avg="lockout_loss_without_answer">{{ participant_avgs.lockout_loss_without_answer }}</span></div>
-              <div><strong>Selbsterspielter Sieg:</strong> <span data-avg="selbsterspielter_sieg">{{ participant_avgs.selbsterspielter_sieg }}</span></div>
-            </div>
-            
-            <!-- Group 4: Fun -->
-            <h4 style="margin-top:16px; margin-bottom:8px; font-size:0.95em; color:#f4c430;">Fun</h4>
-            <div class="participant-avg-grid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; align-items:start;">
-              <div><strong>Fun Moments:</strong> <span data-avg="fun_moments">{{ participant_avgs.fun_moments }}</span></div>
-            </div>
-            </div>
-            
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <script>
-    (function() {
-        const deckname = {{ deckname | tojson }};
-        const lastRework = {{ last_rework_date | tojson }};
-        const lastPatch = {{ last_patch_date | tojson }};
-
-        // Performance buttons
-        const perfBtnAll = document.getElementById('perf-filter-all');
-        const perfBtnRework = document.getElementById('perf-filter-rework');
-        const perfBtnPatch = document.getElementById('perf-filter-patch');
-        const perfInfo = document.getElementById('perf-filter-info');
-
-        // Averages buttons
-        const avgBtnAll = document.getElementById('avg-filter-all');
-        const avgBtnRework = document.getElementById('avg-filter-rework');
-        const avgBtnPatch = document.getElementById('avg-filter-patch');
-        const avgInfo = document.getElementById('avg-filter-info');
-
-        const allButtons = [perfBtnAll, perfBtnRework, perfBtnPatch, avgBtnAll, avgBtnRework, avgBtnPatch].filter(Boolean);
-
-        function setActive(since) {
-            allButtons.forEach(b => b.classList.remove('primary'));
-            if (since === null) {
-                perfBtnAll?.classList.add('primary');
-                avgBtnAll?.classList.add('primary');
-            } else if (since === lastRework) {
-                perfBtnRework?.classList.add('primary');
-                avgBtnRework?.classList.add('primary');
-            } else if (since === lastPatch) {
-                perfBtnPatch?.classList.add('primary');
-                avgBtnPatch?.classList.add('primary');
-            }
-        }
-
-        // ─── Performance data ────────────────────────────────────────────
-        function updatePerf(data) {
-            if (data.empty) {
-                if (perfInfo) perfInfo.textContent = data.message || 'No data';
-                return;
-            }
-            if (perfInfo) perfInfo.textContent = '';
-
-            const simple = ['games', 'wins', 'avg_turns', 'median_turns'];
-            simple.forEach(key => {
-                const el = document.querySelector(`[data-perf="${key}"]`);
-                if (el) el.textContent = data[key] !== undefined ? data[key] : '–';
-            });
-
-            const wrEl = document.querySelector('[data-perf="winrate"]');
-            if (wrEl) wrEl.textContent = data.winrate !== undefined ? data.winrate + '%' : '–';
-
-            const rangeEl = document.querySelector('[data-perf="range"]');
-            if (rangeEl) {
-                if (data.min_turns && data.max_turns) {
-                    rangeEl.textContent = data.min_turns + ' \u2013 ' + data.max_turns;
-                } else {
-                    rangeEl.textContent = '–';
-                }
-            }
-
-            [3, 4, 5].forEach(size => {
-                const s = data.by_size && data.by_size[String(size)];
-                if (!s) return;
-                const gEl = document.querySelector(`[data-perf="size_${size}_games"]`);
-                const wEl = document.querySelector(`[data-perf="size_${size}_wins"]`);
-                const wrEl2 = document.querySelector(`[data-perf="size_${size}_winrate"]`);
-                const atEl = document.querySelector(`[data-perf="size_${size}_avg_turns"]`);
-                const mtEl = document.querySelector(`[data-perf="size_${size}_median_turns"]`);
-                if (gEl) gEl.textContent = s.games;
-                if (wEl) wEl.textContent = s.wins;
-                if (wrEl2) wrEl2.textContent = typeof s.winrate === 'number' ? s.winrate + '%' : s.winrate;
-                if (atEl) atEl.textContent = s.avg_turns;
-                if (mtEl) mtEl.textContent = s.median_turns;
-            });
-        }
-
-        async function loadPerf(since) {
-            let url = `/api/deck-performance/${encodeURIComponent(deckname)}`;
-            if (since) url += `?since=${since}`;
-            if (perfInfo) perfInfo.textContent = 'Loading...';
-            try {
-                const resp = await fetch(url);
-                const data = await resp.json();
-                updatePerf(data);
-            } catch (e) {
-                console.error('Failed to load deck performance:', e);
-                if (perfInfo) perfInfo.textContent = 'Error';
-            }
-        }
-
-        // ─── Averages data ───────────────────────────────────────────────
-        function updateAvg(data) {
-            if (data.empty) {
-                if (avgInfo) avgInfo.textContent = data.message || 'No data';
-                return;
-            }
-            if (avgInfo) avgInfo.textContent = `(${data.games_count} games)`;
-            document.querySelectorAll('[data-avg]').forEach(el => {
-                const key = el.getAttribute('data-avg');
-                el.textContent = data[key] !== undefined ? data[key] : '–';
-            });
-        }
-
-        async function loadAvg(since) {
-            let url = `/api/deck-participant-averages/${encodeURIComponent(deckname)}`;
-            if (since) url += `?since=${since}`;
-            if (avgInfo) avgInfo.textContent = 'Loading...';
-            try {
-                const resp = await fetch(url);
-                const data = await resp.json();
-                updateAvg(data);
-            } catch (e) {
-                console.error('Failed to load participant averages:', e);
-                if (avgInfo) avgInfo.textContent = 'Error';
-            }
-        }
-
-        // ─── Unified click handler ───────────────────────────────────────
-        function applyFilter(since) {
-            setActive(since);
-            loadPerf(since);
-            loadAvg(since);
-        }
-
-        // Performance buttons
-        perfBtnAll?.addEventListener('click', () => applyFilter(null));
-        perfBtnRework?.addEventListener('click', () => applyFilter(lastRework));
-        perfBtnPatch?.addEventListener('click', () => applyFilter(lastPatch));
-
-        // Averages buttons
-        avgBtnAll?.addEventListener('click', () => applyFilter(null));
-        avgBtnRework?.addEventListener('click', () => applyFilter(lastRework));
-        avgBtnPatch?.addEventListener('click', () => applyFilter(lastPatch));
-    })();
-    </script>
-    {% endif %}
-
-    {% if not show_private_avgs and (last_rework_date or last_patch_date) %}
-    <script>
-    (function() {
-        const deckname = {{ deckname | tojson }};
-        const lastRework = {{ last_rework_date | tojson }};
-        const lastPatch = {{ last_patch_date | tojson }};
-
-        const btnAll = document.getElementById('perf-filter-all');
-        const btnRework = document.getElementById('perf-filter-rework');
-        const btnPatch = document.getElementById('perf-filter-patch');
-        const info = document.getElementById('perf-filter-info');
-        const buttons = [btnAll, btnRework, btnPatch].filter(Boolean);
-
-        function setActive(btn) {
-            buttons.forEach(b => b.classList.remove('primary'));
-            btn.classList.add('primary');
-        }
-
-        function updatePerf(data) {
-            if (data.empty) {
-                if (info) info.textContent = data.message || 'No data';
-                return;
-            }
-            if (info) info.textContent = '';
-
-            ['games', 'wins', 'avg_turns', 'median_turns'].forEach(key => {
-                const el = document.querySelector(`[data-perf="${key}"]`);
-                if (el) el.textContent = data[key] !== undefined ? data[key] : '\u2013';
-            });
-
-            const wrEl = document.querySelector('[data-perf="winrate"]');
-            if (wrEl) wrEl.textContent = data.winrate !== undefined ? data.winrate + '%' : '\u2013';
-
-            const rangeEl = document.querySelector('[data-perf="range"]');
-            if (rangeEl) {
-                rangeEl.textContent = (data.min_turns && data.max_turns)
-                    ? data.min_turns + ' \u2013 ' + data.max_turns : '\u2013';
-            }
-
-            [3, 4, 5].forEach(size => {
-                const s = data.by_size && data.by_size[String(size)];
-                if (!s) return;
-                const gEl = document.querySelector(`[data-perf="size_${size}_games"]`);
-                const wEl = document.querySelector(`[data-perf="size_${size}_wins"]`);
-                const wrEl2 = document.querySelector(`[data-perf="size_${size}_winrate"]`);
-                const atEl = document.querySelector(`[data-perf="size_${size}_avg_turns"]`);
-                const mtEl = document.querySelector(`[data-perf="size_${size}_median_turns"]`);
-                if (gEl) gEl.textContent = s.games;
-                if (wEl) wEl.textContent = s.wins;
-                if (wrEl2) wrEl2.textContent = typeof s.winrate === 'number' ? s.winrate + '%' : s.winrate;
-                if (atEl) atEl.textContent = s.avg_turns;
-                if (mtEl) mtEl.textContent = s.median_turns;
-            });
-        }
-
-        async function loadPerf(since) {
-            let url = `/api/deck-performance/${encodeURIComponent(deckname)}`;
-            if (since) url += `?since=${since}`;
-            if (info) info.textContent = 'Loading...';
-            try {
-                const resp = await fetch(url);
-                const data = await resp.json();
-                updatePerf(data);
-            } catch (e) {
-                console.error('Failed to load deck performance:', e);
-                if (info) info.textContent = 'Error';
-            }
-        }
-
-        btnAll?.addEventListener('click', () => { setActive(btnAll); loadPerf(null); });
-        btnRework?.addEventListener('click', () => { setActive(btnRework); loadPerf(lastRework); });
-        btnPatch?.addEventListener('click', () => { setActive(btnPatch); loadPerf(lastPatch); });
-    })();
-    </script>
-    {% endif %}
-
-    {% if show_private_comments and private_comments %}
-    <aside
-      class="deck-comments-box"
-      aria-label="Recent Comments"
-      style="
-        position: fixed;
-        top: 120px;
-        right: 24px;
-        width: 320px;
-        max-height: calc(100vh - 160px);
-        overflow: auto;
-        z-index: 10;
-      "
-    >
-      <!-- Use the same classes as the other stat boxes to inherit background and shadow -->
-      <div class="deck-header">
-        <div class="deck-header-text">
-          <div class="deck-stats-summary">
-            <h3 style="margin: 0 0 8px 0;">Recent Comments</h3>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-              {% for c in private_comments %}
-                <div style="border-top: 1px solid rgba(0,0,0,.06); padding-top:8px;">
-                  <div style="font-size: 12px; opacity: .7;">{{ c.date }} (Game #{{ c.game_id }})</div>
-                  <div style="white-space: pre-wrap;">{{ c.text }}</div>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </div>
-    </aside>
-    {% endif %}
-
-
-    <section class="deck-games">
-        <h2>Gespielte Spiele</h2>
-        <table class="deck-games-table">
+<section class="dd-card" aria-label="Game history">
+    <h2 class="dd-card__title">Game history</h2>
+    <div class="dd-table-wrap">
+        <table class="dd-table">
             <thead>
                 <tr>
-                    <th>Datum</th>
+                    <th>Date</th>
+                    <th>Result</th>
                     {% if is_shared_deck %}<th>Pilot</th>{% endif %}
-                    <th>Gegner</th>
-                    <th>Sieger</th>
-                    <th>Turns</th>
-                    <th>Final Blow</th>
+                    <th>Opponents</th>
+                    <th class="dd-num">Turns</th>
+                    <th>Final blow</th>
+                    {% if show_private_avgs %}<th class="dd-toggle-col"><span class="sr-only">Personal details</span></th>{% endif %}
                 </tr>
             </thead>
-            <tbody>
+            {#- One <tbody> per game (its row + optional personal detail row) so the
+                pager in deckdetail.js can page whole games, 10 at a time. -#}
+            {% set ncols = 5 + (1 if is_shared_deck else 0) + (1 if show_private_avgs else 0) %}
             {% for game in games %}
-                <tr class="{{ 'game-win' if game.is_win else '' }}">
-                    <td>{{ game.datum }}</td>
+                {% set has_detail = show_private_avgs and game.participant_data %}
+            <tbody class="dd-game">
+                <tr class="{{ 'dd-stripe' if loop.index is odd else '' }}">
+                    <td class="dd-nowrap">{{ game.datum }}</td>
+                    <td><span class="dd-result {{ 'dd-result--win' if game.is_win else 'dd-result--loss' }}">{{ 'WIN' if game.is_win else 'LOSS' }}</span></td>
                     {% if is_shared_deck %}<td><strong>{{ game.pilot }}</strong></td>{% endif %}
                     <td>
-                        <div class="opponent-row">
-                            {% for opponent in game.gegner %}
-                                <a href="{{ url_for('decks.deck_show', deckname=opponent.deck_name) }}" class="opponent-card" title="Zum Deck: {{ opponent.deck_name }}">
-                                    <img src="{{ opponent.commander_image }}" alt="Commander" class="opponent-commander-img">
-                                    <div class="opponent-info">
-                                        <strong>{{ opponent.player_name }}</strong><br>
-                                        <span>{{ opponent.deck_name }}</span>
-                                    </div>
-                                </a>
-                            {% endfor %}
-                        </div>
+                        {#- Each opponent is an inline-block so the browser wraps BETWEEN
+                            decks first; a name only breaks internally when it alone is
+                            wider than the cell. The separator sits inside the preceding
+                            item so a line never starts with "·". -#}
+                        <span class="dd-opps">
+                            {%- for opponent in game.gegner %}
+                            <span class="dd-opp-item"><a class="dd-opp" href="{{ url_for('decks.deck_show', deckname=opponent.deck_name) }}" title="{{ opponent.player_name }}">{{ opponent.deck_name }}</a>{% if not loop.last %}<span class="dd-opp__sep" aria-hidden="true">&nbsp;·</span>{% endif %}</span>
+                            {%- endfor %}
+                        </span>
                     </td>
-                    <td>{{ game.winner }}</td>
-                    <td>{{ game.turns}}</td>
+                    <td class="dd-num">{{ game.turns }}</td>
                     <td>{{ game.final_blow }}</td>
+                    {% if show_private_avgs %}
+                    <td class="dd-toggle-col">
+                        {% if has_detail %}
+                        <button type="button" class="dd-detail-toggle" aria-expanded="false"
+                                aria-controls="dd-detail-{{ loop.index }}" title="Show personal details">
+                            <span class="sr-only">Show personal details for {{ game.datum }}</span>
+                            <span class="dd-detail-toggle__chev" aria-hidden="true"></span>
+                        </button>
+                        {% endif %}
+                    </td>
+                    {% endif %}
                 </tr>
-                {% if show_private_avgs and game.participant_data %}
-                <tr class="participant-detail-row">
-                    <td colspan="{{ 6 if is_shared_deck else 5 }}" style="padding: 16px; background-color: #252525;">
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px;">
-                            {% set pd = game.participant_data %}
-                            
-                            {% if pd.mulligans is not none %}
-                            <div><strong>Mulligans:</strong> {{ pd.mulligans }}</div>
-                            {% endif %}
-                            
-                            {% if pd.landdrops is not none %}
-                            <div><strong>Landdrops:</strong> {{ pd.landdrops if pd.landdrops != -1 else "All" }}</div>
-                            {% endif %}
-                            
-                            {% if pd.lands is not none and pd.lands != -1 %}
-                            <div><strong>Lands:</strong> {{ pd.lands }}</div>
-                            {% endif %}
-                            
-                            {% if pd.enough_mana is not none %}
-                            <div><strong>Enough Mana:</strong> {{ "Yes" if pd.enough_mana else "No" }}</div>
-                            {% endif %}
-                            
-                            {% if pd.enough_gas is not none %}
-                            <div><strong>Enough Gas:</strong> {{ "Yes" if pd.enough_gas else "No" }}</div>
-                            {% endif %}
-                            
-                            {% if pd.deckplan is not none %}
-                            <div><strong>Deck Plan:</strong> {{ "Yes" if pd.deckplan else "No" }}</div>
-                            {% endif %}
-                            
-                            {% if pd.unanswered_threats is not none %}
-                            <div><strong>Unanswered Threats:</strong> {{ "Yes" if pd.unanswered_threats else "No" }}</div>
-                            {% endif %}
-                            
-                            {% if pd.fun_moments is not none %}
-                            <div><strong>Fun Moments:</strong> {{ "Yes" if pd.fun_moments else "No" }}</div>
-                            {% endif %}
-                            
-                            {% if not pd.is_win and pd.loss_without_answer is not none %}
-                            <div><strong>Lockout Loss Without Answer:</strong> {{ "Yes" if pd.loss_without_answer else "No" }}</div>
-                            {% endif %}
-                            
-                            {% if pd.is_win and pd.selfmade_win is not none %}
-                            <div><strong>Selbsterspielter Sieg:</strong> {{ "Yes" if pd.selfmade_win else "No" }}</div>
-                            {% endif %}
-                        </div>
-                        
+                {% if has_detail %}
+                {% set pd = game.participant_data %}
+                <tr class="dd-detail-row" id="dd-detail-{{ loop.index }}" hidden>
+                    <td colspan="{{ ncols }}">
+                        <dl class="dd-kv dd-kv--inline">
+                            {% if pd.mulligans is not none %}<div><dt>Mulligans</dt><dd>{{ pd.mulligans }}</dd></div>{% endif %}
+                            {% if pd.landdrops is not none %}<div><dt>Landdrops</dt><dd>{{ pd.landdrops if pd.landdrops != -1 else "All" }}</dd></div>{% endif %}
+                            {% if pd.lands is not none and pd.lands != -1 %}<div><dt>Lands</dt><dd>{{ pd.lands }}</dd></div>{% endif %}
+                            {% if pd.enough_mana is not none %}<div><dt>Enough mana</dt><dd>{{ "Yes" if pd.enough_mana else "No" }}</dd></div>{% endif %}
+                            {% if pd.enough_gas is not none %}<div><dt>Enough gas</dt><dd>{{ "Yes" if pd.enough_gas else "No" }}</dd></div>{% endif %}
+                            {% if pd.deckplan is not none %}<div><dt>Deck plan</dt><dd>{{ "Yes" if pd.deckplan else "No" }}</dd></div>{% endif %}
+                            {% if pd.unanswered_threats is not none %}<div><dt>Unanswered threats</dt><dd>{{ "Yes" if pd.unanswered_threats else "No" }}</dd></div>{% endif %}
+                            {% if pd.fun_moments is not none %}<div><dt>Fun moments</dt><dd>{{ "Yes" if pd.fun_moments else "No" }}</dd></div>{% endif %}
+                            {% if not pd.is_win and pd.loss_without_answer is not none %}<div><dt>Lockout loss without answer</dt><dd>{{ "Yes" if pd.loss_without_answer else "No" }}</dd></div>{% endif %}
+                            {% if pd.is_win and pd.selfmade_win is not none %}<div><dt>Selbsterspielter Sieg</dt><dd>{{ "Yes" if pd.selfmade_win else "No" }}</dd></div>{% endif %}
+                        </dl>
                         {% if pd.comments %}
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #333;">
-                            <strong style="color: #f4c430;">Comments:</strong>
-                            <div style="margin-top: 6px; white-space: pre-wrap; color: antiquewhite;">{{ pd.comments }}</div>
+                        <div class="dd-detail-comment">
+                            <span class="dd-detail-comment__label">Comments</span>
+                            <div class="dd-detail-comment__text">{{ pd.comments }}</div>
                         </div>
                         {% endif %}
                     </td>
                 </tr>
                 {% endif %}
-            {% endfor %}
             </tbody>
+            {% else %}
+            <tbody>
+                <tr><td colspan="{{ ncols }}" class="dd-empty">No games yet.</td></tr>
+            </tbody>
+            {% endfor %}
         </table>
-    </section>
-</main>
+    </div>
+    {% if games|length > 10 %}
+    <nav class="ptable-pager" id="dd-games-pager" aria-label="Game history pages">
+        <button type="button" class="pager__btn" data-page="prev">‹ Previous games</button>
+        <span class="pager__status" data-role="status" aria-live="polite"></span>
+        <button type="button" class="pager__btn" data-page="next">Next games ›</button>
+    </nav>
+    {% endif %}
+</section>
 
-<script>
-// Toggle between Stats (default) and Achievements without altering layout
-(function() {
-  const btnStats = document.getElementById('btn-mode-stats');
-  const btnAch = document.getElementById('btn-mode-achievements');
-  const statsText = document.querySelector('.deck-header-text');
-  const statsBreakdown = document.querySelector('.deck-stats-breakdown');
-  const achBlock = document.getElementById('deck-header-achievements');
+</div>
 
-  function showStats() {
-    statsText.style.display = 'flex';
-    statsBreakdown.style.display = 'flex';
-    achBlock.style.display = 'none';
-    btnStats.classList.add('primary');
-    btnAch.classList.remove('primary');
-  }
-
-  function showAchievements() {
-    statsText.style.display = 'none';
-    statsBreakdown.style.display = 'none';
-    achBlock.style.display = 'block';
-    btnAch.classList.add('primary');
-    btnStats.classList.remove('primary');
-  }
-
-  btnStats?.addEventListener('click', showStats);
-  btnAch?.addEventListener('click', showAchievements);
-
-  // Modal open/close
-  const addBtn = document.getElementById('btn-add-achievement');
-  const overlay = document.getElementById('add-achievement-overlay');
-  const cancelAdd = document.getElementById('btn-cancel-add');
-  const addForm = document.getElementById('add-achievement-form');
-
-  function openAddModal() {
-    overlay.style.display = 'flex';
-    setTimeout(() => document.getElementById('ach-title')?.focus(), 0);
-  }
-  function closeAddModal() {
-    overlay.style.display = 'none';
-    addForm?.reset();
-  }
-
-  addBtn?.addEventListener('click', openAddModal);
-  cancelAdd?.addEventListener('click', closeAddModal);
-  overlay?.addEventListener('click', (e) => {
-    if (e.target === overlay) closeAddModal();
-  });
-
-  // Create card DOM helper
-  function createAchievementCard(a) {
-    const card = document.createElement('div');
-    card.className = 'achievement-card';
-    card.setAttribute('data-achievement-id', a.id);
-    const checks = Array.from({length: a.amount || 0}, (_, i) => `
-      <label class="check" title="${i < (a.achieved||0) ? 'erreicht' : 'offen'}">
-        <input type="checkbox" class="achievement-check" ${i < (a.achieved||0) ? 'checked' : ''}>
-        <span></span>
-      </label>
-    `).join('');
-    card.innerHTML = `
-      <div class="achievement-header" style="display:flex; align-items:center; justify-content:space-between;">
-        <h4 class="achievement-title" style="margin:0;"></h4>
-        <button type="button" class="btn small btn-ach-delete" title="Achievement löschen" aria-label="Achievement löschen">✕</button>
-      </div>
-      <p class="achievement-desc"></p>
-      <div class="achievement-checks">${checks}</div>
-    `;
-    card.querySelector('.achievement-title').textContent = a.title || '';
-    card.querySelector('.achievement-desc').textContent = a.description || '';
-    return card;
-  }
-
-  // Attach checkbox listeners for save (already present change handler)
-  function attachCardListeners(card) {
-    const initial = card.querySelectorAll('input.achievement-check:checked').length;
-    card.setAttribute('data-prev-count', String(initial));
-    card.addEventListener('change', (e) => {
-      if (e.target && e.target.matches('input.achievement-check')) {
-        onChecksChanged(card);
-      }
-    });
-    // Delete button
-    const delBtn = card.querySelector('.btn-ach-delete');
-    delBtn?.addEventListener('click', () => onDeleteAchievement(card));
-  }
-
-  // CSRF token
-  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-  const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
-
-  // Handle Save in the modal: POST to server, then append card to grid
-  addForm?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const titel = addForm.titel.value.trim();
-    if (!titel) {
-      addForm.titel.focus();
-      return;
-    }
-    const formData = new FormData(addForm);
-    const body = new URLSearchParams(Array.from(formData.entries()));
-
-    fetch(`{{ url_for('decks.add_achievement') }}`, {
-      method: 'POST',
-      body,
-      credentials: 'same-origin'
-    }).then(async (r) => {
-      const data = await r.json().catch(() => null);
-      if (!r.ok || !data || !data.ok) {
-        const msg = (data && data.message) || 'Speichern fehlgeschlagen';
-        throw new Error(msg);
-      }
-      let grid = document.getElementById('achievements-grid')
-              || document.querySelector('#deck-header-achievements .achievements-grid');
-      if (!grid) {
-        grid = document.createElement('div');
-        grid.className = 'achievements-grid';
-        grid.id = 'achievements-grid';
-        const actions = document.querySelector('.achievements-actions');
-        actions?.parentNode?.insertBefore(grid, actions);
-        const empty = document.querySelector('.achievements-empty');
-        empty?.remove();
-      }
-      const card = createAchievementCard(data.achievement);
-      grid.appendChild(card);
-      attachCardListeners(card);
-      closeAddModal();
-      const btnAch = document.getElementById('btn-mode-achievements');
-      btnAch?.click();
-    }).catch((err) => {
-      console.error('Failed to add achievement:', err);
-      alert(err.message || 'Fehler beim Speichern.');
-    });
-  });
-
-  // Handle checkbox changes: compute desired count and send to server
-  function onChecksChanged(cardEl) {
-    const achId = cardEl.getAttribute('data-achievement-id');
-    const checks = cardEl.querySelectorAll('input.achievement-check');
-    const desired = Array.from(checks).filter(c => c.checked).length;
-
-    fetch(`{{ url_for('decks.set_achievement_progress', achievement_id=0) }}`.replace('0', achId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
-      },
-      body: JSON.stringify({achieved: desired}),
-      credentials: 'same-origin'
-    }).then(async (r) => {
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.ok) {
-        throw new Error(data.message || 'Update failed');
-      }
-      const accepted = data.achieved ?? desired;
-      checks.forEach((c, idx) => { c.checked = idx < accepted; });
-    }).catch((err) => {
-      console.error('Failed to update achievement progress:', err);
-      const previous = cardEl.getAttribute('data-prev-count');
-      const prevCount = previous ? parseInt(previous, 10) : 0;
-      checks.forEach((c, idx) => { c.checked = idx < prevCount; });
-    }).finally(() => {
-      const current = Array.from(checks).filter(c => c.checked).length;
-      cardEl.setAttribute('data-prev-count', String(current));
-    });
-  }
-
-  // Delete achievement
-  function onDeleteAchievement(cardEl) {
-    const achId = cardEl.getAttribute('data-achievement-id');
-    if (!achId) return;
-    if (!confirm('Achievement wirklich löschen?')) return;
-
-    fetch(`{{ url_for('decks.delete_achievement', achievement_id=0) }}`.replace('0', achId), {
-      method: 'POST',
-      headers: {
-        ...(csrfToken ? {'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken} : {})
-      },
-      credentials: 'same-origin'
-    }).then(async (r) => {
-      const data = await r.json().catch(() => null);
-      if (!r.ok || !data || !data.ok) {
-        const msg = (data && data.message) || 'Löschen fehlgeschlagen';
-        throw new Error(msg);
-      }
-      cardEl.remove();
-      // If grid becomes empty, show placeholder
-      const grid = document.getElementById('achievements-grid');
-      if (grid && grid.children.length === 0) {
-        const p = document.createElement('p');
-        p.className = 'achievements-empty';
-        p.textContent = 'Keine Achievements vorhanden.';
-        grid.parentNode.insertBefore(p, grid.nextSibling);
-      }
-    }).catch((err) => {
-      console.error('Failed to delete achievement:', err);
-      alert(err.message || 'Fehler beim Löschen.');
-    });
-  }
-
-  // Initialize prev-count and attach listeners
-  document.querySelectorAll('.achievement-card').forEach(card => {
-    const initial = card.querySelectorAll('input.achievement-check:checked').length;
-    card.setAttribute('data-prev-count', String(initial));
-    card.addEventListener('change', (e) => {
-      if (e.target && e.target.matches('input.achievement-check')) {
-        onChecksChanged(card);
-      }
-    });
-    const delBtn = card.querySelector('.btn-ach-delete');
-    delBtn?.addEventListener('click', () => onDeleteAchievement(card));
-  });
-})();
-</script>
-
-
+<script src="{{ url_for('static', filename='js/deckdetail.js') }}" defer></script>
 {% endblock %}

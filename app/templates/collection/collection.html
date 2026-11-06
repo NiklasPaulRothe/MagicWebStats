@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 
+{# Full-width page: lift the shell's default content cap for the card grid. #}
+{% block main_inner_class %}app-main__inner--full{% endblock %}
+
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/collection.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/autocomplete.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -35,27 +39,62 @@
     <div class="collection-toolbar">
         {# Collapsible import: just a small button until expanded. Uses native
            <details> so it needs no JS. #}
+        <div class="collection-actions">
         <details class="collection-import">
             <summary class="collection-import-summary">Import CSV</summary>
             <div class="collection-import-body">
                 <form method="post"
                       action="{{ url_for('collection.import_collection') }}"
                       enctype="multipart/form-data"
-                      class="collection-import-form">
+                      class="collection-import-form" id="collection-import-form"
+                      data-total-cards="{{ total_cards }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
-                    <button type="submit" class="collection-import-btn">Import</button>
+
+                    <div class="ci-section">
+                        <span class="ci-heading">Supported files</span>
+                        <ul class="ci-formats">
+                            <li>Archidekt collection export (CSV)</li>
+                            <li>ManaBox single folder export (CSV)</li>
+                        </ul>
+                    </div>
+
+                    <div class="ci-section">
+                        <label class="ci-heading" for="csv_file">File</label>
+                        <input type="file" id="csv_file" name="csv_file" accept=".csv" required class="ci-file">
+                    </div>
+
+                    <fieldset class="ci-section ci-modes">
+                        <legend class="ci-heading">Import mode</legend>
+                        <label class="ci-mode">
+                            <input type="radio" name="mode" value="replace" checked>
+                            <span>
+                                <span class="ci-mode-title">Replace collection</span>
+                                <span class="ci-mode-desc">The file becomes your whole collection. Cards not in the file are removed.</span>
+                            </span>
+                        </label>
+                        <label class="ci-mode">
+                            <input type="radio" name="mode" value="add">
+                            <span>
+                                <span class="ci-mode-title">Add to collection</span>
+                                <span class="ci-mode-desc">Adds the file&#39;s cards to what you already have. Matching cards increase their count.</span>
+                            </span>
+                        </label>
+                    </fieldset>
+
+                    <p class="ci-note">
+                        Cards whose exact printing isn&#39;t in the database yet are skipped and listed after the import.
+                    </p>
+
+                    <div class="ci-actions">
+                        <button type="submit" class="collection-import-btn">Import</button>
+                    </div>
                 </form>
-                <p class="collection-import-hint">
-                    Expected columns: Quantity, Name, Finish, Condition, Date
-                    Added, Language, Purchase Price, Tags, Edition Name, Edition
-                    Code, Multiverse Id, Scryfall ID, Collector Number.
-                    Importing replaces your current collection. Cards whose
-                    exact printing isn't in the database yet are skipped and
-                    listed.
-                </p>
             </div>
         </details>
+
+        <button type="button" class="collection-add-open" id="ca-open"
+                aria-haspopup="dialog" aria-controls="ca-modal">+ Add card</button>
+        </div>
 
         {% if cards %}
         <div class="collection-sort">
@@ -83,6 +122,12 @@
         {% for card in cards %}
         <li class="collection-card"
             {% if card.card_id %}data-card-id="{{ card.card_id }}"{% endif %}
+            data-entry-id="{{ card.id }}"
+            data-count="{{ card.count }}"
+            data-finish="{{ card.finish }}"
+            data-condition="{{ card.condition }}"
+            data-language="{{ card.language }}"
+            data-set-label="{{ card.set_name or card.set_code or '' }}"
             data-name="{{ card.name|lower }}"
             data-price="{{ '%.2f'|format(card.price) if card.price is not none else '' }}"
             data-edition="{{ (card.set_name or card.set_code or '')|lower }}"
@@ -237,10 +282,96 @@
                     <h3 class="cc-modal-decks-title">In your decks</h3>
                     <div class="cc-modal-decks-body" id="cc-modal-decks-body"></div>
                 </section>
+                {# Remove copies of the exact stack that was clicked (printing +
+                   finish + condition + language). Filled by collection_modal.js. #}
+                <section class="cc-modal-remove" id="cc-modal-remove" hidden
+                         data-remove-url="{{ url_for('collection.collection_remove_entry', entry_id=0) }}">
+                    <h3 class="cc-modal-decks-title">Remove from collection</h3>
+                    <p class="cc-remove-stack" id="cc-remove-stack"></p>
+                    <p class="cc-remove-warn" id="cc-remove-warn" hidden>
+                        Copies of this stack are marked as in a deck. After removing,
+                        that deck may show the card as missing a copy.
+                    </p>
+                    <div class="cc-remove-actions">
+                        <button type="button" class="cc-remove-btn" id="cc-remove-one">Remove 1 card</button>
+                        <button type="button" class="cc-remove-btn cc-remove-btn--all" id="cc-remove-all">Remove whole stack</button>
+                    </div>
+                    <p class="cc-remove-error" id="cc-remove-error" role="alert" hidden></p>
+                </section>
             </div>
         </div>
     </div>
 </div>
 
 <script src="{{ url_for('static', filename='js/collection_modal.js') }}" defer></script>
+
+{% if has_player %}
+{# Add-single-card dialog: 1) name (autocomplete) → 2) printing (image grid) →
+   3) amount / finish / language. Driven by js/collection_add.js. #}
+<div class="ca-modal" id="ca-modal" hidden
+     role="dialog" aria-modal="true" aria-labelledby="ca-title"
+     data-printings-url="{{ url_for('collection.collection_printings') }}"
+     data-add-url="{{ url_for('collection.collection_add_card') }}">
+    <div class="ca-backdrop" data-ca-close="1"></div>
+    <div class="ca-dialog" role="document">
+        <button type="button" class="ca-close" data-ca-close="1" aria-label="Close">&times;</button>
+        <h2 class="ca-title" id="ca-title">Add card</h2>
+        <ol class="ca-steps" aria-label="Steps">
+            <li data-step-dot="1" class="is-active">Card</li>
+            <li data-step-dot="2">Printing</li>
+            <li data-step-dot="3">Details</li>
+        </ol>
+
+        {# Step 1: name #}
+        <section class="ca-step" data-step="1">
+            <label class="ca-label" for="ca-name">Card name</label>
+            <input type="text" id="ca-name" class="ca-input" placeholder="Start typing a card name&hellip;">
+            <p class="ca-error" id="ca-error-1" role="alert" hidden></p>
+            <div class="ca-actions">
+                <button type="button" class="ca-btn ca-btn--primary" id="ca-next-1">Next</button>
+            </div>
+        </section>
+
+        {# Step 2: printing #}
+        <section class="ca-step" data-step="2" hidden>
+            <p class="ca-hint" id="ca-printing-hint">Choose the printing</p>
+            <ul class="ca-printings" id="ca-printings" role="listbox" aria-label="Printings"></ul>
+            <p class="ca-error" id="ca-error-2" role="alert" hidden></p>
+            <div class="ca-actions">
+                <button type="button" class="ca-btn" data-ca-back="1">Back</button>
+            </div>
+        </section>
+
+        {# Step 3: details #}
+        <section class="ca-step" data-step="3" hidden>
+            <div class="ca-chosen">
+                <img class="ca-chosen-img" id="ca-chosen-img" src="" alt="">
+                <div>
+                    <div class="ca-chosen-name" id="ca-chosen-name"></div>
+                    <div class="ca-chosen-set" id="ca-chosen-set"></div>
+                </div>
+            </div>
+            <div class="ca-fields">
+                <label class="ca-label" for="ca-count">Amount</label>
+                <input type="number" id="ca-count" class="ca-input" min="1" max="{{ max_add_count }}" value="1" inputmode="numeric">
+                <label class="ca-label" for="ca-finish">Finish</label>
+                <select id="ca-finish" class="ca-input">
+                    {% for f in finish_choices %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+                </select>
+                <label class="ca-label" for="ca-language">Language</label>
+                <select id="ca-language" class="ca-input">
+                    {% for code, label in language_choices %}<option value="{{ code }}">{{ label }} ({{ code }})</option>{% endfor %}
+                </select>
+            </div>
+            <p class="ca-error" id="ca-error-3" role="alert" hidden></p>
+            <div class="ca-actions">
+                <button type="button" class="ca-btn" data-ca-back="2">Back</button>
+                <button type="button" class="ca-btn ca-btn--primary" id="ca-save">Add to collection</button>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
+<script src="{{ url_for('static', filename='js/collection_add.js') }}" defer></script>
+{% endif %}
 {% endblock %}

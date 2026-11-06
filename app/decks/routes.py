@@ -8,7 +8,7 @@ import sqlalchemy as sa
 logger = logging.getLogger(__name__)
 
 from app import db, models
-from app.auth import role_required
+from app.auth import min_role_required, is_maintainer, ROLE_ADMIN
 from app.decks import bp
 from app.decks.forms import DeckEditForm
 from app.models import Deck, Player, User, Game, Participant, DeckFolder
@@ -29,6 +29,7 @@ from app.services.stats_service import compute_participant_averages, compute_dec
 # - delete_achievement: JSON API (CSRF via X-CSRFToken header from JS)
 # - add_achievement: JSON/form (CSRF via X-CSRFToken header or form hidden token)
 # - dearchive: HTML form POST (CSRFProtect validates hidden token)
+# - move_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - create_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - move_deck_to_folder: JSON API (CSRF via X-CSRFToken header from JS)
 # - set_component_collection: JSON API (CSRF via X-CSRFToken header from JS)
@@ -315,10 +316,25 @@ def deck_show(deckname):
             key=lambda x: (-x["games"], x["name"]),
         )
 
+    # All deck tags, alphabetical (shown in full under "Last played").
+    deck_tags = db.session.scalars(
+        sa.select(models.DeckTag.tag)
+        .where(models.DeckTag.deck_id == deck.id)
+        .order_by(models.DeckTag.tag)
+    ).all()
+
     return render_template(
         'decks/show.html',
         deckname=deck.name,
+        deck_tags=list(deck_tags),
         deck_version=f"{deck.version}.{deck.patch}.{deck.change}",
+        owner_name=deck.player_rel.name if deck.player_rel else "",
+        color_identity=deck.color_identity,
+        updated_on=deck.last_change.strftime("%b %d") if deck.last_change else None,
+        decklist_url=deck.decklist or deck.decksite,
+        # Rating is only shown once the deck has >= 5 counted games (else unrated).
+        elo=(round(deck.elo_rating) if deck.elo_rating is not None and (deck.elo_games or 0) >= 5 else None),
+        elo_rd=(round(deck.elo_rd) if deck.elo_rd is not None else None),
         commander=deck.image_uri or "/static/img/default_commander.png",
         games=row,
         deck_stats=deck_stats,
@@ -443,13 +459,15 @@ def add_achievement():
 def deck_archive(player_name):
     player = db.first_or_404(sa.select(Player).where(Player.name == player_name))
     is_owner = (current_user.player_id == player.id)
-    is_admin = (current_user.role == 'admin')
+    # Maintainers (and admins, who outrank them) may moderate any player's
+    # archive — e.g. dearchive a deck that isn't theirs.
+    can_moderate = is_maintainer(current_user)
     return render_template(
         'decks/archive.html',
         spieler=player,
         player_name=player_name,
         is_owner=is_owner,
-        is_admin=is_admin
+        is_admin=can_moderate
     )
 
 
@@ -458,15 +476,23 @@ def deck_archive(player_name):
 def dearchive(deck_id):
     deck = db.get_or_404(Deck, deck_id)
     player_name = request.form.get('player_name')
-    if deck.player_id != current_user.player_id and current_user.role != 'admin':
+    # The deck owner may always dearchive their own deck; maintainers+ may
+    # dearchive anyone's.
+    if deck.player_id != current_user.player_id and not is_maintainer(current_user):
         abort(403)
     dearchive_deck(deck)
     db.session.commit()
+    # Reactivating from My Deck Stats returns there (archived view), so the
+    # user sees the remaining archived decks. Fixed whitelist value — never a
+    # caller-supplied URL (no open redirect).
+    if request.form.get('return_to') == 'mydeckstats':
+        flash(f'"{deck.name}" is active again.')
+        return redirect(url_for('main.user', identifier=deck.player_id, view='archived'))
     return redirect(url_for('decks.deck_archive', player_name=player_name))
 
 
 @bp.route('/elo', methods=['GET'])
-@role_required('admin')
+@min_role_required(ROLE_ADMIN)
 @login_required
 def calculate_elo():
     # Fetch all data needed for the rating recalculation. Games must be
@@ -1396,6 +1422,51 @@ def move_deck_to_folder(deck_id):
 
     deck.folder_id = target_folder_id
     write_audit_log('deck_move_folder', 'Deck', deck.id, f'Moved deck {deck.name} to folder {target_folder_id}')
+    db.session.commit()
+
+    return jsonify({'ok': True})
+
+
+@bp.route('/folders/<int:folder_id>/parent', methods=['POST'], strict_slashes=False)
+@login_required
+def move_folder(folder_id):
+    """Move a folder (with its contents) under another folder, or to the root.
+
+    JSON body: {parent_id: int|null}. null makes it a top-level folder. Both the
+    folder and the target must belong to the current player. A folder can't be
+    moved into itself or into one of its own subfolders (that would detach the
+    subtree into a cycle). CSRF via the X-CSRFToken header (CSRFProtect).
+    Returns {ok: true}.
+    """
+    player_id = getattr(current_user, 'player_id', None)
+    folder = db.session.get(DeckFolder, folder_id)
+    if folder is None:
+        return jsonify({'ok': False, 'message': 'Folder not found.'}), 404
+    if folder.player_id != player_id:
+        return jsonify({'ok': False, 'message': 'Nicht berechtigt.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    target_id = data.get('parent_id')
+
+    if target_id is not None:
+        if isinstance(target_id, bool) or not isinstance(target_id, int):
+            return jsonify({'ok': False, 'message': 'Invalid target folder.'}), 400
+        if target_id == folder.id:
+            return jsonify({'ok': False, 'message': 'A folder cannot be moved into itself.'}), 400
+        target = db.session.get(DeckFolder, target_id)
+        if target is None or target.player_id != player_id:
+            return jsonify({'ok': False, 'message': 'Target folder not found.'}), 404
+        # Cycle guard: walk up from the target; reaching the moved folder means
+        # the target is one of its descendants.
+        node, seen = target, set()
+        while node is not None and node.id not in seen:
+            if node.id == folder.id:
+                return jsonify({'ok': False, 'message': 'A folder cannot be moved into its own subfolder.'}), 400
+            seen.add(node.id)
+            node = db.session.get(DeckFolder, node.parent_id) if node.parent_id else None
+
+    folder.parent_id = target_id
+    write_audit_log('folder_move', 'DeckFolder', folder.id, f'Moved folder {folder.name} to parent {target_id}')
     db.session.commit()
 
     return jsonify({'ok': True})

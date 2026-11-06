@@ -54,4 +54,17 @@ def create_app(config_class=Config):
     from app.collection import bp as collection_bp
     app.register_blueprint(collection_bp)
 
+    # Expose role-capability helpers to all templates so the sidebar can gate
+    # the MANAGE (maintainer+) and ADMIN (admin-only) groups without each view
+    # passing flags in. See app/auth for the role hierarchy.
+    from app.auth import is_admin, is_maintainer
+
+    @app.context_processor
+    def inject_role_helpers():
+        from flask_login import current_user
+        return {
+            'is_admin': is_admin(current_user),
+            'is_maintainer': is_maintainer(current_user),
+        }
+
     return app

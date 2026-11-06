@@ -1,0 +1,270 @@
+/* ════════════════════════════════════════════════════════════════════════
+   playertable.css — Player statistics page (neutral, sortable data table)
+   ------------------------------------------------------------------------
+   Depends on theme.css tokens. Presents the game-performance data with no
+   ranking or value judgement: plain numbers, zebra rows, sortable headers.
+   Default sort is Games (descending), set in the template.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Page header (mirrors the dashboard's .dash-head for visual consistency). */
+.dash-head { margin-bottom: var(--space-5); }
+.dash-title {
+    margin: 0;
+    color: var(--color-accent);
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-bold);
+}
+.dash-sub {
+    margin: var(--space-1) 0 0;
+    color: var(--color-faint);
+    font-size: var(--fs-sm);
+}
+
+/* Panel card. min-width:0 so the table wrapper inside can shrink/scroll
+   instead of stretching the panel beyond the content area. */
+.panel {
+    background: var(--surface-gradient);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-md);
+    min-width: 0;
+}
+
+/* Horizontal cell padding, dialed down on smaller screens (see media queries). */
+:root { --ptable-cell-x: var(--space-4); }
+
+/* ── Controls row (year segmented control + min-games filter) ─────────────── */
+.ptable-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+}
+.ptable-controls__spacer { flex: 1 1 auto; }
+.ptable-controls__min {
+    color: var(--color-faint);
+    font-size: var(--fs-sm);
+}
+#min-games-filter {
+    width: 64px;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--accent-border-strong);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
+    font-size: var(--fs-sm);
+}
+#min-games-filter:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* Segmented year control. */
+.seg {
+    display: inline-flex;
+    background-color: var(--color-surface);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-pill);
+    padding: 3px;
+    gap: 2px;
+}
+.seg__btn {
+    background: none;
+    border: 0;
+    color: var(--color-accent);
+    font-size: var(--fs-sm);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+}
+.seg__btn:hover { background-color: #111; }
+.seg__btn.active {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+    font-weight: var(--fw-semibold);
+}
+
+/* Ghost buttons (Apply / Reset). */
+.btn--ghost {
+    background: none;
+    border: 1px solid var(--color-accent);
+    color: var(--color-accent);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--fs-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+}
+.btn--ghost:hover {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+}
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+.ptable-wrap {
+    /* Never let the table push the panel wider than its box: the wrapper is
+       capped at the panel's content width and scrolls horizontally inside it
+       when the table is wider. min-width:0 lets this child actually shrink
+       instead of forcing overflow onto the panel. The fade gradients on the
+       edges hint that the content scrolls sideways (shown whenever it does). */
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    -webkit-overflow-scrolling: touch;   /* momentum scroll on iOS */
+    overscroll-behavior-x: contain;
+    background:
+        linear-gradient(to right, var(--color-surface), transparent 24px),
+        linear-gradient(to left, var(--color-surface), transparent 24px) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 24px 100%, 24px 100%;
+    background-attachment: local, local;
+}
+.ptable {
+    /* Size the table (and each column) to its content so there's no wide empty
+       gap between the numbers. All columns (including the removal ones) share
+       the same content-sizing + padding, so they are consistent. When the
+       content exceeds the wrapper, .ptable-wrap scrolls — the table never
+       overflows the panel itself. */
+    width: auto;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+.ptable thead th {
+    position: sticky;
+    top: 0;
+    background-color: #000;
+    color: var(--color-accent);
+    text-align: right;
+    vertical-align: bottom;
+    padding: var(--space-3) var(--ptable-cell-x);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--letter-tracked);
+    text-transform: uppercase;
+    line-height: 1.2;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 2px solid var(--accent-border);
+}
+.ptable thead th:first-child { text-align: left; }
+.ptable thead th:hover { background-color: #161010; }
+
+/* Sort indicators (caret on the active column). */
+.ptable th.sorted-asc::after  { content: " \2191"; }
+.ptable th.sorted-desc::after { content: " \2193"; }
+
+.ptable tbody td {
+    padding: var(--space-3) var(--ptable-cell-x);
+    text-align: right;
+    color: var(--color-text);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+}
+.ptable tbody td:first-child { text-align: left; }
+.ptable tbody tr:nth-child(even) { background-color: var(--color-surface-3); }
+.ptable tbody tr:hover { background-color: #201a0a; }
+
+.ptable__empty {
+    text-align: center;
+    color: var(--color-faint);
+    font-style: italic;
+    padding: var(--space-6);
+}
+
+/* Player / color-identity name link. */
+.player-link {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: var(--fw-semibold);
+}
+.player-link:hover {
+    color: var(--color-accent-strong);
+    text-decoration: underline;
+}
+
+/* Color-identity cell: ONE column holding the name (left) and the pip cluster.
+   The pip area is a fixed width whose icons are centre-justified, so the
+   symbols share one vertical centre axis across every row — a single colour
+   sits dead-centre, two colours straddle it (one slightly left, one slightly
+   right), three centre as a group — independent of the name's length. */
+.color-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+.color-cell .player-link { flex: 1 1 auto; }
+.color-pips {
+    flex: 0 0 auto;
+    width: 90px;                 /* room for up to 5 pips, shared by all rows */
+    display: inline-flex;
+    justify-content: center;
+    gap: 2px;
+}
+.color-icon {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+/* ── Prev / Next pager (deck stats table, deck detail game history) ───────── */
+.ptable-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+}
+.pager__status {
+    color: var(--color-faint);
+    font-size: var(--fs-sm);
+    font-variant-numeric: tabular-nums;
+}
+.pager__btn {
+    background: none;
+    border: 1px solid var(--color-accent);
+    color: var(--color-accent);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--fs-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+}
+.pager__btn:hover:not(:disabled) {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+}
+.pager__btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    border-color: var(--accent-border);
+    color: var(--color-faint);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────
+   The table stays content-sized and scrolls horizontally inside its wrapper
+   on narrow screens (the wrapper is capped at the panel width). We only shrink
+   padding / font so more columns fit before scrolling kicks in, and make the
+   sticky header + touch scrolling comfortable on mobile. */
+@media (max-width: 720px) {
+    .panel { padding: var(--space-4); }
+    :root { --ptable-cell-x: var(--space-3); }  /* 12px */
+    .ptable thead th { font-size: 10px; }
+    .ptable tbody td { font-size: var(--fs-xs); }
+
+    /* Controls stack: year control on its own row, filters beneath. */
+    .ptable-controls { gap: var(--space-2); }
+    .ptable-controls__spacer { flex-basis: 100%; height: 0; }
+    .seg { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+    :root { --ptable-cell-x: var(--space-2); }  /* 8px */
+    .ptable-controls__min { display: none; }     /* keep the input, drop the label */
+}

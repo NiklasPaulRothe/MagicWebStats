@@ -45,6 +45,10 @@ def format_player_stats(r: PlayerStatsResult) -> dict:
         "winrate_pct": r["winrate_pct"],
         "first": r["first"],
         "first_pct": r["first_pct"],
+        # None when <5 games have tracked removal; serializes to JSON null and
+        # the player-stats table renders it as "-".
+        "avg_removal_played": r["avg_removal_played"],
+        "avg_removal_targeted": r["avg_removal_targeted"],
     }
 
 
@@ -92,6 +96,25 @@ def format_user_deck(r: UserDeckResult) -> dict:
         "decklist": r["decklist"],
         "color_imgs": r["color_imgs"],
         "tags": r["tags"],
+        **_deck_card_fields(r, r.get("deck_id")),
+    }
+
+
+def _deck_card_fields(r: dict, deck_id) -> dict:
+    """Extra fields the My Deck Stats cards need (shared by active + archive).
+
+    Read with ``.get`` so callers that build partial result dicts (older code
+    paths, tests) keep working; absent values come out as JSON null / 0.
+    ``last_played_iso`` (YYYY-MM-DD) is for display and sorting; the legacy
+    German-format ``last_played`` is kept unchanged for existing consumers.
+    """
+    lp = r.get("last_played")
+    return {
+        "id": deck_id,
+        "image_uri": r.get("image_uri"),
+        "avg_win_turns": r.get("avg_win_turns"),
+        "win_turns_count": r.get("win_turns_count") or 0,
+        "last_played_iso": lp.isoformat() if lp is not None and hasattr(lp, "isoformat") else None,
     }
 
 
@@ -111,4 +134,6 @@ def format_user_deck_archive(r: UserDeckArchiveResult) -> dict:
         "wins": r["wins"],
         "winrate_pct": winrate,
         "decklist": r["decklist"],
+        "tags": r.get("tags") or [],
+        **_deck_card_fields(r, r["id"]),
     }

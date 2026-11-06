@@ -35,8 +35,10 @@
     <section class="folder-section" aria-label="Folders">
         <ul class="folder-grid" role="list">
             {% if current_folder %}
+            {# data-folder-name names the parent in the ⋮ "Move to" list. #}
             <li class="folder-card folder-up"
-                data-folder-id="{{ parent_folder_id if parent_folder_id is not none else '' }}">
+                data-folder-id="{{ parent_folder_id if parent_folder_id is not none else '' }}"
+                data-folder-name="{{ breadcrumbs[-2].name if breadcrumbs|length > 1 else 'All Decks' }}">
                 <a class="folder-card-link"
                    href="{{ url_for('decks.my_decks', folder_id=parent_folder_id) if parent_folder_id is not none else url_for('decks.my_decks') }}">
                     <span class="folder-icon" aria-hidden="true">↩</span>
@@ -46,7 +48,7 @@
             {% endif %}
 
             {% for folder in folder_cards %}
-            <li class="folder-card" data-folder-id="{{ folder.id }}">
+            <li class="folder-card folder-item" data-folder-id="{{ folder.id }}" data-folder-name="{{ folder.name }}">
                 <a class="folder-card-link" href="{{ url_for('decks.my_decks', folder_id=folder.id) }}">
                     <span class="folder-icon" aria-hidden="true">📁</span>
                     <span class="folder-card-titles">
@@ -54,6 +56,9 @@
                         <span class="folder-card-count">{{ folder.deck_count }} deck{{ '' if folder.deck_count == 1 else 's' }}</span>
                     </span>
                 </a>
+                <button type="button" class="item-menu-btn" data-menu-kind="folder"
+                        aria-haspopup="menu" aria-expanded="false"
+                        aria-label="Actions for folder {{ folder.name }}">&#8942;</button>
             </li>
             {% endfor %}
 
@@ -106,15 +111,37 @@
                 </div>
                 {% endif %}
             </a>
+            {# Sibling of the card link (a button inside <a> is invalid and
+               would navigate). Sits top-right, above the color symbols. #}
+            <button type="button" class="item-menu-btn" data-menu-kind="deck"
+                    aria-haspopup="menu" aria-expanded="false"
+                    aria-label="Actions for {{ deck.name }}">&#8942;</button>
         </li>
         {% endfor %}
     </ul>
     {% else %}
     <p class="my-decks-empty">
-        {% if current_folder %}This folder has no decks yet. Drag a deck here from another folder.{% else %}You don't have any decks yet.{% endif %}
+        {% if current_folder %}This folder has no decks yet. Drag a deck here, or use a deck&#39;s &#8942; menu to move it.{% else %}You don't have any decks yet.{% endif %}
     </p>
     {% endif %}
 </main>
+
+<!-- Shared ⋮ action menu (one instance, positioned next to the clicked button
+     by deck_folders.js). Lives outside the cards so their overflow can't clip
+     it. Panel 1: actions ("Move to"); panel 2: the folders on this page. -->
+<div class="item-menu" id="item-menu" role="menu" aria-label="Actions" hidden>
+    <div class="item-menu-panel" data-panel="actions">
+        <button type="button" class="item-menu-item" role="menuitem" data-action="move">
+            <span>Move to</span><span class="item-menu-chev" aria-hidden="true">&#8250;</span>
+        </button>
+    </div>
+    <div class="item-menu-panel" data-panel="move" hidden>
+        <button type="button" class="item-menu-item item-menu-back" role="menuitem" data-action="back">
+            <span class="item-menu-chev" aria-hidden="true">&#8249;</span><span>Move to</span>
+        </button>
+        <div class="item-menu-targets" data-role="targets"></div>
+    </div>
+</div>
 
 <!-- New-folder dialog -->
 <div class="folder-dialog-backdrop" id="folder-dialog-backdrop" hidden>

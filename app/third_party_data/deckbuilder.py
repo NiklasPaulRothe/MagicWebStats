@@ -11,7 +11,7 @@ from pyrchidekt.api import getDeckById
 import sqlalchemy as sa
 
 from app import db, third_party_data
-from app.auth import role_required
+from app.auth import min_role_required, ROLE_MAINTAINER
 from app.models import DeckComponent, DeckComponentCategory, Deck, DeckTag, Card
 from app.third_party_data import bp
 
@@ -318,7 +318,7 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
     logger.info('end load cards....')
 
 @bp.route('/LoadAllDecks', methods=['GET'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def load_all_decks():
     decks = Deck.query.all()

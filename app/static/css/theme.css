@@ -1,0 +1,116 @@
+/* ════════════════════════════════════════════════════════════════════════
+   theme.css — design tokens
+   ------------------------------------------------------------------------
+   Single source of truth for the visual language of the redesign. Every
+   other stylesheet should reference these custom properties instead of
+   hard-coded values, so a future re-theme is a one-file change.
+
+   The palette preserves the existing site identity: a near-black MTG dark
+   theme with a gold (#f4c430) accent and antiquewhite text.
+   ════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* ── Core surfaces (darkest → lightest) ──────────────────────────────── */
+    --color-bg: #121212;            /* page background            */
+    --color-nav: #0d0800;           /* sidebar / nav surface      */
+    --color-surface: #1e1e1e;       /* cards, inputs              */
+    --color-surface-2: #232323;     /* raised cards (stat tiles)  */
+    --color-surface-3: #282c34;     /* table row stripe, chips    */
+    --color-elevated: #333333;      /* popovers, dropdowns        */
+
+    /* Gradient used by panels/sections (kept from the current dashboard). */
+    --surface-gradient: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+
+    /* ── Accent (gold) ───────────────────────────────────────────────────── */
+    --color-accent: #f4c430;
+    --color-accent-strong: #ffd84a; /* hover / emphasis           */
+    --color-accent-ink: #0d0800;    /* text on an accent fill     */
+    --color-accent-tint: #1a1200;   /* active-nav background tint */
+
+    /* Accent at low opacity — borders, glows, focus rings. */
+    --accent-border: rgba(244, 196, 48, 0.20);
+    --accent-border-strong: rgba(244, 196, 48, 0.40);
+    --accent-glow: rgba(244, 196, 48, 0.15);
+
+    /* ── Text ────────────────────────────────────────────────────────────── */
+    --color-text: antiquewhite;     /* body copy                  */
+    --color-text-strong: #ffffff;   /* hover / headings emphasis  */
+    --color-muted: #c9bfa0;         /* secondary text             */
+    --color-faint: #9a8f70;         /* labels, captions           */
+    --color-on-accent: var(--color-accent); /* link/label gold    */
+
+    /* ── Semantic (status) ───────────────────────────────────────────────── */
+    --color-win: #8fd18f;
+    --color-loss: #e06a5a;
+    --color-warn: #e0b24a;
+    --color-info: #3a7bd5;
+
+    /* MTG color pips (semantic data, not theme chrome). */
+    --mtg-white: #f0f0e0;
+    --mtg-blue:  #3a7bd5;
+    --mtg-black: #888888;
+    --mtg-red:   #c0392b;
+    --mtg-green: #27ae60;
+
+    /* ── Typography ──────────────────────────────────────────────────────── */
+    --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+    --fs-xs: 0.75rem;    /* 12px */
+    --fs-sm: 0.875rem;   /* 14px */
+    --fs-md: 1rem;       /* 16px */
+    --fs-lg: 1.25rem;    /* 20px */
+    --fs-xl: 1.625rem;   /* 26px */
+
+    --fw-normal: 400;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+
+    --letter-tracked: 0.06em; /* uppercase labels */
+
+    /* ── Spacing scale (4px base) ────────────────────────────────────────── */
+    --space-1: 0.25rem;  /* 4  */
+    --space-2: 0.5rem;   /* 8  */
+    --space-3: 0.75rem;  /* 12 */
+    --space-4: 1rem;     /* 16 */
+    --space-5: 1.5rem;   /* 24 */
+    --space-6: 2rem;     /* 32 */
+    --space-8: 3rem;     /* 48 */
+
+    /* ── Radius ──────────────────────────────────────────────────────────── */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    /* ── Elevation (shadows) ─────────────────────────────────────────────── */
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.20);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.30);
+    --shadow-glow: 0 4px 20px var(--accent-glow), 0 0 0 1px var(--accent-border);
+
+    /* ── Layout dimensions ───────────────────────────────────────────────── */
+    --sidebar-width: 248px;         /* expanded rail              */
+    --sidebar-width-collapsed: 72px;/* icon-only rail             */
+    --topbar-height: 56px;          /* mobile top bar             */
+    --content-max: 1200px;          /* main content max width     */
+
+    /* ── Motion ──────────────────────────────────────────────────────────── */
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --dur-fast: 0.15s;
+    --dur: 0.25s;
+
+    /* ── Z-index scale ───────────────────────────────────────────────────── */
+    --z-content: 1;
+    --z-sidebar: 100;
+    --z-backdrop: 90;
+    --z-topbar: 110;
+    --z-skiplink: 1200;
+}
+
+/* Respect users who prefer reduced motion: neutralize transition durations. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --dur-fast: 0s;
+        --dur: 0s;
+    }
+}

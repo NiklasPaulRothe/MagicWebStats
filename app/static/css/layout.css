@@ -1,0 +1,422 @@
+/* ════════════════════════════════════════════════════════════════════════
+   layout.css — app shell + responsive sidebar navigation
+   ------------------------------------------------------------------------
+   Depends on theme.css tokens. Provides:
+     • .app-shell          two-column grid: sidebar + main content
+     • .sidebar            the fixed navigation rail (desktop) / drawer (mobile)
+     • .app-topbar         mobile-only top bar with the hamburger + brand
+     • .nav-*              grouped navigation primitives
+     • flash message styling
+
+   Responsive model
+   ----------------
+     Desktop (>= 1024px): sidebar is a persistent fixed rail; content is
+       offset by its width. A ".is-collapsed" modifier (toggled by the collapse
+       button, remembered in localStorage) shrinks it to an icon-only rail.
+     Mobile (< 1024px): sidebar becomes an off-canvas drawer, hidden by
+       default and slid in over a backdrop. Works with no JS via the
+       #nav-toggle checkbox; JS layers on Esc / backdrop / close-on-navigate.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Reset / base (scoped additions; basic.css still loads for legacy pages) */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+/* ── Visually-hidden (screen-reader only) utility ────────────────────────── */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ── Skip link ───────────────────────────────────────────────────────────── */
+.skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
+    z-index: var(--z-skiplink);
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+    padding: var(--space-3) var(--space-4);
+    font-weight: var(--fw-bold);
+    text-decoration: none;
+    border-radius: 0 0 var(--radius-sm) 0;
+}
+.skip-link:focus { left: 0; }
+
+/* ── App shell ───────────────────────────────────────────────────────────── */
+.app-shell {
+    min-height: 100vh;
+}
+
+/* The hidden checkbox that drives the no-JS mobile drawer. */
+.nav-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SIDEBAR
+   ════════════════════════════════════════════════════════════════════════ */
+.sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;                 /* top/bottom 0, left 0 */
+    width: var(--sidebar-width);
+    background-color: var(--color-nav);
+    border-right: 1px solid var(--accent-border);
+    display: flex;
+    flex-direction: column;
+    z-index: var(--z-sidebar);
+    transition: transform var(--dur) var(--ease),
+                width var(--dur) var(--ease);
+}
+
+/* Brand / header row (brand + desktop collapse toggle) */
+.sidebar__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sidebar__collapse {
+    flex: 0 0 auto;
+    display: none;                 /* desktop-only; shown in the >=1024 query */
+    width: 32px;
+    height: 32px;
+    margin-right: var(--space-2);
+    background: none;
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease),
+                transform var(--dur) var(--ease);
+}
+.sidebar__collapse:hover,
+.sidebar__collapse:focus-visible { background-color: #111; }
+
+.sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-4);
+    color: var(--color-accent);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.5px;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.sidebar__brand-text { font-size: var(--fs-lg); }
+
+/* Scrollable nav body so long menus don't push the account block away. */
+.sidebar__nav {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--space-2) var(--space-2) var(--space-4);
+}
+
+/* Section grouping */
+.nav-group { margin-top: var(--space-4); }
+.nav-group:first-child { margin-top: var(--space-2); }
+
+.nav-group__label {
+    display: block;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--letter-tracked);
+    text-transform: uppercase;
+    color: var(--color-faint);
+}
+
+.nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Nav item link */
+.nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    margin: 2px var(--space-1);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent);
+    text-decoration: none;
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    border-left: 3px solid transparent;
+    transition: background-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+}
+.nav-link:hover,
+.nav-link:focus-visible {
+    background-color: #111;
+    color: var(--color-accent-strong);
+}
+
+.nav-link__icon {
+    flex: 0 0 auto;
+    width: 20px;
+    text-align: center;
+    font-size: var(--fs-md);
+    line-height: 1;
+}
+.nav-link__text { flex: 1 1 auto; }
+
+/* Active page: gold left border + subtle tint (from the legacy active rule). */
+.nav-link.is-active,
+.nav-link[aria-current="page"] {
+    background-color: var(--color-accent-tint);
+    border-left-color: var(--color-accent);
+    color: var(--color-accent-strong);
+    font-weight: var(--fw-semibold);
+}
+
+/* Lower-emphasis admin action (e.g. Recalc Elo). */
+.nav-link--muted { color: var(--color-faint); }
+.nav-link--muted:hover,
+.nav-link--muted:focus-visible { color: var(--color-accent); }
+
+/* ── Account block pinned to the bottom ──────────────────────────────────── */
+.sidebar__account {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--accent-border);
+    padding: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+.account__avatar {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-accent);
+    display: grid;
+    place-items: center;
+    font-size: var(--fs-md);
+}
+.account__meta {
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 1.2;
+    overflow: hidden;
+}
+.account__name {
+    display: block;
+    color: var(--color-text);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.account__role {
+    display: block;
+    color: var(--color-faint);
+    font-size: var(--fs-xs);
+}
+.account__action {
+    flex: 0 0 auto;
+    color: var(--color-accent);
+    text-decoration: none;
+    font-size: var(--fs-sm);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+}
+.account__action:hover,
+.account__action:focus-visible { background-color: #111; }
+
+/* Login call-to-action when anonymous (spans the whole account block). */
+.account__login {
+    flex: 1 1 auto;
+    text-align: center;
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    text-decoration: none;
+    font-size: var(--fs-sm);
+    transition: background-color var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease);
+}
+.account__login:hover,
+.account__login:focus-visible {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+}
+
+/* ── Backdrop (mobile drawer) ────────────────────────────────────────────── */
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    visibility: hidden;
+    z-index: var(--z-backdrop);
+    transition: opacity var(--dur) var(--ease),
+                visibility var(--dur) var(--ease);
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+/* ── Mobile top bar (hamburger) ──────────────────────────────────────────── */
+.app-topbar {
+    display: none;
+    align-items: center;
+    gap: var(--space-3);
+    height: var(--topbar-height);
+    padding: 0 var(--space-3);
+    background-color: var(--color-nav);
+    border-bottom: 1px solid var(--accent-border);
+    position: sticky;
+    top: 0;
+    z-index: var(--z-topbar);
+}
+.app-topbar__toggle {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+.app-topbar__toggle span {
+    display: block;
+    height: 3px;
+    width: 100%;
+    background-color: var(--color-accent);
+    border-radius: 2px;
+}
+.app-topbar__brand {
+    color: var(--color-accent);
+    font-weight: var(--fw-bold);
+    text-decoration: none;
+    font-size: var(--fs-md);
+}
+
+/* ── Main content area ───────────────────────────────────────────────────── */
+.app-main {
+    margin-left: var(--sidebar-width);
+    min-height: 100vh;
+    padding: var(--space-5);
+    transition: margin-left var(--dur) var(--ease);
+}
+.app-main__inner {
+    max-width: var(--content-max);
+    margin: 0 auto;
+}
+/* Opt-in wider content for grid pages (e.g. My Deck Stats: up to 5 cards per
+   row on large monitors). Set via {% block main_inner_class %} in a template. */
+.app-main__inner--wide { max-width: 1760px; }
+/* Opt-in full width (no cap at all), e.g. the Collection card grid. */
+.app-main__inner--full { max-width: none; }
+
+/* ── Flash messages ──────────────────────────────────────────────────────── */
+.flash-stack {
+    list-style: none;
+    margin: 0 0 var(--space-5);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.flash {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--surface-gradient);
+    border: 1px solid var(--accent-border);
+    border-left: 3px solid var(--color-accent);
+    color: var(--color-text);
+    font-size: var(--fs-sm);
+}
+.flash--error   { border-left-color: var(--color-loss); }
+.flash--success { border-left-color: var(--color-win); }
+.flash--warning { border-left-color: var(--color-warn); }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.app-footer {
+    margin-left: var(--sidebar-width);
+    background-color: #000;
+    color: var(--color-muted);
+    text-align: center;
+    padding: var(--space-3) 0;
+    font-size: var(--fs-xs);
+    transition: margin-left var(--dur) var(--ease);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   DESKTOP — collapsed (icon-only) rail
+   Toggled by JS via .app-shell.is-collapsed; purely cosmetic, so no-JS users
+   simply keep the full rail.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+    .sidebar__collapse { display: inline-grid; place-items: center; }
+
+    .app-shell.is-collapsed .sidebar { width: var(--sidebar-width-collapsed); }
+    .app-shell.is-collapsed .app-main,
+    .app-shell.is-collapsed .app-footer { margin-left: var(--sidebar-width-collapsed); }
+
+    /* Point the chevron the other way + recenter it when collapsed. */
+    .app-shell.is-collapsed .sidebar__collapse { transform: rotate(180deg); margin-right: 0; }
+    .app-shell.is-collapsed .sidebar__header { justify-content: center; }
+
+    /* Hide text, section labels + account meta so only icons remain. */
+    .app-shell.is-collapsed .sidebar__brand-text,
+    .app-shell.is-collapsed .nav-link__text,
+    .app-shell.is-collapsed .nav-group__label,
+    .app-shell.is-collapsed .account__meta,
+    .app-shell.is-collapsed .account__action-text { display: none; }
+
+    .app-shell.is-collapsed .nav-link { justify-content: center; gap: 0; }
+    .app-shell.is-collapsed .sidebar__account { justify-content: center; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE — off-canvas drawer (< 1024px)
+   ════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023.98px) {
+    .app-topbar { display: flex; }
+
+    .sidebar {
+        transform: translateX(-100%);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Open when the no-JS checkbox is checked OR JS adds .is-open. */
+    .nav-toggle:checked ~ .sidebar,
+    .app-shell.is-open .sidebar { transform: translateX(0); }
+
+    .nav-toggle:checked ~ .sidebar-backdrop,
+    .app-shell.is-open .sidebar-backdrop { opacity: 1; visibility: visible; }
+
+    .app-main,
+    .app-footer { margin-left: 0; }
+
+    .app-main { padding: var(--space-4); }
+}

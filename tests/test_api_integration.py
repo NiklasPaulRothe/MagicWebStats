@@ -230,6 +230,7 @@ class TestPlayerStatsEndpoint:
         expected_keys = {
             "name", "games", "early_sol_ring", "sol_ring_pct",
             "wins", "winrate_pct", "first", "first_pct",
+            "avg_removal_played", "avg_removal_targeted",
         }
         assert set(formatted.keys()) == expected_keys
 
@@ -469,6 +470,8 @@ class TestUserDecksEndpoint:
             "name", "commander", "color_identity", "games",
             "last_played", "wins", "winrate_pct",
             "decklist", "color_imgs", "tags",
+            # My Deck Stats card fields
+            "id", "image_uri", "avg_win_turns", "win_turns_count", "last_played_iso",
         }
         assert set(formatted.keys()) == expected_keys
 
@@ -565,6 +568,8 @@ class TestUserDecksArchiveEndpoint:
         expected_keys = {
             "id", "name", "commander", "color_imgs",
             "games", "wins", "winrate_pct", "decklist",
+            # My Deck Stats card fields (same shape as the active-deck cards)
+            "tags", "image_uri", "avg_win_turns", "win_turns_count", "last_played_iso",
         }
         assert set(formatted.keys()) == expected_keys
 
@@ -670,6 +675,7 @@ class TestPlayerStatsByYearEndpoint:
             expected_keys = {
                 "name", "games", "early_sol_ring", "sol_ring_pct",
                 "wins", "winrate_pct", "first", "first_pct",
+                "avg_removal_played", "avg_removal_targeted",
             }
             assert set(formatted.keys()) == expected_keys
 

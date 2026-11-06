@@ -1,132 +1,134 @@
 {% extends "base.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/colorstats.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playertable.css') }}">
 {% endblock %}
 
 {% block content %}
-    <main>
-        <h2 class="page-title">Color Identity Statistics</h2>
-        
-        <div class="stats-container">
-            <div class="stats-section">
-                <h3 class="section-title">Color Performance</h3>
-                
-                <div class="table-wrapper">
-                    <table id="color-stats-table" class="modern-table">
-                        <thead>
-                            <tr>
-                                <th data-type="string" data-key="name">Color Identity</th>
-                                <th data-type="number" data-key="games">Games</th>
-                                <th data-type="number" data-key="wins">Wins</th>
-                                <th data-type="number" data-key="winrate_pct">Winrate %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Color stats data will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </main>
-    
-    <script>
-        let colorData = [];
-        let currentSort = { idx: null, asc: true, type: null };
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            // Fetch and populate Color Stats table
-            fetch('/api/color-data')
-                .then(response => {
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    colorData = data;
-                    populateTable('color-stats-table', colorData);
-                })
-                .catch(err => {
-                    console.error('Failed to load color data:', err);
-                    const tbody = document.querySelector('#color-stats-table tbody');
-                    if (tbody) {
-                        const colCount = document.querySelectorAll('#color-stats-table thead th').length;
-                        tbody.innerHTML = `<tr><td colspan="${colCount}">Daten konnten nicht geladen werden.</td></tr>`;
-                    }
-                });
+<header class="dash-head">
+    <h1 class="dash-title">Color statistics</h1>
+    <p class="dash-sub">Performance by color identity across the playgroup</p>
+</header>
 
-            // Function to populate table
-            function populateTable(tableId, data) {
-                const tbody = document.querySelector(`#${tableId} tbody`);
-                const headers = document.querySelectorAll(`#${tableId} thead th`);
-                tbody.innerHTML = '';
-                
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = Array.from(headers).map(header => {
-                        const key = header.getAttribute('data-key');
-                        
-                        if (key === 'name') {
-                            const imgs = Array.isArray(item.color_imgs) ? item.color_imgs : [];
-                            const icons = imgs.map(src => `<img src="${src}" class="color-icon">`).join('');
-                            const name = item.name || '';
-                            const href = '/ColorStats/' + encodeURIComponent(name);
-                            return `<td>${icons}<a class="color-name color-name-link" href="${href}">${name}</a></td>`;
-                        }
-                        
-                        const value = item[key];
-                        return `<td>${value !== null && value !== undefined ? value : ''}</td>`;
-                    }).join('');
-                    tbody.appendChild(row);
-                });
-            }
+<section class="panel">
+    <div class="ptable-wrap">
+        <table id="color-stats-table" class="ptable">
+            <thead>
+                <tr>
+                    <th data-type="string" data-key="name">Color identity</th>
+                    <th data-type="number" data-key="games">Games</th>
+                    <th data-type="number" data-key="wins">Wins</th>
+                    <th data-type="number" data-key="winrate_pct">Winrate<br>%</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</section>
 
-            // Function to update sort indicators
-            function updateSortIndicators() {
-                document.querySelectorAll('#color-stats-table th').forEach((th, idx) => {
-                    th.classList.remove('sorted-asc', 'sorted-desc');
-                    if (idx === currentSort.idx) {
-                        th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
-                    }
-                });
-            }
+<script>
+    let colorData = [];
+    // Start sorted ascending by Color Identity (idx 0): colorless first, then
+    // by colour count and the WUBRG hierarchy (via color_key). Clicking any
+    // header re-sorts from there.
+    let currentSort = { idx: 0, asc: true, type: 'string' };
 
-            // Add sort functionality to table headers
-            document.querySelectorAll('#color-stats-table th').forEach((th, idx) => {
-                th.addEventListener('click', function() {
-                    const dataType = th.getAttribute('data-type');
-                    
-                    if (currentSort.idx === idx) {
-                        currentSort.asc = !currentSort.asc;
-                    } else {
-                        currentSort = {
-                            idx,
-                            asc: true,
-                            type: dataType
-                        };
-                    }
-                    
-                    // Sort the data
-                    const headers = document.querySelectorAll('#color-stats-table thead th');
-                    const key = headers[currentSort.idx].getAttribute('data-key');
-                    
+    document.addEventListener('DOMContentLoaded', function () {
+        const TABLE = 'color-stats-table';
+
+        fetch('/api/color-data')
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(data => { colorData = data; render(); })
+            .catch(err => {
+                console.error('Failed to load color data:', err);
+                const tbody = document.querySelector(`#${TABLE} tbody`);
+                if (tbody) {
+                    const cols = document.querySelectorAll(`#${TABLE} thead th`).length;
+                    tbody.innerHTML = `<tr><td colspan="${cols}" class="ptable__empty">Daten konnten nicht geladen werden.</td></tr>`;
+                }
+            });
+
+        function render() {
+            if (currentSort.idx !== null) {
+                const headers = document.querySelectorAll(`#${TABLE} thead th`);
+                const key = headers[currentSort.idx].getAttribute('data-key');
+                if (key === 'name') {
+                    // Sort by the server-provided color_key, which encodes
+                    // colour-count then the WUBRG hierarchy
+                    // ("0:" < "1:0"(W) < "1:1"(U) < "2:01"(WU) < "2:02"(WB) ...).
+                    // Ascending: colorless first, then by size + WUBRG order.
+                    // Descending: the exact reverse (colorless last).
                     colorData.sort((a, b) => {
-                        let valA = a[key];
-                        let valB = b[key];
-                        
-                        if (currentSort.type === 'number') {
-                            return currentSort.asc ? valA - valB : valB - valA;
-                        } else {
-                            return currentSort.asc
-                                ? String(valA).localeCompare(String(valB))
-                                : String(valB).localeCompare(String(valA));
-                        }
+                        const ka = a.color_key || '', kb = b.color_key || '';
+                        const cmp = ka < kb ? -1 : (ka > kb ? 1 : 0);
+                        return currentSort.asc ? cmp : -cmp;
                     });
-                    
-                    updateSortIndicators();
-                    populateTable('color-stats-table', colorData);
-                });
+                } else {
+                    colorData.sort((a, b) => {
+                        let va = a[key], vb = b[key];
+                        // Empty values (null / undefined / "") always sort LAST.
+                        const ea = va === null || va === undefined || va === '';
+                        const eb = vb === null || vb === undefined || vb === '';
+                        if (ea || eb) return ea === eb ? 0 : (ea ? 1 : -1);
+                        if (currentSort.type === 'number') {
+                            return currentSort.asc ? (va - vb) : (vb - va);
+                        }
+                        return currentSort.asc
+                            ? String(va).localeCompare(String(vb))
+                            : String(vb).localeCompare(String(va));
+                    });
+                }
+            }
+            updateSortIndicators();
+            populate();
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll(`#${TABLE} th`).forEach((th, idx) => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                if (idx === currentSort.idx) th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
+            });
+        }
+
+        function populate() {
+            const tbody = document.querySelector(`#${TABLE} tbody`);
+            const headers = document.querySelectorAll(`#${TABLE} thead th`);
+            tbody.innerHTML = '';
+            colorData.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = Array.from(headers).map(header => {
+                    const key = header.getAttribute('data-key');
+                    if (key === 'name') {
+                        // One cell: name on the left, then a fixed-width centred
+                        // pip area so the symbols share one vertical axis across
+                        // every row (see .color-cell / .color-pips in CSS).
+                        const name = item.name || '';
+                        const href = '/ColorStats/' + encodeURIComponent(name);
+                        const imgs = Array.isArray(item.color_imgs) ? item.color_imgs : [];
+                        const icons = imgs.map(src => `<img src="${src}" class="color-icon" alt="">`).join('');
+                        return `<td class="color-cell">`
+                             + `<a class="player-link" href="${href}">${name}</a>`
+                             + `<span class="color-pips">${icons}</span>`
+                             + `</td>`;
+                    }
+                    const v = item[key];
+                    return `<td>${v !== null && v !== undefined ? v : ''}</td>`;
+                }).join('');
+                tbody.appendChild(row);
+            });
+        }
+
+        document.querySelectorAll(`#${TABLE} th`).forEach((th, idx) => {
+            th.addEventListener('click', function () {
+                const type = th.getAttribute('data-type');
+                if (currentSort.idx === idx) {
+                    currentSort.asc = !currentSort.asc;
+                } else {
+                    currentSort = { idx, asc: type !== 'number', type };
+                }
+                render();
             });
         });
-    </script>
-{%  endblock %}
+    });
+</script>
+{% endblock %}

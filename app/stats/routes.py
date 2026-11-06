@@ -7,12 +7,11 @@ from app import db
 from app.stats import bp
 from flask import render_template, flash, redirect, url_for, abort, request
 from flask_login import login_required, current_user
-from app.auth import role_required, has_personal_stats_access
+from app.auth import min_role_required, has_personal_stats_access, ROLE_MAINTAINER, ROLE_ADMIN
 import sqlalchemy as sa
 
 from app.stats.forms import PlayerAddForm, DeckAddForm, GameAddForm, GameEditForm, ParticipantEditSubForm
 from app.models import Player, Deck, Game, Participant, Card, User, AuditLog
-from app.viewmodels import ColorUsage, ColorUsagePlayer
 from app.services.audit import write_audit_log
 from app.services.game_service import resolve_player_id, resolve_deck_id
 from app.services.stats_service import get_players, get_active_decks, get_color_identities, get_color_identity_detail
@@ -49,7 +48,7 @@ def _assert_game_owner(game: Game) -> None:
 
 
 @bp.route('/manage/games')
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_hub():
     page = request.args.get('page', 1, type=int)
@@ -109,7 +108,7 @@ def game_hub():
 
 
 @bp.route('/manage/games/<int:game_id>/delete', methods=['POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_delete(game_id):
     # Load game or 404
@@ -135,7 +134,7 @@ def game_delete(game_id):
 
 
 @bp.route('/manage/games/<int:game_id>/edit', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_edit(game_id):
     # Load game or 404
@@ -363,7 +362,7 @@ def game_edit(game_id):
 
 
 @bp.route('/PlayerAdd', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def player_add():
     form = PlayerAddForm()
@@ -377,7 +376,7 @@ def player_add():
     return render_template('stats/PlayerAdd.html', form=form)
 
 @bp.route('/DeckAdd', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def deck_add():
     form = DeckAddForm()
@@ -428,7 +427,7 @@ def deck_add():
     return render_template('stats/DeckAdd.html', form=form, ci_data=ci_data)
 
 @bp.route('/game-add', methods=['GET', 'POST'])
-@role_required('admin')
+@min_role_required(ROLE_MAINTAINER)
 @login_required
 def game_add():
     from app.services.game_service import create_game, ParticipantInput
@@ -566,23 +565,10 @@ def game_add():
 @bp.route('/PlayerStats')
 @login_required
 def playerstats():
-    from datetime import date, timedelta
-    from app.models import Player, Game, Participant
-    one_year_ago = date.today() - timedelta(days=365)
-    active_player_names = set(
-        row[0] for row in db.session.execute(
-            sa.select(Player.name)
-            .join(Participant, Participant.player_id == Player.id)
-            .join(Game, Game.id == Participant.game_id)
-            .where(Game.date >= one_year_ago)
-            .distinct()
-        ).all()
-    )
-    color_usage_player = [
-        cup for cup in ColorUsagePlayer.query.all()
-        if cup.Player in active_player_names
-    ]
-    return render_template('stats/playerstats.html', color_usage_player=color_usage_player)
+    # The player-performance table is populated client-side from /api/data (with
+    # year + min-games filtering and client sorting). The page itself needs no
+    # server-side context. The color-usage table was removed from this page.
+    return render_template('stats/playerstats.html')
 
 @bp.route('/ColorStats')
 @login_required
@@ -622,7 +608,7 @@ def tracking_sheet_personal():
 
 
 @bp.route('/audit-log')
-@role_required('admin')
+@min_role_required(ROLE_ADMIN)
 @login_required
 def audit_log():
     

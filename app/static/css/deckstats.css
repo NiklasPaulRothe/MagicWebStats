@@ -1,139 +1,157 @@
-/* deckstats.css — fully scoped to #deck-stats */
+/* ════════════════════════════════════════════════════════════════════════
+   deckstats.css — deck-specific additions on top of playertable.css
+   ------------------------------------------------------------------------
+   The table itself uses the shared .ptable styling (playertable.css). This
+   file only adds what's unique to the deck table: the player-filter dropdown
+   button, colour-identity icons, the avg-win-turn count badge, deck tags, and
+   the footer count note. Depends on theme.css tokens.
+   ════════════════════════════════════════════════════════════════════════ */
 
-/* ── Controls row ────────────────────────────────────────────────────────── */
-.deck-stats-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-/* ── Scrollable wrapper ──────────────────────────────────────────────────── */
-.deck-stats-table-wrap {
-    width: 100%;
-    overflow-x: auto;
-}
-
-/* ── Table base ──────────────────────────────────────────────────────────── */
+/* Stable layout: fill the panel and fix column widths so the table does NOT
+   resize when paging or sorting (otherwise content-based auto widths would be
+   re-measured per page and the table would visibly jump). table-layout:fixed
+   sizes columns from these rules, not from each page's cell content. A min
+   width keeps it readable; below that the wrapper scrolls horizontally. */
 #deck-stats-table {
-    border-collapse: collapse;
     width: 100%;
-    min-width: 700px;
-    table-layout: auto;
-    border: none;
+    min-width: 820px;
+    table-layout: fixed;
 }
-
-/* ── All cells: reset padding/height, center vertically ─────────────────── */
 #deck-stats-table th,
 #deck-stats-table td {
-    padding: 8px 12px !important;
-    height: auto !important;
-    border: none !important;
-    font-size: 14px !important;
-    text-align: left !important;
-    vertical-align: middle !important;
-    white-space: nowrap;
-    line-height: 1.4 !important;
-}
-
-/* ── Header ──────────────────────────────────────────────────────────────── */
-#deck-stats-table thead th {
-    background-color: #0d0800;
-    color: #f4c430;
-    cursor: pointer;
-    user-select: none;
-    border-bottom: 2px solid #f4c430 !important;
-}
-
-#deck-stats-table thead th:hover {
-    background-color: #1a1200;
-}
-
-/* Keep header contents (span + filter button) on one line */
-#deck-stats-table thead th span,
-#deck-stats-table thead th .filter-btn {
-    display: inline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Tighter vertical padding so a tagged cell is only marginally taller
+       than a name-only one (the tag block adds height; smaller padding keeps
+       the extra space beneath it modest). */
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
     vertical-align: middle;
 }
+/* Per-column widths (sum is flexible; percentages of the fixed table width). */
+#deck-stats-table th:nth-child(1), #deck-stats-table td:nth-child(1) { width: 18%; }  /* Deck */
+#deck-stats-table th:nth-child(2), #deck-stats-table td:nth-child(2) { width: 14%; }  /* Player (+ filter button) */
+#deck-stats-table th:nth-child(3), #deck-stats-table td:nth-child(3) { width: 20%; }  /* Commander */
 
-/* ── Body rows ───────────────────────────────────────────────────────────── */
-#deck-stats-table tbody tr:nth-child(odd)  { background-color: #1a1a1a; }
-#deck-stats-table tbody tr:nth-child(even) { background-color: #222; }
-#deck-stats-table tbody tr:hover           { background-color: #2a2200; }
+/* The Player header carries the ▾ filter button: never clip it. */
+#deck-stats-table th:nth-child(2) {
+    overflow: visible;
+    white-space: nowrap;
+}
+#deck-stats-table th:nth-child(4), #deck-stats-table td:nth-child(4) { width: 12%; }  /* Colors */
+#deck-stats-table th:nth-child(5), #deck-stats-table td:nth-child(5) { width: 8%; }   /* Games */
+#deck-stats-table th:nth-child(6), #deck-stats-table td:nth-child(6) { width: 8%; }   /* Wins */
+#deck-stats-table th:nth-child(7), #deck-stats-table td:nth-child(7) { width: 8%; }   /* Avg win turn */
+#deck-stats-table th:nth-child(8), #deck-stats-table td:nth-child(8) { width: 8%; }   /* Winrate % */
+#deck-stats-table th:nth-child(9), #deck-stats-table td:nth-child(9) { width: 7%; }   /* Elo */
 
-/* ── Color identity cell — icons only, inline ────────────────────────────── */
+/* Column alignment: the first four columns (deck, player, commander, colours)
+   are textual and left-aligned; the numeric columns stay right-aligned from
+   the shared .ptable rules. */
+#deck-stats-table th:nth-child(-n+4),
+#deck-stats-table td:nth-child(-n+4) { text-align: left; }
+
+/* ── Player filter button in the header ───────────────────────────────────── */
+.filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    margin-left: var(--space-1);
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--accent-border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent);
+    cursor: pointer;
+    vertical-align: middle;
+    transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease);
+}
+.filter-btn:hover,
+.filter-btn[aria-expanded="true"] {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-ink);
+}
+/* Clicks land on the button, never on the SVG/path inside it. */
+.filter-btn__icon { display: block; pointer-events: none; }
+.filter-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* Dropdown is positioned in viewport coordinates by deckstats.js. */
+#spieler-filter-dropdown {
+    position: fixed;
+    z-index: 1000;
+}
+
+/* ── Colour-identity icons: a horizontal row of pips in the Colors column ─── */
+#deck-stats-table .color-pips {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    width: auto;            /* override the fixed-width centred variant */
+}
 #deck-stats-table .color-icon {
     width: 16px;
     height: 16px;
     object-fit: contain;
-    vertical-align: middle;
-    margin-right: 1px;
+    display: block;
+    flex: 0 0 auto;
 }
 
-/* ── WTurns count badge ──────────────────────────────────────────────────── */
+/* ── Avg-win-turn count badge ─────────────────────────────────────────────── */
 #deck-stats-table small {
     font-size: 0.72em;
-    color: #aaa;
+    color: var(--color-faint);
 }
 
-/* ── Sort indicators ─────────────────────────────────────────────────────── */
-#deck-stats-table th.sorted-asc > span::after  { content: " ↑"; }
-#deck-stats-table th.sorted-desc > span::after { content: " ↓"; }
-
-/* ── Responsive ──────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
-    #deck-stats-table th:nth-child(4),
-    #deck-stats-table td:nth-child(4) { display: none; }
+/* ── Footer count note ("Showing N of M decks") ──────────────────────────── */
+.ptable-footer {
+    margin-top: var(--space-4);
+}
+.ptable-footer__note {
+    color: var(--color-faint);
+    font-size: var(--fs-sm);
 }
 
-@media (max-width: 700px) {
-    #deck-stats-table th:nth-child(7),
-    #deck-stats-table td:nth-child(7),
-    #deck-stats-table th:nth-child(9),
-    #deck-stats-table td:nth-child(9) { display: none; }
-}
+/* Prev / Next pager styles (.ptable-pager, .pager__*) live in playertable.css,
+   shared with the deck detail page's game history. */
 
-/* ── Deck tags — subtle, non-intrusive display ───────────────────────────── */
+/* ── Deck tags — subtle badges below the deck name (compact) ──────────────── */
 .deck-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 4px;
+    gap: 3px;
+    margin-top: 2px;
+    line-height: 1;
 }
-
 .deck-tag {
     display: inline-block;
-    padding: 2px 6px;
-    font-size: 0.7em;
-    background-color: rgba(244, 196, 48, 0.15);
-    border: 1px solid rgba(244, 196, 48, 0.3);
-    border-radius: 3px;
-    color: #b8a040;
+    padding: 1px 5px;
+    font-size: 0.65em;
+    line-height: 1.3;
+    background-color: var(--accent-border);
+    border: 1px solid var(--accent-border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--color-muted);
     font-weight: normal;
     white-space: nowrap;
 }
-
-/* Wrapper for expander and hidden tags - provides positioning context */
 .deck-tag-wrapper {
     position: relative;
     display: inline-block;
 }
-
-/* Expander badge (the "..." button) */
 .deck-tag-expander {
     cursor: pointer;
     background-color: rgba(244, 196, 48, 0.2);
-    border-color: rgba(244, 196, 48, 0.4);
-    transition: background-color 0.2s ease;
+    border-color: var(--accent-border-strong);
+    transition: background-color var(--dur-fast) var(--ease);
 }
-
 .deck-tag-expander:hover {
     background-color: rgba(244, 196, 48, 0.3);
-    border-color: rgba(244, 196, 48, 0.5);
 }
-
-/* Hidden tags container - positioned absolutely to not affect layout */
 .deck-tags-hidden {
     position: absolute;
     top: 100%;
@@ -144,20 +162,24 @@
     gap: 4px;
     margin-top: 2px;
     padding: 6px;
-    background-color: rgba(26, 26, 26, 0.98);
-    border: 1px solid rgba(244, 196, 48, 0.3);
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    background-color: var(--color-elevated);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
     min-width: 200px;
     max-width: 400px;
 }
+.deck-tag-expander:hover + .deck-tags-hidden { display: flex !important; }
+.deck-tags-hidden:hover { display: flex !important; }
 
-/* Show hidden tags when hovering over the expander */
-.deck-tag-expander:hover + .deck-tags-hidden {
-    display: flex !important;
+/* Deck/commander/player links in the table use the shared .player-link look,
+   but these tables render plain <a> — give them the accent treatment too. */
+#deck-stats-table td a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: var(--fw-semibold);
 }
-
-/* Keep hidden tags visible when hovering over them */
-.deck-tags-hidden:hover {
-    display: flex !important;
+#deck-stats-table td a:hover {
+    color: var(--color-accent-strong);
+    text-decoration: underline;
 }
