@@ -1458,17 +1458,67 @@ def _axis_ticks(axis_max: int) -> list[int]:
     return ticks
 
 
-def compute_playgroup_dashboard() -> dict:
+MIN_COMMANDER_RANKING_GAMES = 4
+
+
+def commander_label(commander: str | None, partner: str | None) -> str:
+    """One label per commander, a partner pair counting as ONE commander.
+
+    The pair is sorted so "A + B" and "B + A" decks are the same commander.
+    """
+    names = [n.strip() for n in (commander, partner) if n and n.strip()]
+    return " + ".join(sorted(names)) if len(names) > 1 else (names[0] if names else "Unknown")
+
+
+def compute_cedh_commander_ranking(min_games: int = MIN_COMMANDER_RANKING_GAMES) -> list[dict]:
+    """Winrate ranking of commanders over cEDH games (any player, any deck).
+
+    Grouped by commander only (partner pair = one commander, see
+    commander_label), not by deck or player. Only commanders with at least
+    ``min_games`` cEDH games are included. Ordered by winrate desc, then games
+    desc, then name. Each row: rank, commander, games, wins, winrate (1 dec).
+    """
+    rows = db.session.execute(
+        sa.select(Deck.commander, Deck.partner, Game.winner_id, Participant.player_id)
+        .select_from(Participant)
+        .join(Game, Game.id == Participant.game_id)
+        .join(Deck, Deck.id == Participant.deck_id)
+        .where(Game.cedh.is_(True))
+    ).all()
+    tally: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # label -> [games, wins]
+    for commander, partner, winner_id, player_id in rows:
+        t = tally[commander_label(commander, partner)]
+        t[0] += 1
+        if winner_id is not None and winner_id == player_id:
+            t[1] += 1
+
+    ranked = [
+        {'commander': label, 'games': g, 'wins': w,
+         'winrate': round(w / g * 100, 1) if g else 0.0}
+        for label, (g, w) in tally.items() if g >= min_games
+    ]
+    ranked.sort(key=lambda r: (-r['winrate'], -r['games'], r['commander'].lower()))
+    for i, r in enumerate(ranked, start=1):
+        r['rank'] = i
+    return ranked
+
+
+def compute_playgroup_dashboard(cedh: bool = False) -> dict:
     """Aggregate every metric the Playgroup dashboard (landing page) shows.
 
-    All figures are playgroup-wide aggregates (no individual player/deck is
-    named) over NON-cEDH data only: every game-based metric filters
-    ``games.cedh = false`` (participant-based ones join their game for it), the
-    active-deck count excludes cEDH decks, and the color metrics come from the
-    v_color_usage view, which excludes cEDH games and decks by definition. The
-    player count is a plain count of players.
+    ``cedh`` selects the data set; the two never mix:
+      * casual (default) — non-cEDH games only (``games.cedh = false``), active
+        non-cEDH decks; color metrics from the v_color_usage view.
+      * cEDH — cEDH games only, active cEDH decks; adds ``commander_ranking``.
+        (The cEDH page hides removal and pod size split: removal isn't
+        tracked there and the pod size is fixed.)
+    All figures are playgroup-wide aggregates; participant-based metrics join
+    their game for the filter. Players: casual counts all players; cEDH counts
+    only players with at least one cEDH game.
 
     Returns a dict with keys:
+      mode: 'cedh' | 'casual'
+      commander_ranking: [{rank, commander, games, wins, winrate}] (cEDH only, else [])
       kpis: {games, games_this_month, games_this_year, active_decks, players,
              avg_pod}
       game_length: {hist:[{value,count}], avg, median, max, axis_max, axis_ticks}
@@ -1485,42 +1535,49 @@ def compute_playgroup_dashboard() -> dict:
                    where ``games`` is the number of games with removal data.
     """
     from datetime import date
-    from app.viewmodels import ColorUsage
 
-    # The dashboard is a non-cEDH data hub: this filter applies to EVERY
-    # game-based metric below (same rule as the v_color_usage view).
-    non_cedh = Game.cedh.is_(False)
+    # Casual and cEDH are kept strictly apart: this filter applies to EVERY
+    # game-based metric below.
+    in_mode = Game.cedh.is_(True) if cedh else Game.cedh.is_(False)
 
     # ── KPIs ────────────────────────────────────────────────────────────────
     total_games = db.session.scalar(
-        sa.select(func.count()).select_from(Game).where(non_cedh)
+        sa.select(func.count()).select_from(Game).where(in_mode)
     ) or 0
 
     today = date.today()
     first_of_month = today.replace(day=1)
     games_this_month = db.session.scalar(
         sa.select(func.count()).select_from(Game)
-        .where(non_cedh, Game.date >= first_of_month)
+        .where(in_mode, Game.date >= first_of_month)
     ) or 0
 
     first_of_year = today.replace(month=1, day=1)
     games_this_year = db.session.scalar(
         sa.select(func.count()).select_from(Game)
-        .where(non_cedh, Game.date >= first_of_year)
+        .where(in_mode, Game.date >= first_of_year)
     ) or 0
 
     active_decks = db.session.scalar(
         sa.select(func.count()).select_from(Deck)
-        .where(Deck.active.is_(True), Deck.cedh.is_(False))
+        .where(Deck.active.is_(True), Deck.cedh.is_(bool(cedh)))
     ) or 0
 
-    players = db.session.scalar(sa.select(func.count()).select_from(Player)) or 0
+    if cedh:
+        # cEDH: only players who took part in at least one cEDH game.
+        players = db.session.scalar(
+            sa.select(func.count(func.distinct(Participant.player_id)))
+            .join(Game, Game.id == Participant.game_id)
+            .where(in_mode)
+        ) or 0
+    else:
+        players = db.session.scalar(sa.select(func.count()).select_from(Player)) or 0
 
     # Average pod size = avg participants per (non-cEDH) game.
     total_participants = db.session.scalar(
         sa.select(func.count()).select_from(Participant)
         .join(Game, Game.id == Participant.game_id)
-        .where(non_cedh)
+        .where(in_mode)
     ) or 0
     avg_pod = round(total_participants / total_games, 1) if total_games else 0.0
 
@@ -1535,7 +1592,7 @@ def compute_playgroup_dashboard() -> dict:
 
     # ── Game length (turns) histogram ───────────────────────────────────────
     turns_list = list(db.session.scalars(
-        sa.select(Game.turns).where(non_cedh, Game.turns.isnot(None))
+        sa.select(Game.turns).where(in_mode, Game.turns.isnot(None))
     ).all())
     gl_hist = _histogram(Counter(turns_list))
     gl_axis_max = _nice_axis_max(max((b['count'] for b in gl_hist), default=0))
@@ -1550,7 +1607,7 @@ def compute_playgroup_dashboard() -> dict:
 
     # ── First kill (first_ko_turn) histogram ────────────────────────────────
     ko_list = list(db.session.scalars(
-        sa.select(Game.first_ko_turn).where(non_cedh, Game.first_ko_turn.isnot(None))
+        sa.select(Game.first_ko_turn).where(in_mode, Game.first_ko_turn.isnot(None))
     ).all())
     fk_hist = _histogram(Counter(ko_list))
     fk_axis_max = _nice_axis_max(max((b['count'] for b in fk_hist), default=0))
@@ -1565,7 +1622,7 @@ def compute_playgroup_dashboard() -> dict:
 
     # ── Final blow breakdown (as % of games with a recorded final blow) ──────
     fb_list = list(db.session.scalars(
-        sa.select(Game.final_blow).where(non_cedh, Game.final_blow.isnot(None))
+        sa.select(Game.final_blow).where(in_mode, Game.final_blow.isnot(None))
     ).all())
     fb_total = len(fb_list)
     final_blow = [
@@ -1574,29 +1631,54 @@ def compute_playgroup_dashboard() -> dict:
         for label, count in Counter(fb_list).most_common()
     ]
 
-    # ── Color at the table (v_color_usage: likelihood %, avg decks/table) ────
-    # Fixed WUBRG order with display names; the view is keyed by color name.
+    # ── Color at the table: likelihood % and avg decks per table ────────────
+    # Casual reads the v_color_usage view (non-cEDH by definition). The view
+    # has no cEDH counterpart, so cEDH uses the same maths in Python: the % of
+    # cEDH games a color appears in, and the average number of that color's
+    # decks per cEDH game it appears in.
     _color_order = [
         ('white', 'White'), ('blue', 'Blue'), ('black', 'Black'),
         ('red', 'Red'), ('green', 'Green'),
     ]
-    rows = {r.color.lower(): r for r in ColorUsage.query.all()}
     colors = []
-    for key, name in _color_order:
-        row = rows.get(key) or rows.get(name.lower())
-        colors.append({
-            'key': key,
-            'name': name,
-            'likelihood': round(row.likelihood, 1) if row and row.likelihood is not None else 0.0,
-            'avg_decks': round(row.average, 1) if row and row.average is not None else 0.0,
-        })
+    if cedh:
+        color_rows = db.session.execute(
+            sa.select(Participant.game_id, ColorComponent.color, func.count().label('n'))
+            .join(Game, Game.id == Participant.game_id)
+            .join(Deck, Deck.id == Participant.deck_id)
+            .join(ColorComponent, ColorComponent.color_identity == Deck.color_identity)
+            .where(in_mode)
+            .group_by(Participant.game_id, ColorComponent.color)
+        ).all()
+        per_color: dict[str, list[int]] = defaultdict(list)
+        for _gid, color, n in color_rows:
+            per_color[(color or '').lower()].append(n)
+        for key, name in _color_order:
+            counts = per_color.get(key, [])
+            colors.append({
+                'key': key,
+                'name': name,
+                'likelihood': round(len(counts) / total_games * 100, 1) if total_games else 0.0,
+                'avg_decks': round(sum(counts) / len(counts), 1) if counts else 0.0,
+            })
+    else:
+        from app.viewmodels import ColorUsage
+        rows = {r.color.lower(): r for r in ColorUsage.query.all()}
+        for key, name in _color_order:
+            row = rows.get(key) or rows.get(name.lower())
+            colors.append({
+                'key': key,
+                'name': name,
+                'likelihood': round(row.likelihood, 1) if row and row.likelihood is not None else 0.0,
+                'avg_decks': round(row.average, 1) if row and row.average is not None else 0.0,
+            })
 
     # ── Pod size split ──────────────────────────────────────────────────────
     # Count participants per game, then tally how many games had each pod size.
     size_rows = db.session.execute(
         sa.select(Participant.game_id, func.count().label('n'))
         .join(Game, Game.id == Participant.game_id)
-        .where(non_cedh)
+        .where(in_mode)
         .group_by(Participant.game_id)
     ).all()
     # Only real multiplayer pods (3+). 1- and 2-player games are excluded as
@@ -1626,7 +1708,7 @@ def compute_playgroup_dashboard() -> dict:
     fully_seated_stmt = (
         sa.select(Participant.game_id, _row_count.label('size'))
         .join(Game, Game.id == Participant.game_id)
-        .where(non_cedh)
+        .where(in_mode)
         .group_by(Participant.game_id)
         .having(sa.and_(
             _row_count >= 3,                 # real multiplayer pods only
@@ -1666,7 +1748,7 @@ def compute_playgroup_dashboard() -> dict:
         stmt = (
             sa.select(func.avg(col)).select_from(Participant)
             .join(Game, Game.id == Participant.game_id)
-            .where(non_cedh)
+            .where(in_mode)
         )
         if winners_only:
             stmt = stmt.where(Game.winner_id == Participant.player_id)
@@ -1679,7 +1761,7 @@ def compute_playgroup_dashboard() -> dict:
     removal_games = db.session.scalar(
         sa.select(func.count(func.distinct(Participant.game_id)))
         .join(Game, Game.id == Participant.game_id)
-        .where(non_cedh)
+        .where(in_mode)
         .where(sa.or_(
             Participant.removal_played.isnot(None),
             Participant.targeted_by_removal.isnot(None),
@@ -1695,6 +1777,8 @@ def compute_playgroup_dashboard() -> dict:
     }
 
     return {
+        'mode': 'cedh' if cedh else 'casual',
+        'commander_ranking': compute_cedh_commander_ranking() if cedh else [],
         'kpis': kpis,
         'game_length': game_length,
         'first_kill': first_kill,

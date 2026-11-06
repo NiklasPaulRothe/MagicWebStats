@@ -5,9 +5,24 @@
 {% endblock %}
 
 {% block content %}
-<header class="dash-head">
-    <h1 class="dash-title">Playgroup dashboard</h1>
-    <p class="dash-sub">Everything the pod has tracked &middot; all-time unless noted</p>
+{% set is_cedh = mode == 'cedh' %}
+<header class="dash-head dash-head--toggle">
+    <div>
+        <h1 class="dash-title">{{ 'cEDH dashboard' if is_cedh else 'Playgroup dashboard' }}</h1>
+        <p class="dash-sub">
+            {% if is_cedh %}Everything tracked in cEDH games{% else %}Everything the pod has tracked (casual, no cEDH){% endif %}
+            &middot; all-time unless noted
+        </p>
+    </div>
+    {# Slider switch between the two data sets (links, so it works without JS
+       and the view is bookmarkable: / and /?mode=cedh). #}
+    <nav class="mode-switch{{ ' is-cedh' if is_cedh }}" aria-label="Dashboard data set">
+        <span class="mode-switch__knob" aria-hidden="true"></span>
+        <a class="mode-switch__opt{{ '' if is_cedh else ' is-active' }}" href="{{ url_for('main.index') }}"
+           {% if not is_cedh %}aria-current="page"{% endif %}>Casual</a>
+        <a class="mode-switch__opt{{ ' is-active' if is_cedh }}" href="{{ url_for('main.index', mode='cedh') }}"
+           {% if is_cedh %}aria-current="page"{% endif %}>cEDH</a>
+    </nav>
 </header>
 
 {# ── Row 1: KPI band ─────────────────────────────────────────────────────── #}
@@ -158,8 +173,11 @@
     </section>
 </div>
 
-{# ── Row 4: Pod size split + Turn-order win bias + Removal ────────────────── #}
-<div class="dash-grid dash-grid--3">
+{# ── Row 4 ─ casual: Pod size split + Turn-order win bias + Removal
+           cEDH:   Turn-order win bias + Commander winrate ranking
+   (cEDH has no removal tracking and a fixed pod size.) ─────────────────── #}
+<div class="dash-grid {{ 'dash-grid--2' if is_cedh else 'dash-grid--3' }}">
+    {% if not is_cedh %}
     <section class="panel">
         <h2 class="panel__title">Pod size split</h2>
         <div class="barlist">
@@ -176,6 +194,7 @@
             {% endfor %}
         </div>
     </section>
+    {% endif %}
 
     <section class="panel">
         <h2 class="panel__title">Turn-order win bias</h2>
@@ -218,6 +237,40 @@
         {% endif %}
     </section>
 
+    {% if is_cedh %}
+    <section class="panel">
+        <h2 class="panel__title">Commander winrate</h2>
+        <p class="panel__sub">cEDH games &middot; commanders with at least 4 games &middot; partner pairs count as one commander</p>
+        {% if commander_ranking %}
+        <div class="cmdrank">
+            <table class="cmdrank__table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="cmdrank__num">#</th>
+                        <th scope="col">Commander</th>
+                        <th scope="col" class="cmdrank__num">Games</th>
+                        <th scope="col" class="cmdrank__num">Wins</th>
+                        <th scope="col" class="cmdrank__num">Winrate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in commander_ranking %}
+                    <tr>
+                        <td class="cmdrank__num cmdrank__rank">{{ r.rank }}</td>
+                        <td class="cmdrank__name">{{ r.commander }}</td>
+                        <td class="cmdrank__num">{{ r.games }}</td>
+                        <td class="cmdrank__num">{{ r.wins }}</td>
+                        <td class="cmdrank__num cmdrank__wr">{{ r.winrate }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="panel__empty">No commander has 4 or more cEDH games yet.</p>
+        {% endif %}
+    </section>
+    {% else %}
     <section class="panel">
         <h2 class="panel__title">Removal <span class="panel__title-note">(avg per game)</span></h2>
         <p class="panel__sub">based on {{ removal.games }} game{{ '' if removal.games == 1 else 's' }} with removal data</p>
@@ -239,5 +292,6 @@
             </div>
         </div>
     </section>
+    {% endif %}
 </div>
 {% endblock %}

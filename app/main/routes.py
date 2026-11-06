@@ -55,12 +55,16 @@ def index():
     split, turn-order win bias and the removal matrix. On any computation
     error it falls back to an empty structure so the page still renders.
     """
+    # ?mode=cedh switches to the cEDH dashboard; anything else is casual.
+    cedh = request.args.get('mode') == 'cedh'
     try:
-        data = compute_playgroup_dashboard()
+        data = compute_playgroup_dashboard(cedh=cedh)
     except Exception:
         logger.exception("Failed to compute playgroup dashboard")
         db.session.rollback()
         data = {
+            'mode': 'cedh' if cedh else 'casual',
+            'commander_ranking': [],
             'kpis': {'games': 0, 'games_this_month': 0, 'games_this_year': 0,
                      'active_decks': 0, 'players': 0, 'avg_pod': 0.0},
             'game_length': {'hist': [], 'avg': 0, 'median': 0, 'max': 0,

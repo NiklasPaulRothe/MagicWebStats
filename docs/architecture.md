@@ -54,7 +54,7 @@ Services in `app/services/` encapsulate cross-cutting logic:
 - `elo_service.py` — Elo rating calculations
 - `deck_service.py` — Deck versioning logic
 - `game_service.py` — Game creation and participant handling
-- `stats_service.py` — Complex stat aggregations, incl. `compute_playgroup_dashboard()` (playgroup-wide, non-cEDH aggregates for the Playgroup page: every game metric filters `games.cedh = false`, active decks exclude cEDH decks)
+- `stats_service.py` — Complex stat aggregations, incl. `compute_playgroup_dashboard(cedh=False)` for the Playgroup page. Casual (default, `/`) and cEDH (`/?mode=cedh`, toggled by the slider switch in the page header) never mix: every game metric filters on `games.cedh`, active decks on `decks.cedh`; Players counts all players in casual, but only players with at least one cEDH game in cEDH. Casual colors come from the `v_color_usage` view; cEDH colors use the same maths in Python. The cEDH view drops removal and pod-size split and adds `compute_cedh_commander_ranking()` — winrate per commander (a partner pair counts as one commander, see `commander_label()`), at least 4 cEDH games, ordered by winrate, then games
 - `collection_service.py` — Collection import (standard/Archidekt + ManaBox formats, replace/add modes), single-card add, remove, availability statuses
 
 ### Role-Based Access
@@ -103,7 +103,7 @@ Pages can opt out via `{% block main_inner_class %}`:
 
 | Page | Template | CSS | JS |
 |------|----------|-----|----|
-| Playgroup dashboard | `index.html` | `dashboard.css` | — |
+| Playgroup dashboard (Casual / cEDH) | `index.html` | `dashboard.css` | — |
 | Players / Colors | `stats/playerstats.html`, `stats/colorstats.html` | `playertable.css` | inline |
 | Decks table | `stats/deckstats.html` | `playertable.css`, `deckstats.css` | `deckstats.js` |
 | Deck detail | `decks/show.html` | `playertable.css`, `deckdetail.css` | `deckdetail.js` |
