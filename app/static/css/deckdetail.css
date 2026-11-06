@@ -317,6 +317,7 @@
 .dd-nowrap { white-space: nowrap; }
 .dd-empty { text-align: center; color: var(--color-faint); font-style: italic; padding: var(--space-6); }
 
+.dd-winner { white-space: nowrap; font-weight: var(--fw-semibold); }
 .dd-result { font-weight: var(--fw-bold); font-size: var(--fs-xs); letter-spacing: var(--letter-tracked); }
 .dd-result--win { color: var(--color-win); }
 .dd-result--loss { color: var(--color-loss); }

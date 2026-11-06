@@ -270,6 +270,7 @@
                     <th>Result</th>
                     {% if is_shared_deck %}<th>Pilot</th>{% endif %}
                     <th>Opponents</th>
+                    <th>Winner</th>
                     <th class="dd-num">Turns</th>
                     <th>Final blow</th>
                     {% if show_private_avgs %}<th class="dd-toggle-col"><span class="sr-only">Personal details</span></th>{% endif %}
@@ -277,7 +278,7 @@
             </thead>
             {#- One <tbody> per game (its row + optional personal detail row) so the
                 pager in deckdetail.js can page whole games, 10 at a time. -#}
-            {% set ncols = 5 + (1 if is_shared_deck else 0) + (1 if show_private_avgs else 0) %}
+            {% set ncols = 6 + (1 if is_shared_deck else 0) + (1 if show_private_avgs else 0) %}
             {% for game in games %}
                 {% set has_detail = show_private_avgs and game.participant_data %}
             <tbody class="dd-game">
@@ -296,6 +297,8 @@
                             {%- endfor %}
                         </span>
                     </td>
+                    {# Winner's player name ("Unbekannt" from build_game_history = no winner recorded). #}
+                    <td class="dd-winner">{{ '–' if not game.winner or game.winner == 'Unbekannt' else game.winner }}</td>
                     <td class="dd-num">{{ game.turns }}</td>
                     <td>{{ game.final_blow }}</td>
                     {% if show_private_avgs %}
