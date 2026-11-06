@@ -13,7 +13,12 @@ from app.services.collection_service import (
     get_player_collection,
     get_collection_statuses,
     get_decks_containing_card,
+    get_card_printings,
+    add_single_card,
     COLL_STATUS_SPARE,
+    FINISH_CHOICES,
+    LANGUAGE_CHOICES,
+    MAX_SINGLE_ADD_COUNT,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,13 +61,24 @@ def collection():
         total_cards=total_cards,
         total_value=total_value,
         has_player=player_id is not None,
+        finish_choices=FINISH_CHOICES,
+        language_choices=LANGUAGE_CHOICES,
+        max_add_count=MAX_SINGLE_ADD_COUNT,
     )
 
 
 @bp.route('/collection/import', methods=['POST'])
 @login_required
 def import_collection():
-    """Import a collection CSV for the current user's player (replace mode)."""
+    """Import a collection CSV (standard or ManaBox) for the current player.
+
+    Form field `mode`: 'replace' (default — the file becomes the whole
+    collection) or 'add' (merge: counts are added to matching entries).
+    """
+    mode = request.form.get('mode', 'replace')
+    if mode not in ('replace', 'add'):
+        flash('Unknown import mode.', 'error')
+        return redirect(url_for('collection.collection'))
     player_id = current_user.player_id
     if player_id is None:
         flash('Your account is not linked to a player, so a collection '
@@ -92,7 +108,7 @@ def import_collection():
 
     try:
         result = import_player_collection(
-            player_id, io.StringIO(text), replace=True
+            player_id, io.StringIO(text), replace=(mode == 'replace')
         )
         db.session.commit()
     except ValueError as exc:
@@ -106,7 +122,7 @@ def import_collection():
         return redirect(url_for('collection.collection'))
 
     flash(
-        f'Imported {result.imported} card entr'
+        f'{"Added" if mode == "add" else "Imported"} {result.imported} card entr'
         f'{"y" if result.imported == 1 else "ies"} '
         f'({result.total_quantity} cards total).',
         'success',
@@ -128,6 +144,62 @@ def import_collection():
         )
 
     return redirect(url_for('collection.collection'))
+
+
+# --- Single-card add (3-step dialog on the collection page) ---------------
+# Step 1 uses the shared name autocomplete (/api/cards/autocomplete). Step 2
+# lists the printings of the chosen name; step 3 posts the chosen printing with
+# amount/finish/language. JSON endpoints; CSRF via the X-CSRFToken header.
+
+@bp.route('/collection/printings', methods=['GET'])
+@login_required
+def collection_printings():
+    """Printings of a card by exact name: [{id, set_code, set_name, released_at, image}]."""
+    name = (request.args.get('name') or '').strip()
+    if not name:
+        return jsonify({'ok': False, 'message': 'Card name is required.'}), 400
+    printings = get_card_printings(name)
+    if not printings:
+        return jsonify({'ok': False, 'message': f'No card named "{name}" was found.'}), 404
+    return jsonify({'ok': True, 'name': printings[0]['name'], 'printings': printings})
+
+
+@bp.route('/collection/add', methods=['POST'])
+@login_required
+def collection_add_card():
+    """Add copies of one printing: JSON {card_id, count, finish, language}."""
+    player_id = current_user.player_id
+    if player_id is None:
+        return jsonify({'ok': False, 'message': 'No player linked to this account.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    try:
+        entry, created = add_single_card(
+            player_id,
+            data.get('card_id'),
+            data.get('count'),
+            data.get('finish'),
+            data.get('language'),
+        )
+        db.session.commit()
+    except LookupError as exc:
+        db.session.rollback()
+        return jsonify({'ok': False, 'message': str(exc)}), 404
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'ok': False, 'message': str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception('Single-card add failed for player %s', player_id)
+        return jsonify({'ok': False, 'message': 'The card could not be added.'}), 500
+
+    added = data.get('count')
+    flash(
+        f'Added {added}\u00d7 {entry.name} ({entry.set_name}, {entry.finish}, {entry.language})'
+        + ('' if created else f' \u2014 you now have {entry.count}.'),
+        'success',
+    )
+    return jsonify({'ok': True, 'created': created, 'count': entry.count})
 
 
 def _front_image(card):

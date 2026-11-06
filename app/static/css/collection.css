@@ -91,14 +91,14 @@
 }
 
 .collection-import-body {
-    padding: 0.85rem 0.9rem;
+    padding: 1rem 1.1rem 1.1rem;
 }
 
 .collection-import-form {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
     /* Override the global form { max-width:1000px; margin:0 auto } cap. */
     max-width: none;
     margin: 0;
@@ -107,17 +107,75 @@
 }
 
 .collection-import-btn {
-    padding: 0.35rem 1rem;
+    margin: 0;
+    padding: 0.5rem 1.4rem;
     border: none;
     border-radius: 6px;
     background: #f4c430;
     color: #1b1b1f;
+    font-size: 0.92rem;
     font-weight: 700;
     cursor: pointer;
 }
 
 .collection-import-btn:hover {
     filter: brightness(1.05);
+    background: #f4c430;
+    color: #1b1b1f;
+}
+
+.collection-import-btn:focus-visible { outline: 2px solid #f4c430; outline-offset: 2px; }
+
+/* Import panel sections: a small label over each block, readable body text. */
+.ci-section { display: flex; flex-direction: column; gap: 0.4rem; margin: 0; }
+.ci-heading {
+    display: block;
+    margin: 0;
+    padding: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #9aa0a6;
+}
+.ci-formats {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: antiquewhite;
+}
+.ci-file { font-size: 0.9rem; color: #cfcfd4; max-width: 100%; }
+
+.ci-modes { padding: 0; border: 0; gap: 0.5rem; }
+.ci-modes legend { margin-bottom: 0.4rem; }
+.ci-mode {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin: 0;                 /* undo basic.css `form label` (block/bold/gold/margin) */
+    font-weight: normal;
+    color: inherit;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 7px;
+    cursor: pointer;
+}
+.ci-mode:hover { border-color: rgba(244, 196, 48, 0.45); }
+.ci-mode:has(input:checked) { border-color: #f4c430; background: rgba(244, 196, 48, 0.08); }
+.ci-mode input { accent-color: #f4c430; margin: 0.2rem 0 0; flex: 0 0 auto; }
+.ci-mode-title { display: block; font-size: 0.92rem; font-weight: 600; color: #fff; }
+.ci-mode-desc { display: block; margin-top: 0.15rem; font-size: 0.84rem; line-height: 1.45; color: #b6b6bd; }
+
+.ci-note { margin: 0; font-size: 0.84rem; line-height: 1.45; color: #9aa0a6; }
+
+/* Own row, right-aligned, with breathing room above (the panel padding keeps
+   it off the border). */
+.ci-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* --- Sort controls --- */
@@ -176,13 +234,6 @@
 
 .collection-sort-dir:hover {
     border-color: #f4c430;
-}
-
-.collection-import-hint {
-    margin: 0.75rem 0 0;
-    font-size: 0.82rem;
-    color: #a8a8b0;
-    line-height: 1.5;
 }
 
 /* --- Card gallery --- */
@@ -713,4 +764,211 @@
     font-size: 0.78rem;
     color: #8b949e;
     margin-bottom: 0.3rem;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Import mode + "Add card" (3-step dialog, js/collection_add.js)
+   Buttons set every property explicitly to override basic.css `button`.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.collection-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.6rem;
+}
+
+.collection-add-open {
+    padding: 0.4rem 0.9rem;
+    margin: 0;
+    border: 1px solid rgba(244, 196, 48, 0.6);
+    border-radius: 6px;
+    background: transparent;
+    color: #f4c430;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.collection-add-open:hover { background: #f4c430; color: #1b1b1f; }
+.collection-add-open:focus-visible { outline: 2px solid #f4c430; outline-offset: 2px; }
+
+/* ── Dialog shell ────────────────────────────────────────────────────────── */
+.ca-modal[hidden] { display: none; }
+.ca-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.ca-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.65); }
+.ca-dialog {
+    position: relative;
+    width: min(760px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    background: #1b1b1f;
+    color: antiquewhite;
+    border: 1px solid rgba(244, 196, 48, 0.35);
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+    padding: 20px 22px 22px;
+}
+body.ca-open { overflow: hidden; }
+
+.ca-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #cfcfd4;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.ca-close:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.ca-title { margin: 0 0 10px; color: #f4c430; font-size: 1.2rem; }
+
+.ca-steps {
+    list-style: none;
+    display: flex;
+    gap: 6px;
+    margin: 0 0 16px;
+    padding: 0;
+    font-size: 0.78rem;
+    color: #9aa0a6;
+}
+.ca-steps li {
+    flex: 1 1 0;
+    padding: 4px 8px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+    counter-increment: castep;
+}
+.ca-steps { counter-reset: castep; }
+.ca-steps li::before { content: counter(castep) ". "; }
+.ca-steps li.is-done { color: #cfcfd4; border-color: rgba(244, 196, 48, 0.45); }
+.ca-steps li.is-active { color: #f4c430; font-weight: 600; border-color: #f4c430; }
+
+/* Room for the name autocomplete dropdown (max 240px) inside the scrolling dialog. */
+.ca-step[data-step="1"] { min-height: 300px; }
+
+.ca-label { display: block; margin: 0 0 6px; font-size: 0.82rem; color: #9aa0a6; }
+.ca-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 7px;
+    background: #23232a;
+    color: #fff;
+    font: inherit;
+    font-size: 0.95rem;
+}
+.ca-input:focus { outline: none; border-color: #f4c430; box-shadow: 0 0 0 2px rgba(244, 196, 48, 0.2); }
+.ca-hint { margin: 0 0 10px; color: #cfcfd4; font-size: 0.9rem; }
+.ca-error { margin: 10px 0 0; color: #e5686c; font-size: 0.85rem; }
+
+.ca-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.ca-btn {
+    padding: 8px 16px;
+    margin: 0;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 7px;
+    background: transparent;
+    color: #cfcfd4;
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.ca-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.ca-btn--primary { background: #f4c430; border-color: #f4c430; color: #1b1b1f; font-weight: 600; }
+.ca-btn--primary:hover { background: #ffd450; color: #1b1b1f; }
+.ca-btn:disabled { opacity: 0.6; cursor: default; }
+.ca-btn:focus-visible { outline: 2px solid #f4c430; outline-offset: 2px; }
+
+/* ── Step 2: printing grid (image + edition name below) ─────────────────── */
+.ca-printings {
+    list-style: none;
+    margin: 0;
+    padding: 2px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    max-height: min(56vh, 620px);
+    overflow-y: auto;
+}
+.ca-printing {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    width: 100%;
+    margin: 0;
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    background: #23232a;
+    color: antiquewhite;
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.ca-printing:hover,
+.ca-printing:focus-visible {
+    border-color: #f4c430;
+    transform: translateY(-2px);
+    background: #23232a;
+    color: antiquewhite;
+    outline: none;
+}
+.ca-printing-img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 488 / 680;
+    object-fit: cover;
+    border-radius: 4.75% / 3.5%;
+    background: #111;
+}
+.ca-printing-ph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    font-size: 0.8rem;
+    color: #9aa0a6;
+}
+.ca-printing-set { font-size: 0.82rem; font-weight: 600; color: #fff; line-height: 1.25; }
+.ca-printing-meta { font-size: 0.72rem; color: #9aa0a6; }
+
+/* ── Step 3: chosen printing + fields ───────────────────────────────────── */
+.ca-chosen { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.ca-chosen-img { width: 96px; border-radius: 6px; flex: 0 0 auto; }
+.ca-chosen-name { font-weight: 700; color: #fff; font-size: 1.05rem; }
+.ca-chosen-set { color: #9aa0a6; font-size: 0.88rem; margin-top: 2px; }
+.ca-fields {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px 14px;
+    max-width: 420px;
+}
+.ca-fields .ca-label { margin: 0; }
+
+@media (max-width: 560px) {
+    .ca-dialog { padding: 16px; }
+    .ca-printings { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+    .ca-fields { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ca-printing { transition: none; }
 }

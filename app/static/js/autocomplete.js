@@ -7,13 +7,19 @@
  * @param {string} [options.apiUrl='/api/cards/autocomplete'] - The API endpoint URL
  * @param {number} [options.minChars=2] - Minimum characters before triggering
  * @param {number} [options.debounceMs=250] - Debounce delay in ms
+ * @param {Function} [options.onSelect] - Called with the chosen name after a
+ *        suggestion is picked (mouse or Enter).
  */
 function initAutocomplete(inputElement, options) {
     const config = {
         apiUrl: (options && options.apiUrl) || '/api/cards/autocomplete',
         minChars: (options && options.minChars) || 2,
-        debounceMs: (options && options.debounceMs) || 250
+        debounceMs: (options && options.debounceMs) || 250,
+        onSelect: (options && typeof options.onSelect === 'function') ? options.onSelect : null
     };
+    // Set while the synthetic 'input' event from a selection is dispatched, so
+    // it doesn't trigger a fresh fetch that would reopen the dropdown.
+    let selecting = false;
 
     // Generate a unique ID for ARIA references
     const uniqueId = 'ac-' + Math.random().toString(36).substring(2, 9);
@@ -98,10 +104,19 @@ function initAutocomplete(inputElement, options) {
 
     function selectSuggestion(index) {
         if (index >= 0 && index < suggestions.length) {
-            inputElement.value = suggestions[index];
+            var chosen = suggestions[index];
+            inputElement.value = chosen;
             clearSuggestions();
             // Dispatch input event so any other listeners are notified
-            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+            selecting = true;
+            try {
+                inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+            } finally {
+                selecting = false;
+            }
+            if (config.onSelect) {
+                config.onSelect(chosen);
+            }
         }
     }
 
@@ -160,6 +175,9 @@ function initAutocomplete(inputElement, options) {
     // --- Event Handlers ---
 
     inputElement.addEventListener('input', function () {
+        if (selecting) {
+            return;  // value came from picking a suggestion; don't refetch
+        }
         var query = inputElement.value.trim();
 
         // Clear any pending debounce

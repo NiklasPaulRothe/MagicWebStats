@@ -1,8 +1,10 @@
 """Collection service: import a player's card collection from a CSV export.
 
-Parses a collection CSV (the Moxfield/ManaBox-style export whose header is
+Parses a collection CSV — either the standard export whose header is
 `Quantity,Name,Finish,Condition,Date Added,Language,Purchase Price,Tags,
-Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number`), collapses
+Edition Name,Edition Code,Multiverse Id,Scryfall ID,Collector Number`, or a
+ManaBox export (detected from its header and mapped onto the standard columns,
+see detect_csv_format / _manabox_to_standard) — collapses
 rows into counts, resolves each to a card in our DB, and writes
 PlayerCollectionCard rows.
 
@@ -61,6 +63,84 @@ REQUIRED_COLUMNS = {
     COL_LANGUAGE,
     COL_SCRYFALL_ID,
 }
+
+# --- ManaBox export ----------------------------------------------------------
+# Header: Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,
+# ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Signed,Condition,
+# Language,Proxy,Purchase price currency,Added
+# Rows are mapped onto the standard column names above (and their values onto
+# the tokens the collection already stores: Normal/Foil/Etched, NM/LP/MP/HP/D,
+# EN/DE/...) so the rest of the pipeline — collapse, exact-printing match,
+# replace/merge — is shared unchanged.
+MB_NAME = "Name"
+MB_SET_CODE = "Set code"
+MB_SET_NAME = "Set name"
+MB_COLLECTOR_NUMBER = "Collector number"
+MB_FOIL = "Foil"
+MB_QUANTITY = "Quantity"
+MB_SCRYFALL_ID = "Scryfall ID"
+MB_CONDITION = "Condition"
+MB_LANGUAGE = "Language"
+
+MANABOX_REQUIRED_COLUMNS = {
+    MB_NAME, MB_FOIL, MB_QUANTITY, MB_SCRYFALL_ID, MB_CONDITION, MB_LANGUAGE,
+}
+# Columns only ManaBox has; any of them marks a file as a ManaBox export.
+_MANABOX_MARKERS = {"ManaBox ID", MB_FOIL, MB_SET_CODE}
+
+FORMAT_STANDARD = "standard"
+FORMAT_MANABOX = "manabox"
+
+# Canonical tokens (what the collection already stores / the UI offers).
+FINISH_CHOICES = ("Normal", "Foil", "Etched")
+CONDITION_CHOICES = ("NM", "LP", "MP", "HP", "D")
+LANGUAGE_CHOICES = (
+    ("EN", "English"), ("DE", "German"), ("FR", "French"), ("IT", "Italian"),
+    ("SP", "Spanish"), ("PT", "Portuguese"), ("JP", "Japanese"),
+    ("KR", "Korean"), ("RU", "Russian"), ("CS", "Chinese (Simplified)"),
+    ("CT", "Chinese (Traditional)"),
+)
+DEFAULT_CONDITION = "NM"
+
+_MANABOX_FINISH = {"normal": "Normal", "foil": "Foil", "etched": "Etched"}
+_MANABOX_CONDITION = {
+    "mint": "NM", "near_mint": "NM",
+    "excellent": "LP", "light_played": "LP",
+    "good": "MP", "played": "HP", "poor": "D",
+}
+# ManaBox uses Scryfall language codes; map to the collection's tokens.
+_MANABOX_LANGUAGE = {
+    "en": "EN", "de": "DE", "fr": "FR", "it": "IT", "es": "SP", "pt": "PT",
+    "ja": "JP", "ko": "KR", "ru": "RU", "zhs": "CS", "zht": "CT",
+}
+
+
+def detect_csv_format(fieldnames: Iterable[str] | None) -> str:
+    """Return FORMAT_MANABOX when the header looks like a ManaBox export."""
+    header = set(fieldnames or [])
+    return FORMAT_MANABOX if header & _MANABOX_MARKERS else FORMAT_STANDARD
+
+
+def _manabox_to_standard(row: dict) -> dict:
+    """Map one ManaBox row onto the standard column names and value tokens.
+
+    Unknown finish/condition/language values are kept (title-/upper-cased)
+    rather than dropped, so nothing is silently rewritten to a wrong value.
+    """
+    foil = _clean(row.get(MB_FOIL)).lower()
+    condition = _clean(row.get(MB_CONDITION)).lower()
+    language = _clean(row.get(MB_LANGUAGE)).lower()
+    return {
+        COL_QUANTITY: row.get(MB_QUANTITY),
+        COL_NAME: row.get(MB_NAME),
+        COL_FINISH: _MANABOX_FINISH.get(foil, foil.title() or "Normal"),
+        COL_CONDITION: _MANABOX_CONDITION.get(condition, condition.upper() or DEFAULT_CONDITION),
+        COL_LANGUAGE: _MANABOX_LANGUAGE.get(language, language.upper() or "EN"),
+        COL_SCRYFALL_ID: row.get(MB_SCRYFALL_ID),
+        COL_EDITION_CODE: row.get(MB_SET_CODE),
+        COL_EDITION_NAME: row.get(MB_SET_NAME),
+        COL_COLLECTOR_NUMBER: row.get(MB_COLLECTOR_NUMBER),
+    }
 
 
 @dataclass
@@ -167,10 +247,20 @@ def collapse_rows(rows: Iterable[dict]) -> tuple[list[CollapsedEntry], ImportRes
 def parse_collection_csv(stream: TextIO) -> tuple[list[CollapsedEntry], ImportResult]:
     """Read and collapse a collection CSV from an open text stream.
 
+    Accepts the standard export and ManaBox exports (detected from the header;
+    ManaBox rows are mapped onto the standard columns first).
     Raises ValueError if required columns are missing from the header.
     """
     reader = csv.DictReader(stream)
     header = set(reader.fieldnames or [])
+    if detect_csv_format(header) == FORMAT_MANABOX:
+        missing = MANABOX_REQUIRED_COLUMNS - header
+        if missing:
+            raise ValueError(
+                "ManaBox CSV is missing required column(s): " + ", ".join(sorted(missing))
+            )
+        return collapse_rows(_manabox_to_standard(row) for row in reader)
+
     missing = REQUIRED_COLUMNS - header
     if missing:
         raise ValueError(
@@ -290,6 +380,122 @@ def _existing_card_ids(scryfall_ids: Iterable[str]) -> set[str]:
         ).all()
         found.update(rows)
     return found
+
+
+# --- Single-card add ---------------------------------------------------------
+
+MAX_SINGLE_ADD_COUNT = 999
+
+
+def _sized_image(uri: str | None, size: str = "normal") -> str | None:
+    """Swap the Scryfall CDN size segment ('/large/') for a smaller one."""
+    if not uri:
+        return None
+    return uri.replace("/large/", f"/{size}/", 1)
+
+
+def get_card_printings(name: str) -> list[dict]:
+    """All locally stored printings of a card by exact name, newest first.
+
+    Each dict: id, name, set_code, set_name, released_at (ISO or None),
+    image (front face, 'normal' size or None).
+    """
+    from app.models import CardFace
+
+    name = (name or "").strip()
+    if not name:
+        return []
+    cards = db.session.scalars(
+        sa.select(Card)
+        .where(Card.name == name)
+        .order_by(Card.released_at.desc().nulls_last(), Card.set_name.asc())
+    ).all()
+    if not cards:
+        return []
+
+    face_rows = db.session.execute(
+        sa.select(CardFace.card_id, CardFace.face_index, CardFace.image_uri)
+        .where(CardFace.card_id.in_([c.id for c in cards]))
+        .order_by(CardFace.face_index)
+    ).all()
+    images: dict[str, str] = {}
+    for card_id, _idx, uri in face_rows:
+        if uri and card_id not in images:  # front face first, else first with an image
+            images[card_id] = uri
+
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "set_code": c.set_code,
+            "set_name": c.set_name,
+            "released_at": c.released_at.isoformat() if c.released_at else None,
+            "image": _sized_image(images.get(c.id)),
+        }
+        for c in cards
+    ]
+
+
+def add_single_card(
+    player_id: int,
+    card_id: str,
+    count: int,
+    finish: str,
+    language: str,
+    condition: str = DEFAULT_CONDITION,
+) -> tuple[PlayerCollectionCard, bool]:
+    """Add `count` copies of one exact printing to a player's collection.
+
+    Merges into an existing entry with the same (scryfall_id, finish,
+    condition, language) — the collection's dedup key — by adding to its count;
+    otherwise inserts a new entry. Descriptive fields come from the Card row.
+    Does NOT commit.
+
+    Returns (entry, created). Raises LookupError for an unknown card and
+    ValueError for an invalid count/finish/language/condition.
+    """
+    if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= MAX_SINGLE_ADD_COUNT:
+        raise ValueError(f"Amount must be a whole number between 1 and {MAX_SINGLE_ADD_COUNT}.")
+    if finish not in FINISH_CHOICES:
+        raise ValueError("Unknown finish.")
+    if language not in {code for code, _label in LANGUAGE_CHOICES}:
+        raise ValueError("Unknown language.")
+    if condition not in CONDITION_CHOICES:
+        raise ValueError("Unknown condition.")
+
+    card = db.session.get(Card, card_id) if card_id else None
+    if card is None:
+        raise LookupError("Card not found.")
+
+    existing = db.session.scalar(
+        sa.select(PlayerCollectionCard).where(
+            PlayerCollectionCard.player_id == player_id,
+            PlayerCollectionCard.scryfall_id == card.id,
+            PlayerCollectionCard.finish == finish,
+            PlayerCollectionCard.condition == condition,
+            PlayerCollectionCard.language == language,
+        )
+    )
+    if existing is not None:
+        existing.count += count
+        existing.card_id = card.id
+        return existing, False
+
+    entry = PlayerCollectionCard(
+        player_id=player_id,
+        card_id=card.id,
+        scryfall_id=card.id,
+        finish=finish,
+        condition=condition,
+        language=language,
+        name=card.name,
+        set_code=card.set_code,
+        set_name=card.set_name,
+        collector_number=None,  # not stored on cards
+        count=count,
+    )
+    db.session.add(entry)
+    return entry, True
 
 
 # Finish values (from the CSV `Finish` column) that denote a foil printing.
