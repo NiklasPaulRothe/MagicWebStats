@@ -530,12 +530,10 @@ def calculate_elo():
     return redirect(url_for('main.index'), code=302)
 
 
-# --- Archidekt-style deck overview (link-only, no auth) ---
+# --- Archidekt-style deck overview (login required) ---
 #
-# This page is intentionally NOT @login_required: it is reachable by anyone who
-# holds the deck link (the deck id acts as the shareable handle for now; a
-# dedicated share-token can replace it later without changing the template).
-# It renders the deck's cards as image stacks grouped by card type, mirroring
+# Every page of this site requires a login; nothing is reachable anonymously
+# (see .kiro/steering/authentication.md). It renders the deck's cards as image stacks grouped by card type, mirroring
 # the Archidekt deck view.
 
 # Display order of type groups. A card is placed in the first bucket whose
@@ -708,8 +706,9 @@ def build_collection_card_groups(deck, viewer_player_id):
 
 
 @bp.route('/overview/<int:deck_id>', methods=['GET'], strict_slashes=False)
+@login_required
 def deck_overview(deck_id):
-    """Public, link-only overview of a deck's cards as type-grouped stacks."""
+    """Overview of a deck's cards as type-grouped stacks (login required)."""
     deck = db.get_or_404(models.Deck, deck_id)
 
     # Only cards that are actually part of the deck (excludes Maybeboard /
@@ -900,12 +899,13 @@ def deck_overview(deck_id):
 
 
 # --- Card detail JSON (powers the overview's card popup) ---
-# Public, like the overview it serves: returns a card's image(s), faces with
+# Login required, like the overview it serves: returns a card's image(s), faces with
 # readable oracle text, and its rulings (by oracle_id). Rulings are empty until
 # the nightly fetch populates card_rulings. This is intentionally a small JSON
 # endpoint so a lightweight modal can render it now and a full card page can
 # reuse the same data later.
 @bp.route('/card/<card_id>', methods=['GET'], strict_slashes=False)
+@login_required
 def card_detail(card_id):
     from flask import jsonify
 
@@ -959,6 +959,7 @@ def _front_image(card):
 # printing. (Names can differ for reversible_card layouts, so we key on
 # oracle_id rather than name.) ---
 @bp.route('/<int:deck_id>/card/<card_id>/printings', methods=['GET'], strict_slashes=False)
+@login_required
 def card_printings(deck_id, card_id):
     from flask import jsonify
 

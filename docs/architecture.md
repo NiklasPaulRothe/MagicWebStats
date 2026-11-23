@@ -78,6 +78,15 @@ and is denied everywhere (fail-closed); production additionally enforces the
 allowed set with the `ck_users_role` CHECK constraint. All API endpoints
 require authentication.
 
+### Authentication rule: nothing is public
+
+The site is private. **Every route requires login** (`@login_required`). There
+is no link-only access, and an id in a URL is never a credential. "Public" means
+visible to every logged-in user. The only routes reachable without login are
+`auth.login`, `auth.register`, `auth.logout`, `main.healthz` (status only),
+static assets and error pages. Any other unauthenticated route needs the
+owner's explicit approval. Check new routes against this list.
+
 ## Frontend Structure
 
 The UI uses one app shell (`app/templates/base.html`): a dark/gold sidebar
