@@ -158,6 +158,10 @@ def game_edit(game_id):
     participant_names = [(p.name, p.name) for _, p, _ in participants_query]
     form.winner.choices = participant_names
 
+    # Lenders may be any player, including ones not in this game
+    all_player_names = get_players()
+    all_player_choices = [(n, n) for n in all_player_names]
+
     # Build decks list for JS widget (same format as game_add)
     decks = get_active_decks()
 
@@ -337,8 +341,8 @@ def game_edit(game_id):
         # Set deck choices for the newly added entry
         form.participants[-1].deck.choices = deck_choices
 
-        # Set lender choices (all players)
-        form.participants[-1].lender.choices = participant_names
+        # Set lender choices (all players, not just participants)
+        form.participants[-1].lender.choices = all_player_choices
 
     # Pre-populate "My Game" section if Niklas is a participant
     if niklas_is_participant and niklas_participant:
@@ -360,7 +364,8 @@ def game_edit(game_id):
     game_condition_suggestions = sorted(set(r[0] for r in combined))
 
     # Extract player names for JavaScript
-    player_names_list = [p[0] for p in participant_names]
+    # (all players: a deck can be borrowed from a non-participating player)
+    player_names_list = all_player_names
 
     return render_template('stats/game_edit.html',
                          form=form,
