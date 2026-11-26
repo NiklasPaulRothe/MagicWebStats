@@ -135,7 +135,11 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
     for card in deck.cards:
         try:
             name = card.card.oracle_card.name
-            categories = list(card.categories)
+            # De-duplicate while keeping order: Archidekt can list the same
+            # category twice on one card (e.g. ['Removal (Artifact)',
+            # 'Removal (Artifact)']), which would violate the
+            # (deck_component_id, category) primary key and abort the import.
+            categories = list(dict.fromkeys(card.categories))
             primary_category = categories[0] if categories else None
             in_deck = primary_category in included_categories
 
@@ -147,31 +151,38 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
             # records which ones are part of the actual deck. The finish comes
             # from Archidekt's per-card `modifier` (Normal/Foil/Etched); set it
             # so the collection match targets the right printing+finish.
-            component = DeckComponent(
-                deck_id=deck_id,
-                card_id=card_id,
-                name=name,
-                count=card.quantity,
-                in_deck=in_deck,
-                physical_finish=normalize_finish(getattr(card, 'modifier', None)),
-            )
-            db.session.add(component)
-            # Persist every category (ordered) in the normalized child table.
-            # position 0 = primary/main; position >= 1 = secondary (for later).
-            # Flush first so the component has an id to reference.
-            db.session.flush()
-            for position, category in enumerate(categories):
-                db.session.add(DeckComponentCategory(
-                    deck_component_id=component.id,
-                    category=category,
-                    position=position,
-                ))
+            # Each card gets its own SAVEPOINT: if this card fails to save, only
+            # it is rolled back and the rest of the import (and the deck link,
+            # which is in the same transaction) still commits.
+            with db.session.begin_nested():
+                component = DeckComponent(
+                    deck_id=deck_id,
+                    card_id=card_id,
+                    name=name,
+                    count=card.quantity,
+                    in_deck=in_deck,
+                    physical_finish=normalize_finish(getattr(card, 'modifier', None)),
+                )
+                db.session.add(component)
+                # Persist every category (ordered) in the normalized child table.
+                # position 0 = primary/main; position >= 1 = secondary (for later).
+                # Flush first so the component has an id to reference.
+                db.session.flush()
+                for position, category in enumerate(categories):
+                    db.session.add(DeckComponentCategory(
+                        deck_component_id=component.id,
+                        category=category,
+                        position=position,
+                    ))
+                db.session.flush()
         except Exception:
             name = getattr(getattr(getattr(card, 'card', None), 'oracle_card', None), 'name', '?')
             logger.error('%s could not be processed: %s', name, traceback.format_exc())
             continue
     
-    # Handle deck tags
+    # Handle deck tags inside a SAVEPOINT so a tag error rolls back only the
+    # tag changes, not the cards or the deck link.
+    tag_savepoint = db.session.begin_nested()
     try:
         # Get tags from the Archidekt deck object
         deck_tags = getattr(deck, 'deck_tags', [])
@@ -194,7 +205,10 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
                 seen.add(name)
                 db.session.add(DeckTag(deck_id=deck_id, tag=name))
             logger.info('Saved %d tags for deck %s', len(seen), deck_id)
+        db.session.flush()
+        tag_savepoint.commit()
     except Exception as e:
+        tag_savepoint.rollback()
         logger.error('Error saving tags for deck %s: %s%s', deck_id, str(e), traceback.format_exc())
     
     try:
@@ -242,20 +256,25 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
                 card = entry.get('card', {})
                 name = card.get('name', card_name)
                 card_id = resolve_card_id(card.get('scryfall_id'), name)
-                component = DeckComponent(
-                    deck_id=deck_id,
-                    card_id=card_id,
-                    name=name,
-                    count=entry.get('quantity', 1),
-                    in_deck=is_in_deck,
-                    physical_finish=moxfield_entry_finish(entry),
-                )
-                db.session.add(component)
+                # Own SAVEPOINT per card (see load_cards_from_archidekt).
+                with db.session.begin_nested():
+                    component = DeckComponent(
+                        deck_id=deck_id,
+                        card_id=card_id,
+                        name=name,
+                        count=entry.get('quantity', 1),
+                        in_deck=is_in_deck,
+                        physical_finish=moxfield_entry_finish(entry),
+                    )
+                    db.session.add(component)
+                    db.session.flush()
             except Exception:
                 logger.error('%s could not be processed: %s', card_name, traceback.format_exc())
                 continue
 
-    # Handle deck tags
+    # Handle deck tags inside a SAVEPOINT so a tag error rolls back only the
+    # tag changes, not the cards or the deck link.
+    tag_savepoint = db.session.begin_nested()
     try:
         # Moxfield has no single flat "tags" list like Archidekt's deck_tags.
         # User-applied tags live in `authorTags`, which is an object/map of
@@ -307,7 +326,10 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
             db.session.add(deck_tag)
         if seen:
             logger.info('Saved %d tags for deck %s', len(seen), deck_id)
+        db.session.flush()
+        tag_savepoint.commit()
     except Exception as e:
+        tag_savepoint.rollback()
         logger.error('Error saving tags for deck %s: %s%s', deck_id, str(e), traceback.format_exc())
 
     try:
