@@ -77,6 +77,12 @@ def moxfield_entry_finish(entry: dict) -> str:
     return _FINISH_NORMAL
 
 
+# Archidekt primary category whose cards are not imported (compared
+# lower-case). Sideboard cards are skipped until the deckbuilder feature
+# brings them back.
+SKIPPED_ARCHIDEKT_CATEGORY = 'sideboard'
+
+
 MOXFIELD_API_BASE = 'https://api2.moxfield.com/v2'
 # Moxfield sits behind Cloudflare and rejects requests without a browser-like
 # User-Agent, so we send one explicitly.
@@ -141,13 +147,19 @@ def load_cards_from_archidekt(archidekt_id, deck_id):
             # (deck_component_id, category) primary key and abort the import.
             categories = list(dict.fromkeys(card.categories))
             primary_category = categories[0] if categories else None
+            # Sideboard cards are not imported for now (they confuse the
+            # current deck view; Archidekt may even mark the Sideboard
+            # category as "included in deck"). To be reintroduced with the
+            # deckbuilder feature.
+            if (primary_category or '').strip().lower() == SKIPPED_ARCHIDEKT_CATEGORY:
+                continue
             in_deck = primary_category in included_categories
 
             # Resolve to a card_id that exists in our DB (falls back to another
             # printing by name when the exact printing isn't stored).
             card_id = resolve_card_id(card.card.uid, name)
 
-            # Import ALL cards (in-deck and excluded alike); the in_deck flag
+            # Import all non-sideboard cards (in-deck and excluded alike); the in_deck flag
             # records which ones are part of the actual deck. The finish comes
             # from Archidekt's per-card `modifier` (Normal/Foil/Etched); set it
             # so the collection match targets the right printing+finish.
@@ -242,11 +254,12 @@ def load_cards_from_moxfield(moxfield_id, deck_id):
     # card name whose value holds `quantity` and a nested `card` object. The
     # boards that make up the actual deck are commanders, mainboard, companions
     # and signatureSpells; sideboard, maybeboard, attractions, stickers and
-    # tokens are NOT part of the deck. We import every board now (so excluded
-    # cards still land in the DB for later features) and record which ones are
-    # in the deck via the in_deck flag.
+    # tokens are NOT part of the deck. We import every board except the
+    # sideboard (so other excluded cards still land in the DB for later
+    # features) and record which ones are in the deck via the in_deck flag.
+    # The sideboard is skipped for now; it returns with the deckbuilder feature.
     in_deck_boards = {'commanders', 'mainboard', 'companions', 'signatureSpells'}
-    other_boards = {'sideboard', 'maybeboard', 'attractions', 'stickers', 'tokens'}
+    other_boards = {'maybeboard', 'attractions', 'stickers', 'tokens'}
 
     for board_name in in_deck_boards | other_boards:
         board = deck.get(board_name) or {}
